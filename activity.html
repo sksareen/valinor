@@ -1,0 +1,1647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<title>Activity</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; background: #05060a; overflow: hidden;
+    font-family: Lato, sans-serif; color: #e2e8f0; }
+  button { font-family: inherit; }
+
+  #app { position: fixed; inset: 0; padding-top: 44px; display: flex; flex-direction: column; }
+
+  #head { flex: none; padding: 12px 28px; border-bottom: 1px solid rgba(255,255,255,.08);
+    background: #070910; z-index: 3; }
+  #headTop { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  #title { font: 700 12px Lato, sans-serif; letter-spacing: .14em; color: #7dd3fc; }
+  #pulse { width: 8px; height: 8px; border-radius: 50%; background: #475569; }
+  #pulse.on { background: #4ade80; box-shadow: 0 0 0 3px rgba(74,222,128,.18); }
+  #pulse.off { background: #f87171; }
+  #statusLine { font-size: 12.5px; color: #94a3b8; flex: 1; min-width: 180px; }
+  #statusLine b { color: #e2e8f0; font-weight: 700; }
+  #controls { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; }
+  .chip { padding: 6px 12px; font: 700 11px Lato, sans-serif; letter-spacing: .04em; color: #64748b;
+    background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 999px; cursor: pointer; }
+  .chip:hover { color: #cbd5e1; }
+  .chip.on { color: #7dd3fc; background: rgba(125,211,252,.14); border-color: #7dd3fc; }
+  #refresh { width: 32px; height: 32px; border-radius: 9px; border: 1px solid rgba(255,255,255,.1);
+    background: rgba(255,255,255,.04); color: #94a3b8; font-size: 14px; cursor: pointer; }
+  #refresh:hover { color: #e2e8f0; }
+  #refresh.spin { color: #7dd3fc; }
+  .noop { min-width: 32px; height: 32px; padding: 0 10px; border-radius: 9px;
+    border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.04);
+    color: #94a3b8; font: 700 11px Lato, sans-serif; letter-spacing: .06em; cursor: pointer; }
+  .noop:hover { color: #e2e8f0; border-color: rgba(125,211,252,.35); }
+  .noop:active { color: #7dd3fc; }
+
+  #scroll { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+  #topStack {
+    flex: 0 0 auto; height: var(--top-h, 300px); min-height: 50px; overflow-y: auto; overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+  #splitH {
+    flex: none; height: 10px; cursor: row-resize; position: relative; z-index: 8;
+    background: rgba(255,255,255,.04); border-top: 1px solid rgba(255,255,255,.08);
+    touch-action: none;
+  }
+  #splitH::after {
+    content: ''; position: absolute; left: 50%; top: 50%;
+    width: 36px; height: 3px; margin: -1.5px 0 0 -18px; border-radius: 2px;
+    background: rgba(125,211,252,.45);
+  }
+  #splitH:hover, body.resizing-v #splitH { background: rgba(125,211,252,.22); }
+
+  /* ---- realtime hardware strip ---- */
+  #hw {
+    padding: 14px 28px 6px;
+    border-bottom: 1px solid rgba(255,255,255,.06);
+    background: linear-gradient(180deg, #070910 0%, #05060a 100%);
+  }
+  #hwHead { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+  #hwHead .lbl { margin-bottom: 0; }
+  #hwLive { font-size: 10.5px; color: #475569; letter-spacing: .06em; }
+  #hwLive.on { color: #4ade80; }
+  #hwGrid { display: grid; grid-template-columns: 1fr 1fr 1.15fr; gap: 12px; }
+  @media (max-width: 900px) { #hwGrid { grid-template-columns: 1fr; } }
+  .hwCard { min-width: 0; padding: 10px 12px 8px; border-radius: 10px;
+    background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06); }
+  .hwLbl { font: 700 10px Lato, sans-serif; letter-spacing: .1em; color: #475569; text-transform: uppercase; }
+  .hwVal { font: 700 22px Lato, sans-serif; color: #f1f5f9; font-variant-numeric: tabular-nums;
+    margin-top: 4px; line-height: 1.15; }
+  .hwVal span { font-size: 12px; font-weight: 600; color: #64748b; margin-left: 4px; }
+  .hwSub { font-size: 11px; color: #64748b; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .hwCanvas { display: block; width: 100%; height: 48px; margin-top: 8px; }
+  .hwLog {
+    margin-top: 8px; padding-top: 8px;
+    border-top: 1px solid rgba(255,255,255,.06);
+    max-height: 148px; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 3px;
+  }
+  .hwLogRow {
+    display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: baseline;
+    font-size: 11px; line-height: 1.35;
+  }
+  .hwLogName {
+    color: #cbd5e1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+  }
+  .hwLogName .meta { color: #475569; margin-left: 6px; font-size: 10px; }
+  .hwLogVal {
+    color: #94a3b8; font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 600;
+  }
+  .hwLogEmpty { font-size: 11px; color: #475569; }
+
+  /* ---- horizontal swipe for labeled panels ---- */
+  #swipeWrap { padding: 12px 0 4px; }
+  #swipeHint { display: flex; align-items: center; justify-content: space-between;
+    padding: 0 28px 8px; }
+  #swipeHint .lbl { margin-bottom: 0; }
+  #swipeDots { display: flex; gap: 6px; align-items: center; }
+  #swipeDots button { width: 7px; height: 7px; border-radius: 50%; border: 0;
+    background: #334155; cursor: pointer; padding: 0; }
+  #swipeDots button.on { background: #7dd3fc; }
+  #swipeDots button:hover { background: #64748b; }
+  #swipe {
+    display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+    padding: 0 28px 10px; scroll-padding: 0 28px;
+  }
+  #swipe::-webkit-scrollbar { display: none; }
+  #swipe .slide {
+    flex: 0 0 min(420px, calc(100% - 40px));
+    scroll-snap-align: start;
+    min-height: 168px; max-height: 200px; overflow: hidden;
+    padding: 12px 14px; border-radius: 10px;
+    background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06);
+  }
+  #swipe .slide .body { max-height: 150px; overflow-y: auto; }
+
+  .memHead { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+  .memHead .big { font: 700 20px Lato, sans-serif; color: #f1f5f9; font-variant-numeric: tabular-nums; }
+  .memHead .big.warn { color: #fbbf24; }
+  .memHead .big.crit { color: #f87171; }
+  .memHead .sub { font-size: 12px; color: #64748b; }
+  .procRow { display: grid; grid-template-columns: 1fr 64px 48px; gap: 8px; align-items: center;
+    font-size: 11.5px; padding: 2px 0; }
+  .procName { color: #cbd5e1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .procName .fam { color: #64748b; margin-left: 6px; font-size: 10.5px; }
+  .procMB { color: #e2e8f0; text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
+  .procPct { color: #64748b; text-align: right; font-variant-numeric: tabular-nums; }
+  #updated { font-size: 11px; color: #475569; margin-left: 6px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+  .block { min-width: 0; }
+  .lbl { font: 700 10px Lato, sans-serif; letter-spacing: .1em; color: #475569; text-transform: uppercase; margin-bottom: 7px; }
+  .nowMain { font-size: 15px; font-weight: 700; color: #f1f5f9; line-height: 1.35; }
+  .nowSub { font-size: 12px; color: #64748b; margin-top: 3px; line-height: 1.45; }
+  .bars { display: flex; flex-direction: column; gap: 5px; }
+  .barRow { display: grid; grid-template-columns: 110px 1fr 42px; gap: 8px; align-items: center; font-size: 11.5px; }
+  .barName { color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .barTrack { height: 6px; border-radius: 999px; background: rgba(255,255,255,.06); overflow: hidden; }
+  .barFill { height: 100%; border-radius: 999px; background: #7dd3fc; }
+  .barVal { color: #64748b; text-align: right; font-variant-numeric: tabular-nums; }
+  .ports { display: flex; flex-wrap: wrap; gap: 5px; }
+  .port { font: 600 11px ui-monospace, SFMono-Regular, Menlo, monospace; padding: 4px 8px; border-radius: 6px;
+    color: #cbd5e1; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.07); }
+  .port span { color: #64748b; }
+
+  #body { flex: 1 1 auto; min-height: 50px; min-width: 0; display: grid;
+    grid-template-columns: var(--side-w, 300px) 1fr; overflow: hidden;
+    border-top: 1px solid rgba(255,255,255,.08); }
+  @media (max-width: 900px) { #body { grid-template-columns: 1fr; } #side { display: none; } }
+  #feedWrap { padding: 14px 28px 80px; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  #side { position: relative; border-right: 1px solid rgba(255,255,255,.08); padding: 14px 0 16px;
+    background: #070910; display: flex; flex-direction: column; gap: 8px; min-width: 0; overflow: hidden; }
+  #sideSwipe {
+    display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+    padding: 0 16px; scroll-padding: 0 16px;
+  }
+  #sideSwipe::-webkit-scrollbar { display: none; }
+  #sideSwipe .sideSec {
+    max-width: 220px;
+    flex: 0 0 calc(100% - 12px); scroll-snap-align: start; min-width: 0;
+    max-height: 280px; overflow-y: auto;
+  }
+  #sideDots { display: flex; gap: 6px; padding: 0 16px 4px; }
+  #sideDots button { width: 7px; height: 7px; border-radius: 50%; border: 0;
+    background: #334155; cursor: pointer; padding: 0; }
+  #sideDots button.on { background: #7dd3fc; }
+  #split {
+    position: absolute; top: 0; right: 0; width: 10px; height: 100%;
+    cursor: col-resize; z-index: 8; touch-action: none;
+  }
+  #split:hover, body.resizing-h #split { background: rgba(125,211,252,.28); }
+  body.resizing-h { cursor: col-resize; user-select: none; }
+  body.resizing-v { cursor: row-resize; user-select: none; }
+  body.resizing-h #sideSwipe, body.resizing-h #sideDots { pointer-events: none; }
+
+  .dayHead { position: sticky; top: 0; z-index: 2; padding: 8px 0 6px; font: 700 10.5px Lato, sans-serif;
+    letter-spacing: .1em; color: #64748b; text-transform: uppercase; background: linear-gradient(#05060a 70%, transparent); }
+  /* Time-proportional rows: 10000px = 24h → ~0.116px/s */
+  .evt { display: grid; grid-template-columns: 54px 8px 1fr; gap: 8px; padding: 0; margin: 0;
+    align-items: stretch; box-sizing: border-box; overflow: hidden; border-radius: 1px;
+    background: rgba(255,255,255,.015); }
+  .evt.instant { background: transparent; }
+  .evt.tall { background: rgba(125,211,252,.06); }
+  .evtTime { font: 600 10px ui-monospace, SFMono-Regular, Menlo, monospace; color: #475569;
+    text-align: right; padding-top: 1px; font-variant-numeric: tabular-nums; line-height: 1.2;
+    align-self: start; overflow: hidden; }
+  .evtRail { width: 8px; border-radius: 1px; background: #334155; align-self: stretch; min-height: 1px; }
+  .evtRail.activity { background: #7dd3fc; }
+  .evtRail.clipboard { background: #fbbf24; }
+  .evtRail.session { background: #a78bfa; }
+  .evtRail.git, .evtRail.commit { background: #4ade80; }
+  .evtRail.screenshot { background: #fb7185; }
+  .evtRail.trace { background: #fb923c; }
+  .evtBody { min-width: 0; align-self: center; overflow: hidden; padding: 0 2px 0 0; }
+  .evtType { font: 700 9px Lato, sans-serif; letter-spacing: .08em; color: #475569; text-transform: uppercase;
+    line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .evtSum { font-size: 12px; color: #d7dde6; line-height: 1.3; margin-top: 1px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .evt.compact .evtType { display: none; }
+  .evt.compact .evtSum { font-size: 10.5px; margin-top: 0; }
+  .evt.micro .evtBody { display: none; }
+  .evt.micro .evtTime { font-size: 8px; opacity: .7; }
+
+  .sideSec .lbl { margin-bottom: 8px; }
+  .clip { padding: 8px 10px; border-radius: 8px; background: rgba(255,255,255,.03);
+    border: 1px solid rgba(255,255,255,.06); margin-bottom: 6px; }
+  .clipMeta { font-size: 10.5px; color: #64748b; margin-bottom: 3px; }
+  .clipText { font-size: 12px; color: #cbd5e1; line-height: 1.4; white-space: pre-wrap; max-height: 72px; overflow: hidden; }
+  .hint { padding: 8px 10px; border-radius: 8px; background: rgba(125,211,252,.06);
+    border: 1px solid rgba(125,211,252,.15); margin-bottom: 6px; font-size: 12.5px; color: #e2e8f0; }
+  .hint .meta { font-size: 10.5px; color: #64748b; margin-top: 3px; }
+  .reentry { padding: 10px 12px; border-radius: 9px; background: rgba(251,191,36,.07);
+    border: 1px solid rgba(251,191,36,.22); font-size: 12.5px; color: #fde68a; line-height: 1.45; }
+  .reentry b { color: #fef3c7; }
+  #empty, #err { text-align: center; color: #4b5566; font-size: 13px; padding: 40px 0; }
+  #err { color: #fca5a5; }
+  #meta { font-size: 11px; color: #334155; padding: 4px 0 10px; }
+
+  /* ---- live cursor ---- */
+  #cursorTrail {
+    position: fixed; inset: 0; z-index: 59; pointer-events: none; display: none;
+  }
+  #cursorTrail.on { display: block; }
+  #liveCursor {
+    position: fixed; z-index: 60; width: 34px; height: 34px;
+    margin: -17px 0 0 -17px; pointer-events: none; display: none;
+  }
+  #liveCursor.on { display: block; }
+  #liveCursor .ring {
+    position: absolute; inset: 0; border-radius: 50%;
+    border: 1.5px solid rgba(125,211,252,.85);
+    box-shadow: 0 0 0 1px rgba(5,6,10,.55);
+  }
+  #liveCursor .dot {
+    position: absolute; left: 50%; top: 50%; width: 5px; height: 5px;
+    margin: -2.5px 0 0 -2.5px; border-radius: 50%; background: #7dd3fc;
+  }
+  #liveCursor .crossH, #liveCursor .crossV {
+    position: absolute; background: rgba(125,211,252,.45);
+  }
+  #liveCursor .crossH { left: 4px; right: 4px; top: 50%; height: 1px; margin-top: -.5px; }
+  #liveCursor .crossV { top: 4px; bottom: 4px; left: 50%; width: 1px; margin-left: -.5px; }
+  #liveCursor.pinned .ring { border-color: #fbbf24; }
+  #liveCursor.pinned .dot { background: #fbbf24; }
+  #liveCursor.busy .ring { border-color: #94a3b8; animation: cursorPulse 1s ease-in-out infinite; }
+  @keyframes cursorPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: .55; transform: scale(1.08); }
+  }
+
+  #cursorDock {
+    position: fixed; z-index: 61; left: 50%; bottom: 58px; transform: translateX(-50%);
+    width: min(640px, calc(100% - 28px));
+    display: none; gap: 12px; align-items: stretch;
+    padding: 10px 12px; border-radius: 12px;
+    background: rgba(7, 9, 16, .94); border: 1px solid rgba(255,255,255,.1);
+    box-shadow: 0 12px 40px rgba(0,0,0,.45);
+  }
+  #cursorDock.on { display: flex; }
+  #cursorThumb {
+    flex: none; width: 88px; height: 64px; border-radius: 8px; object-fit: cover;
+    background: #0b0d14; border: 1px solid rgba(255,255,255,.08);
+  }
+  #cursorDockMain { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+  #cursorDockLbl {
+    font: 700 10px Lato, sans-serif; letter-spacing: .1em; color: #475569; text-transform: uppercase;
+  }
+  #cursorSummary {
+    font-size: 12.5px; color: #e2e8f0; line-height: 1.45;
+    max-height: 4.2em; overflow: hidden;
+  }
+  #cursorSummary.empty { color: #64748b; }
+  #cursorMeta {
+    font-size: 10.5px; color: #475569; font-variant-numeric: tabular-nums;
+    display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+  }
+  #cursorMeta a { color: #7dd3fc; text-decoration: none; }
+  #cursorMeta a:hover { text-decoration: underline; }
+  #cursorDockActs { flex: none; display: flex; flex-direction: column; gap: 6px; }
+  #cursorDockActs button {
+    min-width: 56px; height: 28px; padding: 0 10px; border-radius: 8px;
+    border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.04);
+    color: #94a3b8; font: 700 11px Lato, sans-serif; letter-spacing: .04em; cursor: pointer;
+  }
+  #cursorDockActs button:hover { color: #e2e8f0; border-color: rgba(125,211,252,.35); }
+  body.cursor-on #scroll { cursor: none; }
+  body.cursor-on #head { cursor: default; }
+
+  #cursorToggle {
+    position: fixed; z-index: 62; right: 16px; bottom: 16px;
+    padding: 10px 16px; border-radius: 999px;
+    border: 1px solid rgba(255,255,255,.12); background: rgba(8,10,18,.88);
+    color: #64748b; font: 700 11px Lato, sans-serif; letter-spacing: .06em;
+    text-transform: uppercase; cursor: pointer;
+    box-shadow: 0 8px 28px rgba(0,0,0,.35); backdrop-filter: blur(12px);
+  }
+  #cursorToggle:hover { color: #cbd5e1; border-color: rgba(125,211,252,.35); }
+  #cursorToggle.on {
+    color: #7dd3fc; border-color: rgba(125,211,252,.5);
+    background: rgba(125,211,252,.12);
+  }
+</style>
+</head>
+<body>
+  <div id="app">
+    <div id="head">
+      <div id="headTop">
+        <div id="pulse"></div>
+        <div id="title">ACTIVITY</div>
+        <div id="statusLine">loading…</div>
+        <div id="controls">
+          <div class="chip on" data-h="2">2h</div>
+          <div class="chip" data-h="4">4h</div>
+          <div class="chip" data-h="8">8h</div>
+          <div class="chip" data-h="24">24h</div>
+          <div class="chip on" data-f="all">all</div>
+          <div class="chip" data-f="activity">apps</div>
+          <div class="chip" data-f="clipboard">clips</div>
+          <div class="chip" data-f="session">sessions</div>
+          <button id="refresh" title="refresh">↻</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="scroll">
+      <div id="topStack">
+      <div id="hw">
+        <div id="hwHead">
+          <div class="lbl">Hardware</div>
+          <div id="hwLive">connecting…</div>
+        </div>
+        <div id="hwGrid">
+          <div class="hwCard">
+            <div class="hwLbl">Memory</div>
+            <div class="hwVal" id="hwMemVal">—</div>
+            <div class="hwSub" id="hwMemSub">—</div>
+            <canvas class="hwCanvas" id="hwMemCanvas" width="320" height="48"></canvas>
+            <div class="hwLog" id="hwMemLog"></div>
+          </div>
+          <div class="hwCard">
+            <div class="hwLbl">CPU</div>
+            <div class="hwVal" id="hwCpuVal">—</div>
+            <div class="hwSub" id="hwCpuSub">1s samples</div>
+            <canvas class="hwCanvas" id="hwCpuCanvas" width="320" height="48"></canvas>
+            <div class="hwLog" id="hwCpuLog"></div>
+          </div>
+          <div class="hwCard">
+            <div class="hwLbl">I/O</div>
+            <div class="hwVal" id="hwIoVal">—</div>
+            <div class="hwSub" id="hwIoSub">disk · net</div>
+            <canvas class="hwCanvas" id="hwIoCanvas" width="320" height="48"></canvas>
+            <div class="hwLog" id="hwIoLog"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="swipeWrap">
+        <div id="swipeHint">
+          <div class="lbl">Panels · swipe</div>
+          <div id="swipeDots"></div>
+        </div>
+        <div id="swipe">
+          <div class="slide" data-panel="now">
+            <div class="lbl">Now</div>
+            <div class="body">
+              <div class="nowMain" id="nowMain">—</div>
+              <div class="nowSub" id="nowSub"></div>
+            </div>
+          </div>
+          <div class="slide" data-panel="apps">
+            <div class="lbl">App time</div>
+            <div class="body bars" id="bars"></div>
+          </div>
+          <div class="slide" data-panel="ports">
+            <div class="lbl">Local servers</div>
+            <div class="body ports" id="ports"></div>
+          </div>
+          <div class="slide" data-panel="mem">
+            <div class="lbl">Memory by app <span id="updated"></span></div>
+            <div class="body">
+              <div class="memHead">
+                <div class="big" id="memBig">—</div>
+                <div class="sub" id="memSub"></div>
+                <div class="sub" id="cursorTip" style="display:none;color:#fde68a;margin-top:6px;line-height:1.4;"></div>
+              </div>
+              <div class="bars" id="memApps"></div>
+            </div>
+          </div>
+          <div class="slide" data-panel="procs">
+            <div class="lbl">Top processes (RSS)</div>
+            <div class="body" id="memTop"></div>
+          </div>
+        </div>
+      </div>
+      </div>
+
+      <div id="splitH" title="Drag to resize top panels"></div>
+
+      <div id="body">
+      <div id="side">
+        <div id="sideDots"></div>
+        <div id="sideSwipe">
+          <div class="sideSec">
+            <div class="lbl">Re-entry</div>
+            <div id="reentry" class="reentry" style="display:none"></div>
+            <div id="reentryEmpty" style="font-size:12px;color:#475569">No open task.</div>
+          </div>
+          <div class="sideSec">
+            <div class="lbl">Intention</div>
+            <div id="hints"></div>
+          </div>
+          <div class="sideSec">
+            <div class="lbl">Clipboard</div>
+            <div id="clips"></div>
+          </div>
+        </div>
+        <div id="split" title="Drag to resize"></div>
+      </div>
+      <div id="feedWrap">
+        <div id="meta"></div>
+        <div id="feed"></div>
+        <div id="empty" style="display:none">No activity in this window.</div>
+        <div id="err" style="display:none"></div>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <button type="button" id="cursorToggle" title="Toggle live cursor (⌘U / Ctrl+U) — pen default (drag to paint); c for rect; Escape cancels">cursor off</button>
+  <canvas id="cursorTrail" aria-hidden="true"></canvas>
+  <div id="liveCursor" aria-hidden="true">
+    <div class="ring"></div>
+    <div class="crossH"></div>
+    <div class="crossV"></div>
+    <div class="dot"></div>
+  </div>
+  <div id="cursorDock" aria-live="polite">
+    <img id="cursorThumb" alt="cursor screenshot" width="88" height="64" style="display:none" />
+    <div id="cursorDockMain">
+      <div id="cursorDockLbl">Cursor · pen · c rect</div>
+      <div id="cursorSummary" class="empty">Drag to paint a trail — release to capture. Press c for rectangle tool.</div>
+      <div id="cursorMeta"></div>
+    </div>
+    <div id="cursorDockActs">
+      <button type="button" id="cursorCopy" title="Copy summary">copy</button>
+    </div>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="hub-client.js"></script>
+<script src="layout-splits.js"></script>
+<script>
+if (location.protocol === 'file:') location.replace('http://localhost:4777/activity.html');
+HubClient.forwardNavKeys();
+
+const $ = (id) => document.getElementById(id);
+let hours = 2;
+let filter = 'all';
+let data = null;
+let timer = null;
+let es = null;
+let hwEs = null;
+let active = true;
+let hwHistory = [];
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+}
+function fmtMin(hoursFrac) {
+  const m = Math.round((hoursFrac || 0) * 60);
+  if (m < 60) return m + 'm';
+  return Math.floor(m / 60) + 'h ' + (m % 60) + 'm';
+}
+function fmtClock(ts) {
+  const d = new Date((ts > 1e12 ? ts : ts * 1000));
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+function dayKey(ts) {
+  const d = new Date((ts > 1e12 ? ts : ts * 1000));
+  const today = new Date();
+  const yday = new Date(Date.now() - 86400000);
+  if (d.toDateString() === today.toDateString()) return 'Today';
+  if (d.toDateString() === yday.toDateString()) return 'Yesterday';
+  return d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+}
+/** Vertical scale for the activity feed: 10000px ≡ 24 hours. */
+const FEED_PX_PER_DAY = 12000;
+const FEED_PX_PER_SEC = FEED_PX_PER_DAY / 86400;
+const FEED_INSTANT_PX = 2;       // point ticks in the mixed time-proportional feed
+const FEED_INSTANT_LIST_PX = 18; // readable rows when filtered to clipboard/session/…
+function parseDurationSec(summary) {
+  const s = String(summary || '');
+  let m = s.match(/\((\d+(?:\.\d+)?)\s*s\)/i);
+  if (m) return Number(m[1]);
+  m = s.match(/\((\d+(?:\.\d+)?)\s*m(?:in(?:ute)?s?)?\)/i);
+  if (m) return Number(m[1]) * 60;
+  m = s.match(/\((\d+(?:\.\d+)?)\s*h(?:ours?)?\)/i);
+  if (m) return Number(m[1]) * 3600;
+  m = s.match(/\((\d+)\s*m\s*(\d+)\s*s\)/i);
+  if (m) return Number(m[1]) * 60 + Number(m[2]);
+  return null;
+}
+function eventHeightPx(e) {
+  const sec = parseDurationSec(e?.summary);
+  if (sec != null && sec > 0) return sec * FEED_PX_PER_SEC;
+  if (filter !== 'all' && filter !== 'activity') return FEED_INSTANT_LIST_PX;
+  return FEED_INSTANT_PX;
+}
+function fmtDurShort(sec) {
+  if (sec == null || sec <= 0) return '';
+  if (sec < 60) return Math.round(sec) + 's';
+  if (sec < 3600) return Math.round(sec / 60) + 'm';
+  const h = Math.floor(sec / 3600);
+  const m = Math.round((sec % 3600) / 60);
+  return m ? h + 'h ' + m + 'm' : h + 'h';
+}
+function fmtRate(n) {
+  if (n == null || Number.isNaN(n)) return '—';
+  if (n < 0.01) return '0';
+  if (n < 1) return n.toFixed(2);
+  if (n < 10) return n.toFixed(1);
+  return String(Math.round(n));
+}
+
+/* ---- swipe carousels ---- */
+function bindSwipe(scroller, dotsEl) {
+  const slides = [...scroller.children];
+  dotsEl.innerHTML = slides.map((_, i) => `<button type="button" data-i="${i}" aria-label="panel ${i + 1}"></button>`).join('');
+  const dots = [...dotsEl.querySelectorAll('button')];
+  function sync() {
+    const x = scroller.scrollLeft;
+    let best = 0, bestDist = Infinity;
+    slides.forEach((s, i) => {
+      const d = Math.abs(s.offsetLeft - x);
+      if (d < bestDist) { bestDist = d; best = i; }
+    });
+    dots.forEach((d, i) => d.classList.toggle('on', i === best));
+  }
+  dots.forEach((d) => {
+    d.onclick = () => {
+      const i = Number(d.dataset.i);
+      slides[i]?.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' });
+    };
+  });
+  scroller.addEventListener('scroll', () => { requestAnimationFrame(sync); }, { passive: true });
+  sync();
+}
+bindSwipe($('swipe'), $('swipeDots'));
+bindSwipe($('sideSwipe'), $('sideDots'));
+
+/* ---- HW charts ---- */
+function drawSpark(canvas, series, color, opts = {}) {
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth || 320;
+  const h = canvas.clientHeight || 48;
+  if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+  }
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  const vals = series.filter((v) => v != null && !Number.isNaN(v));
+  if (vals.length < 2) {
+    ctx.strokeStyle = 'rgba(255,255,255,.08)';
+    ctx.beginPath();
+    ctx.moveTo(0, h - 1);
+    ctx.lineTo(w, h - 1);
+    ctx.stroke();
+    return;
+  }
+  let max = opts.max != null ? opts.max : Math.max(...vals, opts.minMax || 0.01);
+  let min = opts.min != null ? opts.min : Math.min(...vals, 0);
+  if (max <= min) max = min + 1;
+  const pad = 2;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  series.forEach((v, i) => {
+    if (v == null || Number.isNaN(v)) return;
+    const x = (i / Math.max(series.length - 1, 1)) * (w - 1);
+    const y = pad + (1 - (v - min) / (max - min)) * (h - pad * 2);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+  if (opts.second) {
+    ctx.strokeStyle = opts.secondColor || '#94a3b8';
+    ctx.beginPath();
+    let started = false;
+    opts.second.forEach((v, i) => {
+      if (v == null || Number.isNaN(v)) return;
+      const x = (i / Math.max(opts.second.length - 1, 1)) * (w - 1);
+      const y = pad + (1 - (v - min) / (max - min)) * (h - pad * 2);
+      if (!started) { ctx.moveTo(x, y); started = true; }
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+  }
+}
+
+function renderHw(point) {
+  if (point) {
+    const last = hwHistory[hwHistory.length - 1];
+    if (!last || last.t !== point.t) {
+      hwHistory.push(point);
+      while (hwHistory.length > 120) hwHistory.shift();
+    }
+  }
+  const latest = hwHistory[hwHistory.length - 1];
+  if (!latest) return;
+
+  const memPct = latest.memPct;
+  $('hwMemVal').innerHTML = `${memPct != null ? memPct.toFixed(1) : '—'}<span>%</span>`;
+  $('hwMemSub').textContent = `${latest.memUsedGb} / ${latest.memTotalGb} GB used`;
+  $('hwCpuVal').innerHTML = latest.cpu != null ? `${latest.cpu.toFixed(1)}<span>%</span>` : '—';
+  const disk = latest.diskMBs;
+  const net = latest.netMBs;
+  $('hwIoVal').innerHTML = `${fmtRate(disk)}<span>MB/s disk</span>`;
+  const inn = latest.netInMBs;
+  const out = latest.netOutMBs;
+  $('hwIoSub').textContent = `net ${fmtRate(net)} MB/s` +
+    (inn != null || out != null ? ` · ↓${fmtRate(inn)} ↑${fmtRate(out)}` : '');
+
+  const memSeries = hwHistory.map((p) => p.memPct);
+  const cpuSeries = hwHistory.map((p) => p.cpu);
+  const diskSeries = hwHistory.map((p) => p.diskMBs);
+  const netSeries = hwHistory.map((p) => p.netMBs);
+  const ioMax = Math.max(0.05, ...diskSeries.filter((v) => v != null), ...netSeries.filter((v) => v != null));
+  drawSpark($('hwMemCanvas'), memSeries, '#7dd3fc', { min: 0, max: 100 });
+  drawSpark($('hwCpuCanvas'), cpuSeries, '#4ade80', { min: 0, max: 100 });
+  drawSpark($('hwIoCanvas'), diskSeries, '#fbbf24', {
+    min: 0, max: ioMax, second: netSeries, secondColor: '#94a3b8',
+  });
+  renderHwIoLog();
+}
+
+function renderHwIoLog() {
+  const el = $('hwIoLog');
+  if (!el) return;
+  const recent = hwHistory.slice(-8).reverse();
+  if (!recent.length) {
+    el.innerHTML = '<div class="hwLogEmpty">waiting for sample…</div>';
+    return;
+  }
+  el.innerHTML = recent.map((p) => {
+    const t = new Date(p.t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
+    return `<div class="hwLogRow">
+      <div class="hwLogName">${esc(t)}</div>
+      <div class="hwLogVal">disk ${fmtRate(p.diskMBs)} · net ${fmtRate(p.netMBs)}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderHwMemLog() {
+  const el = $('hwMemLog');
+  if (!el) return;
+  const apps = data?.memory?.apps || [];
+  if (!apps.length) {
+    el.innerHTML = '<div class="hwLogEmpty">no process sample yet</div>';
+    return;
+  }
+  el.innerHTML = apps.slice(0, 8).map((a) => `
+    <div class="hwLogRow" title="${esc(a.name)}">
+      <div class="hwLogName">${esc(a.name)}<span class="meta">×${a.count}</span></div>
+      <div class="hwLogVal">${a.rssMB}M</div>
+    </div>`).join('');
+}
+
+function renderHwCpuLog() {
+  const el = $('hwCpuLog');
+  if (!el) return;
+  const top = data?.memory?.cpuTop || [];
+  if (!top.length) {
+    el.innerHTML = '<div class="hwLogEmpty">no process sample yet</div>';
+    return;
+  }
+  el.innerHTML = top.slice(0, 8).map((p) => `
+    <div class="hwLogRow" title="${esc(p.name)} · pid ${p.pid}">
+      <div class="hwLogName">${esc(p.name)}<span class="meta">${esc(p.family || '')}</span></div>
+      <div class="hwLogVal">${Number(p.cpu || 0).toFixed(1)}%</div>
+    </div>`).join('');
+}
+
+function closeHw() {
+  if (hwEs) { try { hwEs.close(); } catch {} hwEs = null; }
+  $('hwLive').textContent = 'paused';
+  $('hwLive').classList.remove('on');
+}
+
+function connectHw() {
+  closeHw();
+  if (!active || typeof EventSource === 'undefined') return;
+  $('hwLive').textContent = 'connecting…';
+  let got = false;
+  hwEs = new EventSource('/api/hw/stream');
+  hwEs.addEventListener('history', (ev) => {
+    got = true;
+    try {
+      const snap = JSON.parse(ev.data);
+      hwHistory = Array.isArray(snap.history) ? snap.history.slice() : [];
+      renderHw(snap.latest || hwHistory[hwHistory.length - 1]);
+      $('hwLive').textContent = 'live · 1s';
+      $('hwLive').classList.add('on');
+    } catch {}
+  });
+  hwEs.onmessage = (ev) => {
+    got = true;
+    try {
+      const point = JSON.parse(ev.data);
+      renderHw(point);
+      $('hwLive').textContent = 'live · 1s';
+      $('hwLive').classList.add('on');
+    } catch {}
+  };
+  hwEs.onerror = () => {
+    $('hwLive').textContent = got ? 'reconnecting…' : 'offline';
+    $('hwLive').classList.remove('on');
+  };
+}
+
+function renderStatus() {
+  const s = data?.status || {};
+  const c = data?.context || {};
+  const pulse = $('pulse');
+  pulse.className = s.running ? 'on' : (s.error ? 'off' : '');
+  const bits = [];
+  bits.push(s.running ? `daemon · pid ${s.pid || '—'}` : (s.error || 'daemon down'));
+  if (c.dominant_app) bits.push(`<b>${esc(c.dominant_app)}</b>`);
+  if (c.session_type) bits.push(esc(c.session_type.replace(/_/g, ' ')));
+  if (c.focus_score != null) bits.push(`focus ${Math.round(c.focus_score)}%`);
+  if (s.activity != null) bits.push(`${s.activity.toLocaleString()} events`);
+  $('statusLine').innerHTML = bits.join(' · ');
+
+  $('nowMain').textContent = c.open_thread || c.dominant_app || (s.running ? 'watching' : 'offline');
+  const sub = [];
+  if (c.next_action) sub.push(c.next_action);
+  if (Array.isArray(c.recent_clipboard) && c.recent_clipboard[0]) sub.push('clip: ' + c.recent_clipboard[0]);
+  $('nowSub').textContent = sub.join(' · ');
+
+  const breakdown = data?.activity?.app_breakdown || {};
+  const ranked = Object.entries(breakdown).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const max = ranked[0]?.[1] || 1;
+  $('bars').innerHTML = ranked.length
+    ? ranked.map(([name, h]) => `
+        <div class="barRow">
+          <div class="barName" title="${esc(name)}">${esc(name)}</div>
+          <div class="barTrack"><div class="barFill" style="width:${Math.max(4, (h / max) * 100)}%"></div></div>
+          <div class="barVal">${fmtMin(h)}</div>
+        </div>`).join('')
+    : '<div class="nowSub">no app data</div>';
+
+  const ports = c.local_servers || [];
+  $('ports').innerHTML = ports.length
+    ? ports.map((p) => `<div class="port">:${esc(p.port)} <span>${esc(p.process)}</span></div>`).join('')
+    : '<div class="nowSub">none detected</div>';
+
+  renderMemory();
+}
+
+function renderMemory() {
+  const m = data?.memory;
+  if (!m) {
+    $('memBig').textContent = '—';
+    $('memSub').textContent = 'no sample';
+    $('memApps').innerHTML = '';
+    $('memTop').innerHTML = '';
+    $('updated').textContent = '';
+    $('cursorTip').style.display = 'none';
+    renderHwMemLog();
+    renderHwCpuLog();
+    return;
+  }
+  const free = m.freeMB ?? 0;
+  const total = m.totalMB || 1;
+  const freePct = free / total;
+  const big = $('memBig');
+  big.textContent = `${free} MB free / ${total} MB`;
+  big.className = 'big' + (freePct < 0.05 ? ' crit' : freePct < 0.12 ? ' warn' : '');
+  $('memSub').textContent = m.processMB != null
+    ? `process RSS Σ ${m.processMB.toLocaleString()} MB · updates every 30s`
+    : 'updates every 30s';
+  if (data?.at) {
+    const ago = Math.max(0, Math.round((Date.now() - data.at) / 1000));
+    $('updated').textContent = ago < 2 ? '· just now' : `· ${ago}s ago`;
+  }
+
+  const cur = m.cursor;
+  const tip = $('cursorTip');
+  if (cur && cur.totalMB >= 1500) {
+    const ws = (cur.workspaces || []).join(', ') || 'unknown workspaces';
+    tip.style.display = 'block';
+    tip.textContent = `Cursor ~${cur.totalMB}MB · ${cur.renderers} renderers · ${cur.extensionHosts} extension hosts · windows: ${ws}. Close unused windows (keep one handviz) to free RAM.`;
+  } else {
+    tip.style.display = 'none';
+  }
+
+  const apps = m.apps || [];
+  const maxApp = apps[0]?.rssMB || 1;
+  $('memApps').innerHTML = apps.length
+    ? apps.map((a) => `
+        <div class="barRow">
+          <div class="barName" title="${esc(a.name)}">${esc(a.name)} <span style="color:#475569">×${a.count}</span></div>
+          <div class="barTrack"><div class="barFill" style="width:${Math.max(4, (a.rssMB / maxApp) * 100)}%"></div></div>
+          <div class="barVal">${a.rssMB}M</div>
+        </div>`).join('')
+    : '<div class="nowSub">no process data</div>';
+
+  const top = m.top || [];
+  $('memTop').innerHTML = top.length
+    ? top.slice(0, 12).map((p) => `
+        <div class="procRow">
+          <div class="procName" title="${esc(p.name)}">${esc(p.name)}<span class="fam">${esc(p.family || '')}</span></div>
+          <div class="procMB">${p.rssMB}M</div>
+          <div class="procPct">${Number(p.pmem || 0).toFixed(1)}%</div>
+        </div>`).join('')
+    : '<div class="nowSub">—</div>';
+
+  renderHwMemLog();
+  renderHwCpuLog();
+}
+
+function renderFeed() {
+  const raw = Array.isArray(data?.timeline) ? data.timeline : [];
+  const items = filter === 'all' ? raw : raw.filter((e) => e.type === filter);
+  items.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+  const shown = items.slice(0, 400);
+  let spentSec = 0;
+  for (const e of shown) {
+    const d = parseDurationSec(e.summary);
+    if (d != null) spentSec += d;
+  }
+  const spentPx = Math.round(spentSec * FEED_PX_PER_SEC);
+  $('meta').textContent = `${shown.length} events · last ${hours}h · ${data?.activity?.switches != null ? data.activity.switches + ' switches' : '—'} · ${fmtDurShort(spentSec) || '0s'} ≈ ${spentPx}px (10000px = 24h)`;
+  $('empty').style.display = shown.length ? 'none' : 'block';
+  $('err').style.display = 'none';
+
+  let html = '';
+  let lastDay = null;
+  for (const e of shown) {
+    const day = dayKey(e.timestamp);
+    if (day !== lastDay) {
+      html += `<div class="dayHead">${esc(day)}</div>`;
+      lastDay = day;
+    }
+    const dur = parseDurationSec(e.summary);
+    const h = eventHeightPx(e);
+    const isInstant = dur == null;
+    const sizeClass = isInstant ? 'instant'
+      : h < 10 ? 'micro'
+      : h < 22 ? 'compact'
+      : 'tall';
+    const title = [e.type, e.summary, dur != null ? fmtDurShort(dur) + ` → ${h.toFixed(1)}px` : null]
+      .filter(Boolean).join(' · ');
+    html += `<div class="evt ${sizeClass}" style="height:${h.toFixed(3)}px" title="${esc(title)}">
+      <div class="evtTime">${esc(fmtClock(e.timestamp))}</div>
+      <div class="evtRail ${esc(e.type || '')}"></div>
+      <div class="evtBody">
+        <div class="evtType">${esc(e.type || 'event')}${dur != null ? ' · ' + esc(fmtDurShort(dur)) : ''}</div>
+        <div class="evtSum">${esc(e.summary || '')}</div>
+      </div>
+    </div>`;
+  }
+  $('feed').innerHTML = html;
+}
+
+function renderSide() {
+  const r = data?.reentry;
+  if (r?.task || r?.trace) {
+    $('reentry').style.display = 'block';
+    $('reentryEmpty').style.display = 'none';
+    const goal = r.task?.goal || r.project?.name || 'Open task';
+    const next = r.task?.next_action || r.trace?.next_action || '';
+    const why = r.trace?.summary || r.task?.last_useful_state || '';
+    $('reentry').innerHTML = `<b>${esc(goal)}</b>${next ? '<br>→ ' + esc(next) : ''}${why ? '<br><span style="color:#a8a29e">' + esc(why.slice(0, 180)) + '</span>' : ''}`;
+  } else {
+    $('reentry').style.display = 'none';
+    $('reentryEmpty').style.display = 'block';
+  }
+
+  const hints = (data?.hints || []).filter((h) => h.label || h.dominant_app).slice(0, 4);
+  $('hints').innerHTML = hints.length
+    ? hints.map((h) => `<div class="hint">${esc(h.label || h.dominant_app || '—')}<div class="meta">${esc([h.source, h.dominant_app, h.evidence_count != null ? h.evidence_count + ' evidence' : ''].filter(Boolean).join(' · '))}</div></div>`).join('')
+    : '<div style="font-size:12px;color:#475569">No active hints.</div>';
+
+  const clips = (data?.clipboard || []).slice(0, 8);
+  $('clips').innerHTML = clips.length
+    ? clips.map((c) => {
+        const when = c.captured_at ? fmtClock(c.captured_at) : '';
+        const text = String(c.content || '').slice(0, 160);
+        return `<div class="clip"><div class="clipMeta">${esc(c.source_app || 'clipboard')} · ${esc(when)}</div><div class="clipText">${esc(text)}</div></div>`;
+      }).join('')
+    : '<div style="font-size:12px;color:#475569">No clipboard captures.</div>';
+}
+
+function render() {
+  if (!data) return;
+  renderStatus();
+  renderFeed();
+  renderSide();
+}
+
+function applySnapshot(j) {
+  data = j;
+  if (j.errors?.status && !j.status?.running) {
+    $('err').style.display = 'block';
+    $('err').textContent = 'Sauron unavailable — is the daemon running? (' + j.errors.status + ')';
+  } else {
+    $('err').style.display = 'none';
+  }
+  render();
+}
+
+async function load() {
+  $('refresh').classList.add('spin');
+  try {
+    const res = await fetch('/api/machine?hours=' + hours);
+    const j = await res.json();
+    if (!res.ok) throw new Error(j.error || 'load failed');
+    applySnapshot(j);
+  } catch (e) {
+    $('err').style.display = 'block';
+    $('err').textContent = String(e.message || e);
+  }
+  $('refresh').classList.remove('spin');
+}
+
+function closeLive() {
+  if (es) { try { es.close(); } catch {} es = null; }
+  clearInterval(timer);
+  timer = null;
+}
+
+function startFallbackPoll() {
+  clearInterval(timer);
+  if (!active) return;
+  timer = setInterval(load, 30000);
+}
+
+function connectLive() {
+  closeLive();
+  if (!active) return;
+  if (typeof EventSource === 'undefined') {
+    load();
+    startFallbackPoll();
+    return;
+  }
+  $('refresh').classList.add('spin');
+  let gotMessage = false;
+  es = new EventSource('/api/machine/stream?hours=' + hours);
+  es.onmessage = (ev) => {
+    gotMessage = true;
+    try {
+      const j = JSON.parse(ev.data);
+      if (j.error && j.at == null) throw new Error(j.error);
+      applySnapshot(j);
+    } catch (e) {
+      $('err').style.display = 'block';
+      $('err').textContent = String(e.message || e);
+    }
+    $('refresh').classList.remove('spin');
+  };
+  es.onerror = () => {
+    if (!gotMessage) {
+      closeLive();
+      $('refresh').classList.remove('spin');
+      load();
+      startFallbackPoll();
+    }
+  };
+}
+
+document.querySelectorAll('.chip[data-h]').forEach((el) => {
+  el.onclick = () => {
+    hours = Number(el.dataset.h);
+    document.querySelectorAll('.chip[data-h]').forEach((c) => c.classList.toggle('on', c === el));
+    connectLive();
+  };
+});
+document.querySelectorAll('.chip[data-f]').forEach((el) => {
+  el.onclick = () => {
+    filter = el.dataset.f;
+    document.querySelectorAll('.chip[data-f]').forEach((c) => c.classList.toggle('on', c === el));
+    renderFeed();
+  };
+});
+$('refresh').onclick = load;
+
+/* ---- live cursor: hub owns global capture when embedded ---- */
+(function initLiveCursor() {
+  if (typeof HubClient !== 'undefined' && HubClient.embedded) {
+    // Remove leftover local chrome if present — hub shell has the global cursor.
+    ['cursorToggle', 'cursorDock', 'liveCursor', 'cursorTrail'].forEach((id) => {
+      const n = document.getElementById(id);
+      if (n) n.remove();
+    });
+    return;
+  }
+  const TRAIL_MS = 5000;
+  const TRAIL_MAX = 240;
+  const TRAIL_MIN_DIST = 1.5;
+  const TOOL_TIP =
+    'Toggle live cursor (⌘U / Ctrl+U) — pen default (drag to paint); c for rect; Escape cancels';
+  const el = $('liveCursor');
+  const trailCv = $('cursorTrail');
+  const trailCtx = trailCv.getContext('2d');
+  const dock = $('cursorDock');
+  const dockLbl = $('cursorDockLbl');
+  const summaryEl = $('cursorSummary');
+  const metaEl = $('cursorMeta');
+  const thumb = $('cursorThumb');
+  const btn = $('cursorToggle');
+  const CURSOR_KEY = 'activity-cursor-on';
+  let enabled = localStorage.getItem(CURSOR_KEY) === '1';
+  /** @type {'pen'|'rect'} */
+  let tool = 'pen';
+  let pinned = false;
+  let stroking = false;
+  let busy = false;
+  let pos = { x: 0, y: 0 };
+  let lastReq = 0;
+  let lastSummary = '';
+  let lastShotUrl = '';
+  /** @type {{ t: number, x: number, y: number }[]} */
+  let trail = [];
+  let trailRaf = 0;
+  /** @type {{ x0: number, y0: number, x1: number, y1: number } | null} */
+  let draftRect = null;
+  /** @type {{ x: number, y: number, w: number, h: number } | null} */
+  let lastRect = null;
+
+  function normRect(x0, y0, x1, y1) {
+    const x = Math.round(Math.min(x0, x1));
+    const y = Math.round(Math.min(y0, y1));
+    const w = Math.max(1, Math.round(Math.abs(x1 - x0)));
+    const h = Math.max(1, Math.round(Math.abs(y1 - y0)));
+    return { x, y, w, h };
+  }
+
+  function toolLabel() {
+    return tool === 'rect' ? 'Cursor · rect · c pen' : 'Cursor · pen · c rect';
+  }
+
+  function emptyHint() {
+    return tool === 'rect'
+      ? 'Drag a rectangle — release to capture. Press c for pen.'
+      : 'Drag to paint a trail — release to capture. Press c for rectangle.';
+  }
+
+  function updateToolChrome() {
+    if (dockLbl) dockLbl.textContent = toolLabel();
+    btn.title = TOOL_TIP + (tool === 'rect' ? ' · tool: rect' : ' · tool: pen');
+    if (summaryEl.classList.contains('empty') && !lastSummary) {
+      summaryEl.textContent = emptyHint();
+    }
+  }
+
+  function cancelDraft() {
+    const wasDrawing = stroking || !!draftRect;
+    stroking = false;
+    draftRect = null;
+    pinned = false;
+    el.classList.remove('pinned');
+    if (wasDrawing && tool === 'pen') trail = [];
+    if (trailRaf) { cancelAnimationFrame(trailRaf); trailRaf = 0; }
+    drawTrail();
+  }
+
+  function setTool(next) {
+    if (next !== 'pen' && next !== 'rect') return;
+    if (tool === next) return;
+    cancelDraft();
+    tool = next;
+    updateToolChrome();
+    drawTrail();
+  }
+
+  function setEnabled(on) {
+    enabled = on;
+    localStorage.setItem(CURSOR_KEY, on ? '1' : '0');
+    document.body.classList.toggle('cursor-on', on);
+    el.classList.toggle('on', on);
+    trailCv.classList.toggle('on', on);
+    dock.classList.toggle('on', on);
+    btn.classList.toggle('on', on);
+    btn.textContent = on ? 'cursor on' : 'cursor off';
+    if (!on) {
+      cancelDraft();
+      el.classList.remove('busy');
+      trail = [];
+      lastRect = null;
+      drawTrail();
+    } else {
+      sizeTrailCanvas();
+      updateToolChrome();
+      drawTrail();
+    }
+  }
+
+  function sizeTrailCanvas() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    if (trailCv.width !== Math.round(w * dpr) || trailCv.height !== Math.round(h * dpr)) {
+      trailCv.width = Math.round(w * dpr);
+      trailCv.height = Math.round(h * dpr);
+      trailCv.style.width = w + 'px';
+      trailCv.style.height = h + 'px';
+      trailCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+  }
+
+  function pruneTrail(now = Date.now()) {
+    const cut = now - TRAIL_MS;
+    while (trail.length && trail[0].t < cut) trail.shift();
+    while (trail.length > TRAIL_MAX) trail.shift();
+  }
+
+  function recordTrail(x, y, now = Date.now()) {
+    pruneTrail(now);
+    const last = trail[trail.length - 1];
+    if (last && now - last.t < 8 && Math.hypot(x - last.x, y - last.y) < TRAIL_MIN_DIST) {
+      last.x = x; last.y = y; last.t = now;
+    } else if (!last || Math.hypot(x - last.x, y - last.y) >= TRAIL_MIN_DIST || now - last.t >= 32) {
+      trail.push({ t: now, x, y });
+    } else {
+      last.x = x; last.y = y; last.t = now;
+    }
+    pruneTrail(now);
+    if (!trailRaf) trailRaf = requestAnimationFrame(() => { trailRaf = 0; drawTrail(); });
+  }
+
+  function drawRectShape(ctx, r, { fill = true, lineWidth = 1.75 } = {}) {
+    if (!r || r.w < 1 || r.h < 1) return;
+    if (fill) {
+      ctx.fillStyle = 'rgba(125,211,252,.12)';
+      ctx.fillRect(r.x, r.y, r.w, r.h);
+    }
+    ctx.strokeStyle = 'rgba(125,211,252,.9)';
+    ctx.lineWidth = lineWidth;
+    ctx.setLineDash([]);
+    ctx.strokeRect(r.x + 0.5, r.y + 0.5, Math.max(0, r.w - 1), Math.max(0, r.h - 1));
+  }
+
+  function activeRect() {
+    if (draftRect) return normRect(draftRect.x0, draftRect.y0, draftRect.x1, draftRect.y1);
+    return lastRect;
+  }
+
+  function drawTrail() {
+    if (!enabled) {
+      trailCtx.clearRect(0, 0, trailCv.width, trailCv.height);
+      return;
+    }
+    sizeTrailCanvas();
+    pruneTrail();
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    trailCtx.clearRect(0, 0, w, h);
+
+    const rect = activeRect();
+    if (rect) drawRectShape(trailCtx, rect, { fill: true, lineWidth: draftRect ? 1.75 : 2 });
+
+    if (trail.length >= 2) {
+      const now = Date.now();
+      trailCtx.lineCap = 'round';
+      trailCtx.lineJoin = 'round';
+      for (let i = 1; i < trail.length; i++) {
+        const a = trail[i - 1];
+        const b = trail[i];
+        const life = 1 - (now - b.t) / TRAIL_MS;
+        if (life <= 0) continue;
+        trailCtx.beginPath();
+        trailCtx.moveTo(a.x, a.y);
+        trailCtx.lineTo(b.x, b.y);
+        trailCtx.strokeStyle = `rgba(125,211,252,${(0.12 + life * 0.62).toFixed(3)})`;
+        trailCtx.lineWidth = 1.6 + life * 2.8;
+        trailCtx.stroke();
+      }
+      const tip = trail[trail.length - 1];
+      if (tip) {
+        const pulse = 0.35 + 0.35 * Math.sin(now / 180);
+        trailCtx.beginPath();
+        trailCtx.arc(tip.x, tip.y, 3.8, 0, Math.PI * 2);
+        trailCtx.fillStyle = `rgba(251,191,36,${(0.45 + pulse * 0.35).toFixed(3)})`;
+        trailCtx.fill();
+      }
+    }
+
+    if ((trail.length || draftRect) && enabled) {
+      trailRaf = requestAnimationFrame(() => { trailRaf = 0; drawTrail(); });
+    }
+  }
+
+  function trailStats() {
+    pruneTrail();
+    if (!trail.length) {
+      return { count: 0, spanMs: 0, distancePx: 0, path: null, samples: [] };
+    }
+    let dist = 0;
+    for (let i = 1; i < trail.length; i++) {
+      dist += Math.hypot(trail[i].x - trail[i - 1].x, trail[i].y - trail[i - 1].y);
+    }
+    const first = trail[0];
+    const last = trail[trail.length - 1];
+    const spanMs = Math.max(0, last.t - first.t);
+    const step = Math.max(1, Math.floor((trail.length - 1) / 7));
+    const pts = [];
+    for (let i = 0; i < trail.length; i += step) pts.push(trail[i]);
+    if (pts[pts.length - 1] !== last) pts.push(last);
+    const path = pts.map((p) => `${Math.round(p.x)},${Math.round(p.y)}`).join(' → ');
+    const now = Date.now();
+    const samples = pts.map((p) => ({
+      agoMs: Math.max(0, now - p.t),
+      x: Math.round(p.x),
+      y: Math.round(p.y),
+    }));
+    return {
+      count: trail.length,
+      spanMs,
+      distancePx: Math.round(dist),
+      path,
+      from: { x: Math.round(first.x), y: Math.round(first.y) },
+      to: { x: Math.round(last.x), y: Math.round(last.y) },
+      samples,
+      windowMs: TRAIL_MS,
+    };
+  }
+
+  function placeCursor(x, y, { paint = false } = {}) {
+    pos = { x, y };
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+    if (enabled && paint && tool === 'pen') recordTrail(x, y);
+  }
+
+  function activeSwipePanel() {
+    const scroller = $('swipe');
+    if (!scroller) return null;
+    const slides = [...scroller.children];
+    let best = slides[0], bestDist = Infinity;
+    slides.forEach((s) => {
+      const d = Math.abs(s.offsetLeft - scroller.scrollLeft);
+      if (d < bestDist) { bestDist = d; best = s; }
+    });
+    return best?.dataset?.panel || best?.querySelector('.lbl')?.textContent?.trim() || null;
+  }
+
+  function pointContext(x, y) {
+    const under = document.elementFromPoint(x, y);
+    if (!under || under === el || el.contains(under) || dock.contains(under)) {
+      return { pointLabel: null, pointText: null };
+    }
+    const slide = under.closest?.('.slide, .sideSec, .hwCard, .evt, .clip, .hint, .reentry, #hw, #feedWrap, #head');
+    const lbl = under.closest?.('.lbl, .hwLbl, .evtType, #title')?.textContent?.trim()
+      || slide?.querySelector?.('.lbl, .hwLbl')?.textContent?.trim()
+      || under.id || under.className?.toString?.().split(/\s+/)[0] || under.tagName;
+    let text = (under.innerText || under.textContent || '').replace(/\s+/g, ' ').trim();
+    if (text.length > 180) text = text.slice(0, 180) + '…';
+    if (text.length < 2) text = null;
+    return { pointLabel: String(lbl || '').slice(0, 80) || null, pointText: text };
+  }
+
+  function hwLine() {
+    const latest = hwHistory[hwHistory.length - 1];
+    if (!latest) return null;
+    return `mem ${latest.memPct?.toFixed?.(0) ?? '—'}% · cpu ${latest.cpu?.toFixed?.(0) ?? '—'}% · disk ${fmtRate(latest.diskMBs)} MB/s`;
+  }
+
+  function buildContext() {
+    const pt = pointContext(pos.x, pos.y);
+    const tr = trailStats();
+    const r = tool === 'rect' ? lastRect : null;
+    const vw = Math.max(1, window.innerWidth);
+    const vh = Math.max(1, window.innerHeight);
+    return {
+      hours,
+      filter,
+      statusLine: ($('statusLine')?.textContent || '').trim(),
+      panel: activeSwipePanel(),
+      nowLine: [$('nowMain')?.textContent, $('nowSub')?.textContent].filter(Boolean).join(' — ').slice(0, 160) || null,
+      hwLine: hwLine(),
+      tool,
+      pinned,
+      xy: `${Math.round(pos.x)},${Math.round(pos.y)}`,
+      trail: tr.count ? {
+        windowMs: tr.windowMs,
+        count: tr.count,
+        spanMs: tr.spanMs,
+        distancePx: tr.distancePx,
+        path: tr.path,
+        from: tr.from,
+        to: tr.to,
+        samples: tr.samples,
+      } : null,
+      trailLine: tr.count
+        ? `last ${Math.round(tr.spanMs / 100) / 10}s · ${tr.distancePx}px · ${tr.path}`
+        : null,
+      rect: r ? { x: r.x, y: r.y, w: r.w, h: r.h } : null,
+      rectNorm: r ? {
+        x: +(r.x / vw).toFixed(4),
+        y: +(r.y / vh).toFixed(4),
+        w: +(r.w / vw).toFixed(4),
+        h: +(r.h / vh).toFixed(4),
+      } : null,
+      rectLine: r ? `rect ${r.x},${r.y} ${r.w}×${r.h}` : null,
+      ...pt,
+    };
+  }
+
+  async function captureShot() {
+    const target = $('app') || document.body;
+    const scale = Math.min(1, 1100 / Math.max(target.clientWidth || window.innerWidth, 1));
+    if (typeof html2canvas === 'function') {
+      const prev = el.style.visibility;
+      const dockPrev = dock.style.visibility;
+      // keep trail visible in the shot; hide chrome cursor + dock
+      el.style.visibility = 'hidden';
+      dock.style.visibility = 'hidden';
+      try {
+        const canvas = await html2canvas(target, {
+          backgroundColor: '#05060a',
+          scale,
+          logging: false,
+          useCORS: true,
+          windowWidth: target.scrollWidth,
+          windowHeight: Math.min(target.scrollHeight, 1800),
+        });
+        // stamp trail onto the screenshot (fixed overlay isn't in #app)
+        const ctx = canvas.getContext('2d');
+        const sx = canvas.width / window.innerWidth;
+        const sy = canvas.height / window.innerHeight;
+        const now = Date.now();
+        pruneTrail(now);
+        if (trail.length >= 2) {
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          for (let i = 1; i < trail.length; i++) {
+            const a = trail[i - 1];
+            const b = trail[i];
+            const life = 1 - (now - b.t) / TRAIL_MS;
+            if (life <= 0) continue;
+            ctx.beginPath();
+            ctx.moveTo(a.x * sx, a.y * sy);
+            ctx.lineTo(b.x * sx, b.y * sy);
+            ctx.strokeStyle = `rgba(125,211,252,${(0.15 + life * 0.7).toFixed(3)})`;
+            ctx.lineWidth = (1.8 + life * 3.2) * Math.max(sx, sy);
+            ctx.stroke();
+          }
+          const tip = trail[trail.length - 1];
+          ctx.beginPath();
+          ctx.arc(tip.x * sx, tip.y * sy, 5 * Math.max(sx, sy), 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(251,191,36,.9)';
+          ctx.fill();
+        }
+        if (tool === 'rect' && lastRect) {
+          ctx.fillStyle = 'rgba(125,211,252,.12)';
+          ctx.fillRect(lastRect.x * sx, lastRect.y * sy, lastRect.w * sx, lastRect.h * sy);
+          ctx.strokeStyle = 'rgba(125,211,252,.95)';
+          ctx.lineWidth = 2 * Math.max(sx, sy);
+          ctx.strokeRect(lastRect.x * sx, lastRect.y * sy, lastRect.w * sx, lastRect.h * sy);
+        }
+        return canvas.toDataURL('image/jpeg', 0.72);
+      } finally {
+        el.style.visibility = prev;
+        dock.style.visibility = dockPrev;
+      }
+    }
+    // Fallback: paint a compact context card so agents still get an image attachment.
+    const c = document.createElement('canvas');
+    c.width = 720; c.height = 405;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#05060a';
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.fillStyle = '#7dd3fc';
+    ctx.font = '700 18px Lato, sans-serif';
+    ctx.fillText('Valinor ACTIVITY', 28, 40);
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = '14px Lato, sans-serif';
+    const ctxInfo = buildContext();
+    const lines = [
+      ctxInfo.statusLine || '—',
+      `panel ${ctxInfo.panel || '—'} · ${ctxInfo.hours}h · filter ${ctxInfo.filter}`,
+      ctxInfo.tool ? `tool ${ctxInfo.tool}` : null,
+      ctxInfo.pointLabel ? `cursor → ${ctxInfo.pointLabel}` : `cursor @ ${ctxInfo.xy}`,
+      ctxInfo.trailLine ? `trail ${ctxInfo.trailLine}` : '',
+      ctxInfo.rectLine || '',
+      ctxInfo.pointText || '',
+      ctxInfo.hwLine || '',
+      ctxInfo.nowLine || '',
+    ].filter(Boolean);
+    let y = 78;
+    for (const line of lines) {
+      const t = String(line).slice(0, 92);
+      ctx.fillText(t, 28, y);
+      y += 28;
+    }
+    // mini trail
+    if (trail.length >= 2) {
+      ctx.lineCap = 'round';
+      const now = Date.now();
+      for (let i = 1; i < trail.length; i++) {
+        const a = trail[i - 1];
+        const b = trail[i];
+        const life = 1 - (now - b.t) / TRAIL_MS;
+        if (life <= 0) continue;
+        ctx.beginPath();
+        ctx.moveTo((a.x / window.innerWidth) * c.width, (a.y / window.innerHeight) * c.height);
+        ctx.lineTo((b.x / window.innerWidth) * c.width, (b.y / window.innerHeight) * c.height);
+        ctx.strokeStyle = `rgba(125,211,252,${(0.2 + life * 0.7).toFixed(3)})`;
+        ctx.lineWidth = 1.5 + life * 2;
+        ctx.stroke();
+      }
+    }
+    if (tool === 'rect' && lastRect) {
+      const rx = (lastRect.x / window.innerWidth) * c.width;
+      const ry = (lastRect.y / window.innerHeight) * c.height;
+      const rw = (lastRect.w / window.innerWidth) * c.width;
+      const rh = (lastRect.h / window.innerHeight) * c.height;
+      ctx.fillStyle = 'rgba(125,211,252,.12)';
+      ctx.fillRect(rx, ry, rw, rh);
+      ctx.strokeStyle = 'rgba(125,211,252,.95)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(rx, ry, rw, rh);
+    }
+    ctx.strokeStyle = '#fbbf24';
+    ctx.beginPath();
+    const cx = Math.max(20, Math.min(c.width - 20, (pos.x / window.innerWidth) * c.width));
+    const cy = Math.max(20, Math.min(c.height - 20, (pos.y / window.innerHeight) * c.height));
+    ctx.arc(cx, cy, 10, 0, Math.PI * 2);
+    ctx.stroke();
+    return c.toDataURL('image/jpeg', 0.85);
+  }
+
+  function showResult({ summary, words, screenshotUrl, screenshotPath, source, error }) {
+    lastSummary = summary || '';
+    summaryEl.textContent = lastSummary || (error ? String(error) : 'No summary');
+    summaryEl.classList.toggle('empty', !lastSummary);
+    const bits = [];
+    if (words != null) bits.push(`${words}w`);
+    if (source) bits.push(source);
+    bits.push(tool);
+    const tr = trailStats();
+    if (tr.count) bits.push(`trail ${Math.round(tr.spanMs / 100) / 10}s · ${tr.distancePx}px`);
+    if (lastRect && tool === 'rect') bits.push(`rect ${lastRect.w}×${lastRect.h}`);
+    if (screenshotPath) {
+      bits.push(`<a href="${esc(screenshotUrl || ('/' + screenshotPath))}" target="_blank" rel="noopener">${esc(screenshotPath)}</a>`);
+    }
+    if (pinned) bits.push('pinned');
+    metaEl.innerHTML = bits.join(' · ');
+    if (screenshotUrl) {
+      lastShotUrl = screenshotUrl;
+      thumb.src = screenshotUrl;
+      thumb.style.display = '';
+    }
+  }
+
+  async function runCapture(reason) {
+    if (!enabled || busy) return;
+    busy = true;
+    el.classList.add('busy');
+    summaryEl.textContent = reason === 'pin' ? 'Pinned — summarizing…' : 'Summarizing…';
+    summaryEl.classList.remove('empty');
+    const reqId = ++lastReq;
+    const context = buildContext();
+    let image = null;
+    try { image = await captureShot(); } catch { image = null; }
+    try {
+      const res = await fetch('/api/activity/cursor-context', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image, context }),
+      });
+      const j = await res.json();
+      if (reqId !== lastReq) return;
+      if (!res.ok) throw new Error(j.error || 'cursor-context failed');
+      showResult(j);
+    } catch (e) {
+      if (reqId !== lastReq) return;
+      summaryEl.textContent = String(e.message || e);
+      summaryEl.classList.remove('empty');
+      metaEl.textContent = 'error';
+    } finally {
+      if (reqId === lastReq) {
+        busy = false;
+        el.classList.remove('busy');
+      }
+    }
+  }
+
+  function isUiChrome(t) {
+    return !!(t.closest && (
+      t.closest('#cursorToggle') ||
+      t.closest('#cursorDock') ||
+      t.closest('#liveCursor') ||
+      t.closest('#controls') ||
+      t.closest('#split') ||
+      t.closest('#splitH') ||
+      t.closest('#head') ||
+      t.closest('#swipeDots') ||
+      t.closest('#sideDots') ||
+      t.closest('button, a, input, select, textarea')
+    ));
+  }
+
+  document.addEventListener('pointermove', (e) => {
+    if (!enabled) return;
+    if (document.body.classList.contains('resizing-h') || document.body.classList.contains('resizing-v')) return;
+    if (e.pointerType === 'touch' && e.buttons === 0 && e.isPrimary === false) return;
+    // Crosshair follows for aiming; trail only while a stroke is active.
+    placeCursor(e.clientX, e.clientY, { paint: stroking && tool === 'pen' });
+    if (stroking && tool === 'rect' && draftRect) {
+      draftRect.x1 = e.clientX;
+      draftRect.y1 = e.clientY;
+      if (!trailRaf) trailRaf = requestAnimationFrame(() => { trailRaf = 0; drawTrail(); });
+    }
+  }, { passive: true });
+
+  document.addEventListener('pointerdown', (e) => {
+    if (!enabled || e.button !== 0) return;
+    if (isUiChrome(e.target)) return;
+    if (document.body.classList.contains('resizing-h') || document.body.classList.contains('resizing-v')) return;
+    stroking = true;
+    pinned = true;
+    el.classList.add('pinned');
+    if (tool === 'rect') {
+      draftRect = { x0: e.clientX, y0: e.clientY, x1: e.clientX, y1: e.clientY };
+      lastRect = null;
+      placeCursor(e.clientX, e.clientY, { paint: false });
+      drawTrail();
+    } else {
+      draftRect = null;
+      placeCursor(e.clientX, e.clientY, { paint: true });
+    }
+  }, true);
+
+  document.addEventListener('pointerup', (e) => {
+    if (!enabled || !stroking || e.button !== 0) return;
+    stroking = false;
+    pinned = true;
+    el.classList.add('pinned');
+    placeCursor(e.clientX, e.clientY, { paint: tool === 'pen' });
+    if (tool === 'rect' && draftRect) {
+      draftRect.x1 = e.clientX;
+      draftRect.y1 = e.clientY;
+      lastRect = normRect(draftRect.x0, draftRect.y0, draftRect.x1, draftRect.y1);
+      draftRect = null;
+      drawTrail();
+    }
+    void runCapture('pin');
+  }, true);
+
+  document.addEventListener('pointercancel', () => {
+    if (!stroking) return;
+    cancelDraft();
+  }, true);
+
+  document.addEventListener('keydown', (e) => {
+    const a = document.activeElement;
+    const typing = !!(a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.isContentEditable));
+    if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'u') {
+      if (typing) return;
+      e.preventDefault();
+      setEnabled(!enabled);
+      return;
+    }
+    if (!enabled) return;
+    if (typing) return;
+    const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    if (k === 'c' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      e.preventDefault();
+      setTool(tool === 'rect' ? 'pen' : 'rect');
+      return;
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelDraft();
+      if (!lastSummary) {
+        summaryEl.textContent = emptyHint();
+        summaryEl.classList.add('empty');
+      }
+    }
+  });
+
+  window.addEventListener('resize', () => {
+    if (!enabled) return;
+    sizeTrailCanvas();
+    drawTrail();
+  });
+
+  $('cursorCopy').onclick = async () => {
+    if (!lastSummary) return;
+    try {
+      const tr = trailStats();
+      const trailBit = tr.path ? `\ntrail(${Math.round(tr.spanMs / 100) / 10}s, ${tr.distancePx}px): ${tr.path}` : '';
+      const rectBit = lastRect && tool === 'rect'
+        ? `\nrect: ${lastRect.x},${lastRect.y} ${lastRect.w}×${lastRect.h}`
+        : '';
+      await navigator.clipboard.writeText(
+        lastSummary + trailBit + rectBit + (lastShotUrl ? `\n${location.origin}${lastShotUrl.split('?')[0]}` : '')
+      );
+      $('cursorCopy').textContent = 'ok';
+      setTimeout(() => { $('cursorCopy').textContent = 'copy'; }, 900);
+    } catch {}
+  };
+  btn.onclick = () => setEnabled(!enabled);
+
+  updateToolChrome();
+  setEnabled(enabled);
+  if (enabled) placeCursor(Math.round(window.innerWidth * 0.55), Math.round(window.innerHeight * 0.4));
+})();
+
+LayoutSplits.init({
+  side: {
+    container: 'body', handle: 'split', storageKey: 'activity-side-w', default: 300,
+    scrollLock: 'sideSwipe',
+  },
+  top: {
+    stack: 'topStack', scroll: 'scroll', handle: 'splitH',
+    storageKey: 'activity-top-h', default: 300,
+  },
+  onResize() {
+    if (hwHistory.length) renderHw();
+  },
+});
+
+HubClient.onActive((on) => {
+  active = on;
+  if (on) { connectLive(); connectHw(); }
+  else { closeLive(); closeHw(); }
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) closeHw();
+  else if (active) connectHw();
+});
+
+connectLive();
+connectHw();
+</script>
+</body>
+</html>

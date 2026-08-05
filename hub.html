@@ -1,0 +1,1499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<script>(function(){
+  var root = document.documentElement;
+  var theme = localStorage.getItem('lk-theme');
+  var dark = theme === 'dark' || (theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+  root.dataset.theme = dark ? 'dark' : 'light';
+  var scheme = localStorage.getItem('hub-scheme') || 'cyan';
+  if (!/^(cyan|slate|ember|pine)$/.test(scheme)) scheme = 'cyan';
+  root.dataset.scheme = scheme;
+  var font = localStorage.getItem('hub-font') || 'lato';
+  if (!/^(lato|plex|source|mono)$/.test(font)) font = 'lato';
+  root.dataset.font = font;
+  var density = localStorage.getItem('hub-density') || 'cozy';
+  if (density !== 'compact') density = 'cozy';
+  root.dataset.density = density;
+  var size = localStorage.getItem('hub-size') || 'md';
+  if (!/^(sm|md|lg|xl)$/.test(size)) size = 'md';
+  root.dataset.size = size;
+})();</script>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<title>VALINOR</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;600;700&family=Lato:wght@400;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  /* ---- appearance tokens (hub chrome) ---- */
+  :root, html[data-theme="dark"] {
+    --bg: #05060a;
+    --bg-elev: #070910;
+    --bg-panel: rgba(7,9,16,.96);
+    --text: #e2e8f0;
+    --text-dim: #94a3b8;
+    --text-mute: #64748b;
+    --text-faint: #4b5563;
+    --border: rgba(255,255,255,.08);
+    --border-strong: rgba(255,255,255,.16);
+    --chip-bg: rgba(255,255,255,.03);
+    --shadow: 0 16px 48px rgba(0,0,0,.45);
+    --ok: #4ade80;
+    --danger: #ef4444;
+    --danger-bg: rgba(127,29,29,.45);
+    --danger-text: #fecaca;
+  }
+  html[data-theme="light"] {
+    --bg: #f4f5f7;
+    --bg-elev: #ffffff;
+    --bg-panel: rgba(255,255,255,.98);
+    --text: #0f172a;
+    --text-dim: #475569;
+    --text-mute: #64748b;
+    --text-faint: #94a3b8;
+    --border: rgba(15,23,42,.1);
+    --border-strong: rgba(15,23,42,.18);
+    --chip-bg: rgba(15,23,42,.04);
+    --shadow: 0 16px 40px rgba(15,23,42,.12);
+    --ok: #15803d;
+    --danger: #dc2626;
+    --danger-bg: #fee2e2;
+    --danger-text: #991b1b;
+  }
+  html[data-scheme="cyan"]  { --accent: #7dd3fc; --accent-ink: #05060a; --accent-soft: rgba(125,211,252,.14); --accent-line: rgba(125,211,252,.22); }
+  html[data-scheme="slate"] { --accent: #94a3b8; --accent-ink: #0f172a; --accent-soft: rgba(148,163,184,.18); --accent-line: rgba(148,163,184,.28); }
+  html[data-scheme="ember"] { --accent: #d4a574; --accent-ink: #1a1208; --accent-soft: rgba(212,165,116,.16); --accent-line: rgba(212,165,116,.28); }
+  html[data-scheme="pine"]  { --accent: #7a9e7e; --accent-ink: #0a120c; --accent-soft: rgba(122,158,126,.16); --accent-line: rgba(122,158,126,.28); }
+  html[data-theme="light"][data-scheme="cyan"]  { --accent: #0369a1; --accent-ink: #fff; }
+  html[data-theme="light"][data-scheme="slate"] { --accent: #334155; --accent-ink: #fff; }
+  html[data-theme="light"][data-scheme="ember"] { --accent: #9a6412; --accent-ink: #fff; }
+  html[data-theme="light"][data-scheme="pine"]  { --accent: #3f6b45; --accent-ink: #fff; }
+
+  html[data-font="lato"]   { --font: Lato, sans-serif; }
+  html[data-font="plex"]   { --font: "IBM Plex Sans", sans-serif; }
+  html[data-font="source"] { --font: "Source Serif 4", Georgia, serif; }
+  html[data-font="mono"]   { --font: "IBM Plex Mono", ui-monospace, monospace; }
+
+  :root { --font-scale: 1; }
+  html[data-size="sm"] { --font-scale: 0.88; }
+  html[data-size="md"] { --font-scale: 1; }
+  html[data-size="lg"] { --font-scale: 1.14; }
+  html[data-size="xl"] { --font-scale: 1.28; }
+
+  html[data-density="cozy"] {
+    --bar-h: calc(44px * var(--font-scale)); --tab-pad-y: calc(6px * var(--font-scale));
+    --tab-pad-x: calc(13px * var(--font-scale)); --tab-size: calc(11px * var(--font-scale));
+    --gap: calc(6px * var(--font-scale)); --ui-fs: calc(12px * var(--font-scale));
+  }
+  html[data-density="compact"] {
+    --bar-h: calc(36px * var(--font-scale)); --tab-pad-y: calc(4px * var(--font-scale));
+    --tab-pad-x: calc(10px * var(--font-scale)); --tab-size: calc(10px * var(--font-scale));
+    --gap: calc(4px * var(--font-scale)); --ui-fs: calc(11px * var(--font-scale));
+  }
+
+  html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
+               font-family: var(--font); color: var(--text); }
+
+  #views { position: fixed; inset: 0; }
+  #views iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: none; background: var(--bg); }
+  #views iframe.on { display: block; }
+  #views iframe.external { top: var(--bar-h); height: calc(100% - var(--bar-h)); }
+
+  #hot { display: none; }
+  #bar { position: fixed; top: 0; left: 0; right: 0; height: var(--bar-h); z-index: 100;
+         display: flex; align-items: stretch; gap: 0; padding: 0;
+         background: color-mix(in srgb, var(--bg-elev) 92%, transparent);
+         border-bottom: 1px solid var(--accent-line);
+         overflow: visible;
+       }
+  #barFixedLeft, #barFixedRight {
+    flex: 0 0 auto; display: flex; align-items: center; gap: var(--gap); padding: 0 10px;
+    background: color-mix(in srgb, var(--bg-elev) 98%, transparent); z-index: 3; overflow: visible;
+  }
+  #barFixedRight { padding-right: 12px; border-left: 1px solid var(--border); }
+  #barScroll {
+    flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--gap);
+    padding: 0 8px; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch;
+    z-index: 1;
+  }
+  #barScroll::-webkit-scrollbar { display: none; }
+  #bar .brand, #bar button.tab, #bar .sep, #hubClock, #ctl { flex: 0 0 auto; }
+  #bar .brand { font-size: var(--ui-fs); font-weight: 700; letter-spacing: 0.04em;
+                color: var(--accent); cursor: pointer; user-select: none; }
+  #bar .brand:hover { filter: brightness(1.15); }
+  #bar .brand.on { color: var(--text); text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 45%, transparent); }
+  #hubClock { font: 600 var(--ui-fs) var(--font); font-variant-numeric: tabular-nums;
+              letter-spacing: .04em; color: var(--text-dim); padding: 5px 10px;
+              border: 1px solid var(--border); border-radius: 8px;
+              background: var(--chip-bg); position: relative; cursor: pointer; }
+  #hubClock:hover { color: var(--text); border-color: var(--accent-line); }
+  #hubClock.copied { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
+  #hubClockTip {
+    display: none; position: fixed; z-index: 250; pointer-events: none;
+    white-space: nowrap; padding: 7px 10px; border-radius: 8px;
+    background: var(--bg-panel); border: 1px solid var(--accent-line);
+    box-shadow: var(--shadow);
+    font: 600 11px var(--font); letter-spacing: .03em; color: var(--text-dim);
+  }
+  #hubClockTip.show { display: block; }
+  #hubClockTip b { color: var(--accent); font-weight: 700; }
+  #hubClockTip .sep { color: var(--text-mute); margin: 0 6px; }
+  #bar button.tab { padding: var(--tab-pad-y) var(--tab-pad-x); font: 700 var(--tab-size) var(--font); letter-spacing: 0.05em;
+                    color: var(--text-faint); background: var(--chip-bg);
+                    border: 1px solid var(--border); border-radius: 999px; cursor: pointer; }
+  #bar button.tab:hover { color: var(--text-dim); }
+  #bar button.tab.on { color: var(--accent); background: var(--accent-soft); border-color: var(--accent); }
+  #bar .sep { width: 1px; height: 20px; background: var(--border-strong); margin: 0 4px; }
+  #ctl { display: flex; gap: var(--gap); }
+  #ctl button { width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--border-strong);
+    background: color-mix(in srgb, var(--bg-elev) 78%, transparent); color: var(--text); font: 600 13px var(--font); cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; }
+  #ctl button:hover { background: color-mix(in srgb, var(--text) 12%, transparent); }
+  #ctl button.on { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
+  #settingsBtn .burger { display: flex; flex-direction: column; gap: 3px; width: 14px; }
+  #settingsBtn .burger span { display: block; height: 1.5px; width: 100%; background: currentColor; border-radius: 1px; }
+
+  #settingsPanel {
+    display: none; position: fixed; top: calc(var(--bar-h) + 6px); right: 12px; z-index: 120;
+    width: min(360px, calc(100vw - 24px)); max-height: min(78vh, 640px); overflow-y: auto;
+    padding: 14px 14px 12px;
+    background: var(--bg-panel); border: 1px solid var(--accent-line);
+    border-radius: 12px; box-shadow: var(--shadow);
+    color: var(--text); font-family: var(--font);
+  }
+  #settingsPanel.open { display: block; }
+  #settingsPanel h2 { font: 700 11px var(--font); letter-spacing: .12em; color: var(--accent);
+    text-transform: uppercase; margin-bottom: 10px; }
+  #settingsPanel .lbl { font: 700 10px var(--font); letter-spacing: .08em; color: var(--text-mute);
+    text-transform: uppercase; margin-bottom: 2px; }
+  #settingsPanel .row { display: flex; flex-direction: column; gap: 8px; }
+  #settingsPanel .hint { font-size: 12px; color: var(--text-mute); line-height: 1.45; }
+  #settingsPanel .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  #restartBtn {
+    padding: 8px 14px; border-radius: 9px; border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent);
+    background: var(--danger-bg); color: var(--danger-text); font: 700 12px var(--font);
+    letter-spacing: .04em; cursor: pointer;
+  }
+  #restartBtn:hover { background: var(--danger); color: #fff; border-color: transparent; }
+  #restartBtn:disabled { opacity: .55; cursor: wait; }
+  #restartStatus { font-size: 11.5px; color: var(--text-dim); min-height: 16px; }
+  #settingsPanel .seg {
+    display: flex; gap: 6px; padding: 4px; border-radius: 10px;
+    background: var(--chip-bg); border: 1px solid var(--border); flex-wrap: wrap;
+  }
+  #settingsPanel .seg button {
+    flex: 1; min-width: calc(50% - 6px); padding: 8px 10px; border-radius: 7px; border: none; cursor: pointer;
+    font: 700 11px var(--font); letter-spacing: .04em; color: var(--text-mute);
+    background: transparent;
+  }
+  #settingsPanel .seg.seg-4 button { min-width: calc(25% - 6px); flex: 1 1 calc(25% - 6px); padding: 8px 6px; }
+  #settingsPanel .seg button:hover { color: var(--text); }
+  #settingsPanel .seg button.on { color: var(--accent-ink); background: var(--accent); }
+  #settingsPanel .seg button .swatch {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px;
+    vertical-align: middle; border: 1px solid rgba(0,0,0,.2);
+  }
+  #settingsPanel hr { border: none; border-top: 1px solid var(--border); margin: 4px 0; }
+  #settingsPanel .keys { display: flex; flex-direction: column; gap: 6px; }
+  #settingsPanel .keyrow { display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    font-size: 12px; color: var(--text-dim); }
+  #settingsPanel .keyrow span { color: var(--text-mute); }
+  #settingsPanel kbd {
+    font: 600 10px ui-monospace, monospace; padding: 2px 6px; border-radius: 5px;
+    background: var(--chip-bg); border: 1px solid var(--border); color: var(--text-dim);
+  }
+
+  /* drawer nav mode */
+  #bar.nav-drawer #barScroll { overflow: hidden; cursor: pointer; position: relative; }
+  #bar.nav-drawer #barScroll .tab.tab-bar-hidden { display: none; }
+  #bar.nav-drawer.all-tabs-fit #navExpand { display: none; }
+  #navExpand {
+    display: none; flex: 0 0 auto; padding: var(--tab-pad-y) 11px; font: 700 var(--tab-size) var(--font);
+    letter-spacing: 0.05em; color: var(--text-mute); background: var(--chip-bg);
+    border: 1px solid var(--border); border-radius: 999px; cursor: pointer;
+  }
+  #bar.nav-drawer #navExpand { display: inline-flex; align-items: center; }
+  #navExpand:hover, #bar.nav-drawer #barScroll:hover #navExpand { color: var(--text-dim); }
+  #bar.nav-drawer.drawer-open #navExpand { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+  #navDrawerBackdrop {
+    position: fixed; inset: 0; top: var(--bar-h); z-index: 98; background: rgba(0,0,0,.38);
+    opacity: 0; pointer-events: none; transition: opacity .22s ease;
+  }
+  #navDrawerBackdrop.open { opacity: 1; pointer-events: auto; }
+  #navDrawer {
+    position: fixed; top: var(--bar-h); left: 0; right: 0; z-index: 99;
+    max-height: 0; overflow: hidden; pointer-events: none;
+    background: var(--bg-panel); border-bottom: 1px solid var(--accent-line);
+    box-shadow: var(--shadow);
+    transition: max-height .28s ease;
+  }
+  #navDrawer.open { max-height: min(70vh, 520px); pointer-events: auto; }
+  #navDrawerInner {
+    display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 14px 16px;
+    overflow-y: auto; max-height: min(70vh, 520px);
+  }
+  #navDrawerInner .tab { cursor: pointer; }
+
+  @media (hover: none), (pointer: coarse) {
+    #barScroll { -webkit-overflow-scrolling: touch; }
+    #hot { display: none; }
+    #views { top: var(--bar-h); }
+    #views iframe.external { top: 0; height: 100%; }
+  }
+
+  #start {
+    position: fixed; inset: 0; z-index: 200; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 0; color: var(--text);
+    background: var(--bg); text-align: center; overflow: hidden;
+    opacity: 1; transition: opacity 80ms ease, visibility 80ms ease;
+  }
+  #start.hide { opacity: 0; visibility: hidden; pointer-events: none; }
+  #start.out { opacity: 0; }
+  #start .core {
+    position: relative; z-index: 1; display: flex; flex-direction: column;
+    align-items: center; gap: 14px; padding: 0 28px;
+  }
+  #start .mark { width: 44px; height: 44px; }
+  #start .mark svg { width: 100%; height: 100%; display: block; }
+  #start h1 {
+    font-size: clamp(32px, 6vw, 48px); font-weight: 700;
+    letter-spacing: .22em; color: var(--accent); margin-right: -.22em;
+    text-indent: .22em; line-height: 1; font-family: var(--font);
+  }
+  #start .tag {
+    max-width: 380px; font-size: 13.5px; line-height: 1.5; color: var(--text-dim);
+  }
+  #startMsg {
+    color: var(--danger); font-size: 12.5px; min-height: 0; max-width: 420px;
+    line-height: 1.4;
+  }
+  #startMsg:empty { display: none; }
+  #go {
+    margin-top: 2px; padding: 11px 24px; font-size: 13px; font-weight: 700;
+    letter-spacing: .04em; color: var(--accent-ink); background: var(--accent); border: none;
+    border-radius: 999px; cursor: pointer; font-family: var(--font);
+  }
+  #go:hover { filter: brightness(1.1); }
+  #go:active { transform: scale(.98); }
+  #go:disabled { cursor: wait; opacity: .72; }
+  #start.booting #go { display: none; }
+  #start .status {
+    display: none; font: 600 11px var(--font); letter-spacing: .12em;
+    text-transform: uppercase; color: var(--text-mute);
+  }
+  #start.booting .status { display: block; }
+
+  #speechNote { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 110;
+    display: none; max-width: min(640px, 92vw); padding: 8px 14px; border-radius: 10px;
+    background: var(--danger-bg); border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent);
+    color: var(--danger-text); font: 600 12px/1.4 var(--font); text-align: center; }
+  #speechNote a { color: inherit; text-decoration: underline; }
+
+  #cmdPalette { display: none; position: fixed; inset: 0; z-index: 210; }
+  #cmdPalette.open { display: block; }
+  #cmdPaletteBackdrop { position: absolute; inset: 0; background: rgba(0,0,0,.52); }
+  #cmdPalettePanel {
+    position: absolute; top: min(18vh, 120px); left: 50%; transform: translateX(-50%);
+    width: min(540px, calc(100vw - 32px));
+    background: var(--bg-panel); border: 1px solid var(--accent-line);
+    border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; font-family: var(--font);
+  }
+  #cmdPaletteInput {
+    width: 100%; padding: 14px 16px; font: 400 15px var(--font); color: var(--text);
+    background: transparent; border: none; border-bottom: 1px solid var(--border);
+    outline: none;
+  }
+  #cmdPaletteInput::placeholder { color: var(--text-faint); }
+  #cmdPaletteList { list-style: none; max-height: min(50vh, 360px); overflow-y: auto; padding: 6px 0; }
+  #cmdPaletteList li {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 10px 16px; cursor: pointer; font: 600 13px var(--font); color: var(--text-dim);
+  }
+  #cmdPaletteList li:hover { background: var(--chip-bg); }
+  #cmdPaletteList li.sel { background: var(--accent-soft); color: var(--text); }
+  #cmdPaletteList li.on-tab { color: var(--accent); }
+  #cmdPaletteList .cmd-meta { font: 600 11px var(--font); letter-spacing: .04em; color: var(--text-mute); }
+  #cmdPaletteList .cmd-meta kbd {
+    font: 600 10px ui-monospace, monospace; padding: 2px 6px; border-radius: 5px;
+    background: var(--chip-bg); border: 1px solid var(--border); color: var(--text-dim);
+  }
+  #cmdPaletteEmpty { padding: 18px 16px; text-align: center; font-size: 13px; color: var(--text-mute); }
+
+  #sysOverlay { display: none; position: fixed; inset: 0; z-index: 180; }
+  #sysOverlay.open { display: block; }
+  #sysOverlayBackdrop { position: absolute; inset: 0; background: rgba(0,0,0,.55); }
+  #sysOverlayPanel {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 50vw; height: 50vh; min-width: 280px; min-height: 200px;
+    max-width: calc(100vw - 32px); max-height: calc(100vh - 64px);
+    background: var(--bg); border: 1px solid var(--accent-line);
+    border-radius: 14px; box-shadow: var(--shadow);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 10px; padding: 24px; font-family: var(--font);
+  }
+  #sysOverlayTime {
+    font: 700 clamp(48px, 10vw, 96px) var(--font);
+    font-variant-numeric: tabular-nums; letter-spacing: .02em; color: var(--text); line-height: 1;
+  }
+  #sysOverlayDate { font: 400 clamp(13px, 2vw, 18px) var(--font); color: var(--text-mute); }
+  #sysOverlayMeta {
+    margin-top: 18px; display: grid; grid-template-columns: auto 1fr; gap: 8px 16px;
+    min-width: min(320px, 70%); font: 600 13px var(--font); color: var(--text-dim);
+  }
+  #sysOverlayMeta .k { color: var(--text-mute); letter-spacing: .06em; text-transform: uppercase;
+    font-size: 10px; font-weight: 700; align-self: center; }
+  #sysOverlayMeta .v { color: var(--text); font-variant-numeric: tabular-nums; }
+  #sysOverlayMeta .v.warn { color: #fbbf24; }
+  #sysOverlayMeta .v.ok { color: var(--ok); }
+  #sysOverlayClose {
+    position: absolute; top: 12px; right: 12px; width: 32px; height: 32px;
+    border-radius: 8px; border: 1px solid var(--border);
+    background: var(--chip-bg); color: var(--text-dim); font: 600 14px var(--font);
+    cursor: pointer;
+  }
+  #sysOverlayClose:hover { color: var(--text); background: color-mix(in srgb, var(--text) 10%, transparent); }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="cursor-capture.js"></script>
+</head>
+<body>
+  <div id="views"></div>
+  <!-- feeds the shared hand tracker; kept technically visible so frames decode -->
+  <video id="camfeed" autoplay playsinline muted
+         style="position:fixed; bottom:0; left:0; width:2px; height:2px; opacity:0; pointer-events:none;"></video>
+
+  <div id="hot" style="display:none;"></div>
+  <div id="bar">
+    <div id="barFixedLeft">
+      <span class="brand" id="brandBtn" title="System clock" role="button" tabindex="0">VALINOR</span>
+      <time id="hubClock" aria-live="off" tabindex="0"></time>
+    </div>
+    <div id="barScroll">
+      <button type="button" id="navExpand" title="All tabs">⋯</button>
+    </div>
+    <div id="barFixedRight">
+      <div id="ctl">
+        <button id="settingsBtn" title="Menu (⌘K)" aria-label="Menu">
+          <span class="burger" aria-hidden="true"><span></span><span></span><span></span></span>
+        </button>
+        <button id="selectBtn" title="select overlay — click/drag with the mouse">○</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="hubClockTip" aria-hidden="true"></div>
+
+  <div id="navDrawerBackdrop" aria-hidden="true"></div>
+  <div id="navDrawer" aria-hidden="true">
+    <div id="navDrawerInner"></div>
+  </div>
+
+  <div id="settingsPanel" role="dialog" aria-label="Menu">
+    <h2>Menu</h2>
+    <div class="row">
+      <div class="lbl">Theme</div>
+      <div class="seg" id="themeSeg">
+        <button type="button" data-theme="light">Light</button>
+        <button type="button" data-theme="dark">Dark</button>
+      </div>
+    </div>
+    <hr />
+    <div class="row">
+      <div class="lbl">Color</div>
+      <div class="seg seg-4" id="schemeSeg">
+        <button type="button" data-scheme="cyan"><span class="swatch" style="background:#7dd3fc"></span>Cyan</button>
+        <button type="button" data-scheme="slate"><span class="swatch" style="background:#94a3b8"></span>Slate</button>
+        <button type="button" data-scheme="ember"><span class="swatch" style="background:#d4a574"></span>Ember</button>
+        <button type="button" data-scheme="pine"><span class="swatch" style="background:#7a9e7e"></span>Pine</button>
+      </div>
+    </div>
+    <hr />
+    <div class="row">
+      <div class="lbl">Font</div>
+      <div class="seg seg-4" id="fontSeg">
+        <button type="button" data-font="lato" style="font-family:Lato,sans-serif">Lato</button>
+        <button type="button" data-font="plex" style="font-family:'IBM Plex Sans',sans-serif">Plex</button>
+        <button type="button" data-font="source" style="font-family:'Source Serif 4',Georgia,serif">Serif</button>
+        <button type="button" data-font="mono" style="font-family:'IBM Plex Mono',monospace">Mono</button>
+      </div>
+    </div>
+    <hr />
+    <div class="row">
+      <div class="lbl">Size</div>
+      <div class="seg seg-4" id="sizeSeg">
+        <button type="button" data-size="sm">S</button>
+        <button type="button" data-size="md">M</button>
+        <button type="button" data-size="lg">L</button>
+        <button type="button" data-size="xl">XL</button>
+      </div>
+    </div>
+    <hr />
+    <div class="row">
+      <div class="lbl">Spacing</div>
+      <div class="seg" id="densitySeg">
+        <button type="button" data-density="cozy">Cozy</button>
+        <button type="button" data-density="compact">Compact</button>
+      </div>
+    </div>
+    <hr />
+    <div class="row">
+      <div class="lbl">Navigation</div>
+      <div class="hint">Classic scrolls all tabs; drawer shows five and expands below.</div>
+      <div class="seg" id="navModeSeg">
+        <button type="button" data-mode="classic">Classic</button>
+        <button type="button" data-mode="drawer">Drawer</button>
+      </div>
+    </div>
+    <hr />
+    <div class="row">
+      <div class="lbl">Shortcuts</div>
+      <div class="keys">
+        <div class="keyrow"><span>Go to tab</span><span><kbd>⌘</kbd><kbd>P</kbd></span></div>
+        <div class="keyrow"><span>Toggle theme</span><span><kbd>⌘</kbd><kbd>I</kbd></span></div>
+        <div class="keyrow"><span>Cursor capture</span><span><kbd>⌘</kbd><kbd>U</kbd></span></div>
+        <div class="keyrow"><span>Open menu</span><span><kbd>⌘</kbd><kbd>K</kbd></span></div>
+        <div class="keyrow"><span>Valinor overlay</span><span><kbd>⌘</kbd><kbd>J</kbd></span></div>
+        <div class="keyrow"><span>Tabs 1–10</span><span><kbd>1</kbd>–<kbd>9</kbd> <kbd>0</kbd></span></div>
+        <div class="keyrow"><span>Close overlay</span><span><kbd>Esc</kbd></span></div>
+      </div>
+    </div>
+    <hr />
+    <div class="row">
+      <div class="hint">Restart the Valinor Node server on :4777. Reloads when it’s back.</div>
+      <div class="actions">
+        <button id="restartBtn" type="button">Restart server</button>
+      </div>
+      <div id="restartStatus"></div>
+    </div>
+  </div>
+
+  <div id="sysOverlay" aria-hidden="true">
+    <div id="sysOverlayBackdrop"></div>
+    <div id="sysOverlayPanel" role="dialog" aria-label="Valinor status">
+      <button type="button" id="sysOverlayClose" title="Close (Esc)">✕</button>
+      <div id="sysOverlayTime"></div>
+      <div id="sysOverlayDate"></div>
+      <div id="sysOverlayMeta">
+        <span class="k">Location</span><span class="v" id="sysOverlayLoc">—</span>
+        <span class="k">IP</span><span class="v" id="sysOverlayIp">—</span>
+        <span class="k">Timezone</span><span class="v" id="sysOverlayTz">—</span>
+        <span class="k">Compromise</span><span class="v warn" id="sysOverlayCompromised">unknown (placeholder)</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="speechNote"></div>
+
+  <div id="cmdPalette" aria-hidden="true">
+    <div id="cmdPaletteBackdrop"></div>
+    <div id="cmdPalettePanel" role="dialog" aria-label="Go to tab">
+      <input id="cmdPaletteInput" type="search" placeholder="Go to tab…  ⌘P" autocomplete="off" spellcheck="false" />
+      <ul id="cmdPaletteList"></ul>
+    </div>
+  </div>
+
+  <div id="start" class="hide" aria-live="polite">
+    <div class="core">
+      <div class="mark" aria-hidden="true">
+        <svg viewBox="0 0 32 32" fill="none">
+          <circle cx="16" cy="16" r="9" stroke="#7dd3fc" stroke-width="1.6"/>
+          <circle cx="16" cy="16" r="3.1" fill="#f472b6"/>
+        </svg>
+      </div>
+      <h1>VALINOR</h1>
+      <p class="tag">Camera and mic stay on this computer.</p>
+      <div id="startMsg"></div>
+      <button id="go">Enter</button>
+      <div class="status" id="startStatus">Starting…</div>
+    </div>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const host = $('views'), bar = $('bar'), barScroll = $('barScroll'), hot = $('hot'), camVid = $('camfeed');
+const navDrawer = $('navDrawer'), navDrawerInner = $('navDrawerInner'), navDrawerBackdrop = $('navDrawerBackdrop');
+const navExpand = $('navExpand');
+const cmdPalette = $('cmdPalette'), cmdPaletteInput = $('cmdPaletteInput'), cmdPaletteList = $('cmdPaletteList');
+const cmdPaletteBackdrop = $('cmdPaletteBackdrop'), cmdPalettePanel = $('cmdPalettePanel');
+const THEME_KEY = 'lk-theme';
+const SCHEME_KEY = 'hub-scheme';
+const FONT_KEY = 'hub-font';
+const SIZE_KEY = 'hub-size';
+const DENSITY_KEY = 'hub-density';
+const NAV_MODE_KEY = 'hub-nav-mode';
+const DRAWER_BAR_MAX = 5;
+const SCHEMES = ['cyan', 'slate', 'ember', 'pine'];
+const FONTS = ['lato', 'plex', 'source', 'mono'];
+const SIZES = ['sm', 'md', 'lg', 'xl'];
+
+function resolvedTheme() {
+  const s = localStorage.getItem(THEME_KEY);
+  if (s === 'dark' || s === 'light') return s;
+  return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+function currentScheme() {
+  const s = localStorage.getItem(SCHEME_KEY) || 'cyan';
+  return SCHEMES.includes(s) ? s : 'cyan';
+}
+function currentFont() {
+  const s = localStorage.getItem(FONT_KEY) || 'lato';
+  return FONTS.includes(s) ? s : 'lato';
+}
+function currentSize() {
+  const s = localStorage.getItem(SIZE_KEY) || 'md';
+  return SIZES.includes(s) ? s : 'md';
+}
+function currentDensity() {
+  return localStorage.getItem(DENSITY_KEY) === 'compact' ? 'compact' : 'cozy';
+}
+function appearancePayload() {
+  return {
+    theme: resolvedTheme(),
+    scheme: currentScheme(),
+    font: currentFont(),
+    size: currentSize(),
+    density: currentDensity(),
+  };
+}
+function applyHubAppearance(prefs) {
+  const root = document.documentElement;
+  const theme = prefs.theme === 'light' ? 'light' : 'dark';
+  const scheme = SCHEMES.includes(prefs.scheme) ? prefs.scheme : 'cyan';
+  const font = FONTS.includes(prefs.font) ? prefs.font : 'lato';
+  const size = SIZES.includes(prefs.size) ? prefs.size : 'md';
+  const density = prefs.density === 'compact' ? 'compact' : 'cozy';
+  root.dataset.theme = theme;
+  root.dataset.scheme = scheme;
+  root.dataset.font = font;
+  root.dataset.size = size;
+  root.dataset.density = density;
+  syncAppearanceSegs();
+}
+function broadcastAppearance(prefs, skip) {
+  const msg = { type: 'appearance', ...prefs };
+  for (const fr of frames.values()) {
+    if (skip && fr.contentWindow === skip) continue;
+    try { fr.contentWindow.postMessage(msg, location.origin); } catch (e) {}
+    try { fr.contentWindow.postMessage({ type: 'theme', theme: prefs.theme }, location.origin); } catch (e) {}
+  }
+}
+function setGlobalAppearance(partial, skip) {
+  const prefs = { ...appearancePayload(), ...partial };
+  localStorage.setItem(THEME_KEY, prefs.theme);
+  localStorage.setItem(SCHEME_KEY, prefs.scheme);
+  localStorage.setItem(FONT_KEY, prefs.font);
+  localStorage.setItem(SIZE_KEY, prefs.size);
+  localStorage.setItem(DENSITY_KEY, prefs.density);
+  applyHubAppearance(prefs);
+  broadcastAppearance(prefs, skip);
+}
+function applyHubTheme(theme) {
+  setGlobalAppearance({ theme });
+}
+function broadcastTheme(theme, skip) {
+  broadcastAppearance({ ...appearancePayload(), theme }, skip);
+}
+function setGlobalTheme(theme, skip) {
+  setGlobalAppearance({ theme }, skip);
+}
+function toggleGlobalTheme(skip) {
+  setGlobalTheme(resolvedTheme() === 'dark' ? 'light' : 'dark', skip);
+}
+function syncThemeToFrame(f) {
+  const prefs = appearancePayload();
+  try {
+    f.contentWindow.postMessage({ type: 'appearance', ...prefs }, location.origin);
+    f.contentWindow.postMessage({ type: 'theme', theme: prefs.theme }, location.origin);
+  } catch (e) {}
+}
+function syncAppearanceSegs() {
+  const prefs = appearancePayload();
+  document.querySelectorAll('#themeSeg button').forEach((b) => {
+    b.classList.toggle('on', b.dataset.theme === prefs.theme);
+  });
+  document.querySelectorAll('#schemeSeg button').forEach((b) => {
+    b.classList.toggle('on', b.dataset.scheme === prefs.scheme);
+  });
+  document.querySelectorAll('#fontSeg button').forEach((b) => {
+    b.classList.toggle('on', b.dataset.font === prefs.font);
+  });
+  document.querySelectorAll('#sizeSeg button').forEach((b) => {
+    b.classList.toggle('on', b.dataset.size === prefs.size);
+  });
+  document.querySelectorAll('#densitySeg button').forEach((b) => {
+    b.classList.toggle('on', b.dataset.density === prefs.density);
+  });
+}
+
+// Set BEFORE any iframe can exist (views are only created from show(), which only runs
+// after user interaction or begin() — both strictly after this line). hub-client.js's
+// embedded-detection just checks for this object's presence, not for a finished camera/mic
+// grant — so a view opened while begin() is still awaiting getUserMedia is still correctly
+// recognized as embedded, instead of silently falling back to its own standalone device grab.
+window.hubShared = { cam: null, mic: null, micError: null, speechOwner: null, speechStopper: null };
+
+// One entry per view. Same src = same iframe (BREATHE shares hud.html), so
+// switching between them is instant; `mode` is posted to the HUD via hub-client.
+const VIEWS = [
+  { key: 'loops',    label: 'LOOPS',    src: '/loops?embed=1', external: true },
+  { key: 'factory',  label: 'FACTORY',  src: 'http://localhost:3000', external: true },
+  { key: 'live',     label: 'LIVE',     src: 'live.html' },
+  { key: 'board',    label: 'BOARD',    src: 'board.html' },
+  { key: 'letters',  label: 'LETTERS',  src: 'letters.html' },
+  { key: 'rehearse', label: 'REHEARSE', src: 'rehearse.html' },
+  { key: 'waves',    label: 'GAME',     src: 'index.html' },
+  { key: 'breathe',  label: 'BREATHE',  src: 'hud.html',      mode: 'BREATHE' },
+  { key: 'agent',    label: 'AGENT',    src: 'agent.html' },
+  { key: 'convos',   label: 'CONVOS',   src: 'convos.html' },
+  { key: 'messages', label: 'MESSAGES', src: 'messages.html' },
+  { key: 'activity', label: 'ACTIVITY', src: 'activity.html' },
+  { key: 'adventures', label: 'ADVENTURES', src: 'adventures.html' },
+  { key: 'oss',      label: 'OSS',      src: 'oss.html' },
+  { key: 'logact',   label: 'LOGACT',   src: 'logact.html' },
+  { key: 'buzz',     label: 'BUZZ',     src: 'buzz.html' },
+];
+
+// ---- Electron overlay bridge (no-op in a plain browser tab) ----
+const ipc = (() => { try { return window.require ? window.require('electron').ipcRenderer : null; } catch (e) { return null; } })();
+function interactiveOn(el) {
+  if (!ipc || !el) return;
+  el.addEventListener('mouseenter', () => ipc.send('interactive', true));
+  el.addEventListener('mouseleave', () => ipc.send('interactive', false));
+}
+let mouseSelect = false;
+$('selectBtn').onclick = () => {
+  mouseSelect = !mouseSelect;
+  if (ipc) ipc.send('lock', mouseSelect);
+  $('selectBtn').textContent = mouseSelect ? '◉' : '○';
+  $('selectBtn').style.background = mouseSelect ? '#7dd3fc' : '';
+  $('selectBtn').style.color = mouseSelect ? '#05060a' : '';
+};
+if (!ipc) $('selectBtn').style.display = 'none';
+
+// ---- settings: restart Valinor server ----
+const settingsPanel = $('settingsPanel');
+const settingsBtn = $('settingsBtn');
+const restartBtn = $('restartBtn');
+const restartStatus = $('restartStatus');
+const navModeSeg = $('navModeSeg');
+let navMode = localStorage.getItem(NAV_MODE_KEY) === 'drawer' ? 'drawer' : 'classic';
+let navDrawerOpen = false;
+
+function setNavDrawerOpen(on) {
+  navDrawerOpen = on;
+  navDrawer.classList.toggle('open', on);
+  navDrawerBackdrop.classList.toggle('open', on);
+  bar.classList.toggle('drawer-open', on);
+  navDrawer.setAttribute('aria-hidden', on ? 'false' : 'true');
+  navDrawerBackdrop.setAttribute('aria-hidden', on ? 'false' : 'true');
+  if (on && typeof setSysOverlayOpen === 'function') setSysOverlayOpen(false);
+}
+
+function syncDrawerTabStates() {
+  const key = active?.key;
+  for (const b of navDrawerInner.querySelectorAll('.tab')) {
+    b.classList.toggle('on', b.dataset.key === key);
+  }
+}
+
+function updateDrawerBarTabs() {
+  const tabs = [...barScroll.querySelectorAll('.tab')];
+  tabs.forEach((t) => t.classList.remove('tab-bar-hidden'));
+  if (navMode !== 'drawer') {
+    bar.classList.remove('all-tabs-fit');
+    return;
+  }
+
+  const reserveExpand = VIEWS.length > DRAWER_BAR_MAX;
+  bar.classList.toggle('all-tabs-fit', !reserveExpand);
+  const limit = reserveExpand ? DRAWER_BAR_MAX - 1 : DRAWER_BAR_MAX;
+  const activeKey = active?.key;
+  let visible = tabs.slice(0, limit);
+  if (activeKey && !visible.some((t) => t.dataset.key === activeKey)) {
+    const activeTab = tabs.find((t) => t.dataset.key === activeKey);
+    if (activeTab) visible = [...visible.slice(0, limit - 1), activeTab];
+  }
+  tabs.forEach((t) => {
+    if (!visible.includes(t)) t.classList.add('tab-bar-hidden');
+  });
+}
+
+function applyNavMode(mode) {
+  navMode = mode === 'drawer' ? 'drawer' : 'classic';
+  localStorage.setItem(NAV_MODE_KEY, navMode);
+  bar.classList.toggle('nav-drawer', navMode === 'drawer');
+  navModeSeg.querySelectorAll('button').forEach((b) => {
+    b.classList.toggle('on', b.dataset.mode === navMode);
+  });
+  if (navMode === 'classic') setNavDrawerOpen(false);
+  updateDrawerBarTabs();
+  syncDrawerTabStates();
+}
+
+function buildNavDrawerTabs() {
+  navDrawerInner.innerHTML = '';
+  for (const v of VIEWS) {
+    const b = document.createElement('button');
+    b.className = 'tab';
+    b.textContent = v.label;
+    b.title = `${v.key} · ${v.src}`;
+    b.dataset.key = v.key;
+    b.onclick = (e) => {
+      e.stopPropagation();
+      show(v.key);
+      setNavDrawerOpen(false);
+    };
+    navDrawerInner.appendChild(b);
+  }
+  syncDrawerTabStates();
+}
+
+function setSettingsOpen(on) {
+  settingsPanel.classList.toggle('open', on);
+  settingsBtn.classList.toggle('on', on);
+  if (on) {
+    setNavDrawerOpen(false);
+    if (typeof setSysOverlayOpen === 'function') setSysOverlayOpen(false);
+  }
+}
+settingsBtn.onclick = (e) => {
+  e.stopPropagation();
+  setSettingsOpen(!settingsPanel.classList.contains('open'));
+};
+document.addEventListener('click', (e) => {
+  if (!settingsPanel.classList.contains('open')) return;
+  if (settingsPanel.contains(e.target) || settingsBtn.contains(e.target)) return;
+  setSettingsOpen(false);
+});
+navModeSeg.querySelectorAll('button').forEach((b) => {
+  b.onclick = () => applyNavMode(b.dataset.mode);
+});
+$('themeSeg').querySelectorAll('button').forEach((b) => {
+  b.onclick = () => setGlobalAppearance({ theme: b.dataset.theme });
+});
+$('schemeSeg').querySelectorAll('button').forEach((b) => {
+  b.onclick = () => setGlobalAppearance({ scheme: b.dataset.scheme });
+});
+$('fontSeg').querySelectorAll('button').forEach((b) => {
+  b.onclick = () => setGlobalAppearance({ font: b.dataset.font });
+});
+$('sizeSeg').querySelectorAll('button').forEach((b) => {
+  b.onclick = () => setGlobalAppearance({ size: b.dataset.size });
+});
+$('densitySeg').querySelectorAll('button').forEach((b) => {
+  b.onclick = () => setGlobalAppearance({ density: b.dataset.density });
+});
+applyHubAppearance(appearancePayload());
+navExpand.onclick = (e) => {
+  e.stopPropagation();
+  setNavDrawerOpen(!navDrawerOpen);
+};
+barScroll.onclick = (e) => {
+  if (navMode !== 'drawer') return;
+  if (e.target.closest('.tab') || e.target === navExpand) return;
+  setNavDrawerOpen(!navDrawerOpen);
+};
+navDrawerBackdrop.onclick = () => setNavDrawerOpen(false);
+
+// ---- command palette (⌘P) ----
+let cmdPaletteOpen = false;
+let cmdPaletteIdx = 0;
+let cmdPaletteMatches = [];
+
+function closeCmdPalette() {
+  cmdPaletteOpen = false;
+  cmdPalette.classList.remove('open');
+  cmdPalette.setAttribute('aria-hidden', 'true');
+}
+
+function openCmdPalette() {
+  setSettingsOpen(false);
+  setNavDrawerOpen(false);
+  if (typeof setSysOverlayOpen === 'function') setSysOverlayOpen(false);
+  cmdPaletteOpen = true;
+  cmdPalette.classList.add('open');
+  cmdPalette.setAttribute('aria-hidden', 'false');
+  cmdPaletteInput.value = '';
+  cmdPaletteIdx = 0;
+  renderCmdPalette('');
+  cmdPaletteInput.focus();
+  cmdPaletteInput.select();
+}
+
+function toggleCmdPalette() {
+  if (cmdPaletteOpen) closeCmdPalette();
+  else openCmdPalette();
+}
+
+function filterPaletteViews(q) {
+  const s = q.trim().toLowerCase();
+  if (!s) return VIEWS.slice();
+  return VIEWS.filter((v) =>
+    v.label.toLowerCase().includes(s) ||
+    v.key.toLowerCase().includes(s) ||
+    v.src.toLowerCase().includes(s));
+}
+
+function paletteHotkey(idx) {
+  if (idx < 9) return String(idx + 1);
+  if (idx === 9) return '0';
+  return '';
+}
+
+function renderCmdPalette(q) {
+  cmdPaletteMatches = filterPaletteViews(q);
+  cmdPaletteIdx = cmdPaletteMatches.length
+    ? Math.min(cmdPaletteIdx, cmdPaletteMatches.length - 1)
+    : 0;
+  cmdPaletteList.innerHTML = '';
+  if (!cmdPaletteMatches.length) {
+    const empty = document.createElement('li');
+    empty.id = 'cmdPaletteEmpty';
+    empty.textContent = 'No matching tabs';
+    cmdPaletteList.appendChild(empty);
+    return;
+  }
+  cmdPaletteMatches.forEach((v, i) => {
+    const li = document.createElement('li');
+    li.className = (i === cmdPaletteIdx ? 'sel ' : '') + (active?.key === v.key ? 'on-tab' : '');
+    const label = document.createElement('span');
+    label.textContent = v.label;
+    const meta = document.createElement('span');
+    meta.className = 'cmd-meta';
+    const hk = paletteHotkey(VIEWS.indexOf(v));
+    meta.innerHTML = hk ? `<kbd>${hk}</kbd> · ${v.key}` : v.key;
+    li.append(label, meta);
+    li.onclick = () => pickCmdPalette(i);
+    cmdPaletteList.appendChild(li);
+  });
+  const sel = cmdPaletteList.querySelector('.sel');
+  if (sel) sel.scrollIntoView({ block: 'nearest' });
+}
+
+function pickCmdPalette(idx) {
+  const v = cmdPaletteMatches[idx];
+  if (!v) return;
+  closeCmdPalette();
+  show(v.key);
+}
+
+cmdPaletteInput.addEventListener('input', () => {
+  cmdPaletteIdx = 0;
+  renderCmdPalette(cmdPaletteInput.value);
+});
+cmdPaletteInput.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (cmdPaletteMatches.length) {
+      cmdPaletteIdx = (cmdPaletteIdx + 1) % cmdPaletteMatches.length;
+      renderCmdPalette(cmdPaletteInput.value);
+    }
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (cmdPaletteMatches.length) {
+      cmdPaletteIdx = (cmdPaletteIdx - 1 + cmdPaletteMatches.length) % cmdPaletteMatches.length;
+      renderCmdPalette(cmdPaletteInput.value);
+    }
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    pickCmdPalette(cmdPaletteIdx);
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    closeCmdPalette();
+  }
+});
+cmdPaletteBackdrop.onclick = () => closeCmdPalette();
+
+function handleCmdPaletteHotkey(e) {
+  if (!(e.metaKey || e.ctrlKey) || e.altKey || e.key.toLowerCase() !== 'p') return false;
+  const el = document.activeElement;
+  if (el && el !== cmdPaletteInput &&
+      (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return false;
+  e.preventDefault();
+  toggleCmdPalette();
+  return true;
+}
+
+addEventListener('keydown', (e) => {
+  if (handleCmdPaletteHotkey(e)) return;
+  if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'k') {
+    const el = document.activeElement;
+    if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+    e.preventDefault();
+    setSettingsOpen(!settingsPanel.classList.contains('open'));
+    return;
+  }
+  if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'j') {
+    const el = document.activeElement;
+    if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+    e.preventDefault();
+    toggleSysOverlay();
+    return;
+  }
+  if (e.key === 'Escape') {
+    if (cmdPaletteOpen) { closeCmdPalette(); return; }
+    if (sysOverlayOpen) { setSysOverlayOpen(false); return; }
+    if (settingsPanel.classList.contains('open')) { setSettingsOpen(false); return; }
+    if (navDrawerOpen) setNavDrawerOpen(false);
+  }
+});
+
+// Shared geo for clock tip + Valinor overlay
+window.hubGeo = { loc: 'local', ip: '', tz: '' };
+
+// ---- VALINOR brand / ⌘J → status overlay ----
+const sysOverlay = $('sysOverlay');
+const brandBtn = $('brandBtn');
+const sysOverlayTime = $('sysOverlayTime');
+const sysOverlayDate = $('sysOverlayDate');
+const sysOverlayLoc = $('sysOverlayLoc');
+const sysOverlayIp = $('sysOverlayIp');
+const sysOverlayTz = $('sysOverlayTz');
+const sysOverlayCompromised = $('sysOverlayCompromised');
+let sysOverlayOpen = false;
+let sysOverlayTick = null;
+
+function shortTzLabel(d) {
+  try {
+    const parts = new Intl.DateTimeFormat([], { timeZoneName: 'short' }).formatToParts(d);
+    return (parts.find((p) => p.type === 'timeZoneName') || {}).value || 'local';
+  } catch {
+    const off = -d.getTimezoneOffset();
+    const sign = off >= 0 ? '+' : '-';
+    const abs = Math.abs(off);
+    return `UTC${sign}${Math.floor(abs / 60)}`;
+  }
+}
+
+function tickSysOverlay() {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  const ss = String(now.getSeconds()).padStart(2, '0');
+  sysOverlayTime.textContent = `${hh}:${mm}:${ss}`;
+  sysOverlayDate.textContent = now.toDateString();
+  const geo = window.hubGeo || {};
+  sysOverlayLoc.textContent = geo.loc || 'local';
+  sysOverlayIp.textContent = geo.ip || '—';
+  sysOverlayTz.textContent = geo.tz || shortTzLabel(now);
+  // Placeholder until a real compromise check exists
+  sysOverlayCompromised.textContent = 'unknown (placeholder)';
+  sysOverlayCompromised.className = 'v warn';
+}
+
+function setSysOverlayOpen(on) {
+  sysOverlayOpen = on;
+  sysOverlay.classList.toggle('open', on);
+  brandBtn.classList.toggle('on', on);
+  sysOverlay.setAttribute('aria-hidden', on ? 'false' : 'true');
+  if (on) {
+    setSettingsOpen(false);
+    setNavDrawerOpen(false);
+    closeCmdPalette();
+    tickSysOverlay();
+    if (!sysOverlayTick) sysOverlayTick = setInterval(tickSysOverlay, 1000);
+  } else if (sysOverlayTick) {
+    clearInterval(sysOverlayTick);
+    sysOverlayTick = null;
+  }
+}
+function toggleSysOverlay() {
+  setSysOverlayOpen(!sysOverlayOpen);
+}
+brandBtn.onclick = (e) => {
+  e.stopPropagation();
+  toggleSysOverlay();
+};
+brandBtn.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    toggleSysOverlay();
+  }
+});
+$('sysOverlayBackdrop').onclick = () => setSysOverlayOpen(false);
+$('sysOverlayClose').onclick = () => setSysOverlayOpen(false);
+interactiveOn(sysOverlay); interactiveOn($('sysOverlayPanel')); interactiveOn(brandBtn);
+async function waitForServer(timeoutMs = 20000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const res = await fetch('/hub.html', { cache: 'no-store' });
+      if (res.ok) return true;
+    } catch { /* still down */ }
+    await new Promise((r) => setTimeout(r, 400));
+  }
+  return false;
+}
+restartBtn.onclick = async () => {
+  restartBtn.disabled = true;
+  restartStatus.textContent = 'Restarting…';
+  restartStatus.style.color = '#94a3b8';
+  try {
+    const res = await fetch('/api/server/restart', { method: 'POST' });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+    restartStatus.textContent = 'Server stopping — waiting for it to come back…';
+    const ok = await waitForServer();
+    if (ok) {
+      restartStatus.textContent = 'Back — reloading…';
+      location.reload();
+      return;
+    }
+    restartStatus.textContent = 'Server did not come back. Start it with npm run server.';
+    restartStatus.style.color = '#f87171';
+  } catch (e) {
+    // Expected once the old process dies mid-flight — poll for the replacement.
+    restartStatus.textContent = 'Waiting for server…';
+    const ok = await waitForServer();
+    if (ok) {
+      restartStatus.textContent = 'Back — reloading…';
+      location.reload();
+      return;
+    }
+    restartStatus.textContent = 'Restart failed: ' + (e.message || e);
+    restartStatus.style.color = '#f87171';
+  } finally {
+    restartBtn.disabled = false;
+  }
+};
+
+interactiveOn(bar); interactiveOn(hot); interactiveOn($('go'));
+interactiveOn(settingsBtn); interactiveOn(settingsPanel); interactiveOn(restartBtn);
+interactiveOn(navExpand); interactiveOn(navDrawer); interactiveOn(navDrawerBackdrop);
+interactiveOn(cmdPalette); interactiveOn(cmdPalettePanel); interactiveOn(cmdPaletteInput);
+
+// ---- views (declare before nav drawer sync — syncDrawerTabStates reads active) ----
+const frames = new Map();   // src -> iframe (created on first visit)
+let active = null;
+
+// ---- nav bar: always shown (no auto-hide) ----
+bar.classList.add('show');  // Keep bar showing on load
+buildNavDrawerTabs();
+
+// Remove all bar auto-hide/listener logic!
+
+for (const v of VIEWS) {
+  const b = document.createElement('button');
+  b.className = 'tab'; b.textContent = v.label; b.title = `${v.key} · ${v.src}`;
+  b.dataset.key = v.key;
+  b.onclick = (e) => {
+    e.stopPropagation();
+    show(v.key);
+    if (navMode === 'drawer') setNavDrawerOpen(false);
+  };
+  barScroll.insertBefore(b, navExpand);
+}
+applyNavMode(navMode);
+
+function postMode(f, mode) { try { f.contentWindow.postMessage({ type: 'mode', mode }, location.origin); } catch (e) {} }
+
+function show(key) {
+  if (key === 'system') {
+    setSysOverlayOpen(true);
+    return;
+  }
+  const v = VIEWS.find(x => x.key === key) || VIEWS[0];
+  active = v;
+  if (!frames.has(v.src)) {
+    const f = document.createElement('iframe');
+    f.src = v.src;
+    // opaque external apps (proxied) sit below the hub bar — see .external CSS
+    if (v.external || (typeof v.src === 'string' && v.src.startsWith('/'))) f.classList.add('external');
+    f.allow = 'camera; microphone; display-capture; fullscreen; autoplay; clipboard-write';
+    f.allowFullscreen = true;
+    // the view's scripts may not have run yet when we post the first signals — resend on load
+    f.addEventListener('load', () => {
+      if (!active || active.src !== v.src) return;
+      try { f.contentWindow.postMessage({ type: 'active', on: true }, location.origin); } catch (e) {}
+      if (active.mode) postMode(f, active.mode);
+      syncThemeToFrame(f);
+      try { f.contentWindow.scrollTo(0, 0); } catch (e) {}
+    });
+    host.appendChild(f);
+    frames.set(v.src, f);
+  }
+  const f = frames.get(v.src);
+  // Deactivate others FIRST so SpeechRecognition stops before the new view starts one.
+  // (Posting true+false in one Map loop raced: both iframes briefly held a recognizer → Chrome 'network'.)
+  for (const [s, fr] of frames) {
+    if (s === v.src) continue;
+    fr.classList.remove('on');
+    try { fr.contentWindow.postMessage({ type: 'active', on: false }, location.origin); } catch (e) {}
+  }
+  f.classList.add('on');
+  try { f.contentWindow.postMessage({ type: 'active', on: true }, location.origin); } catch (e) {}
+  if (v.mode) postMode(f, v.mode);
+  syncThemeToFrame(f);
+  try { f.contentWindow.scrollTo(0, 0); } catch (e) {}
+  for (const b of bar.querySelectorAll('.tab')) b.classList.toggle('on', b.dataset.key === v.key);
+  syncDrawerTabStates();
+  updateDrawerBarTabs();
+  document.title = `VALINOR — ${v.label}`;
+  location.hash = v.key;
+  f.focus();
+}
+
+// 1–9 then 0 switch views (0 = the 10th tab) — handled here when the hub has focus,
+// and forwarded by embedded views (via hub-client) when an iframe has focus
+function navKey(k) { const idx = k === '0' ? 9 : +k - 1; const v = VIEWS[idx]; if (v && window.hubShared) show(v.key); }
+addEventListener('keydown', (e) => {
+  if (handleCmdPaletteHotkey(e)) return;
+  if (e.metaKey || e.ctrlKey) {
+    if (!e.altKey && !e.shiftKey && e.key.toLowerCase() === 'k') {
+      const el = document.activeElement;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+      e.preventDefault();
+      setSettingsOpen(!settingsPanel.classList.contains('open'));
+      return;
+    }
+    if (!e.altKey && !e.shiftKey && e.key.toLowerCase() === 'j') {
+      const el = document.activeElement;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+      e.preventDefault();
+      toggleSysOverlay();
+      return;
+    }
+    if (!e.altKey && !e.shiftKey && e.key.toLowerCase() === 'i') {
+      const el = document.activeElement;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+      e.preventDefault();
+      toggleGlobalTheme();
+    }
+    return;
+  }
+  if (/^[0-9]$/.test(e.key)) navKey(e.key);
+});
+addEventListener('message', (e) => {
+  if (e.origin !== location.origin || !e.data) return;
+  if (e.data.type === 'navkey') navKey(e.data.key);
+  if (e.data.type === 'cmd-palette') toggleCmdPalette();
+  if (e.data.type === 'settings-toggle') {
+    setSettingsOpen(!settingsPanel.classList.contains('open'));
+  }
+  if (e.data.type === 'sys-overlay-toggle') toggleSysOverlay();
+  if (e.data.type === 'appearance') {
+    setGlobalAppearance({
+      theme: e.data.theme,
+      scheme: e.data.scheme,
+      font: e.data.font,
+      size: e.data.size,
+      density: e.data.density,
+    }, e.source);
+  }
+  if (e.data.type === 'theme' && (e.data.theme === 'dark' || e.data.theme === 'light')) {
+    setGlobalAppearance({ theme: e.data.theme }, e.source);
+  }
+  if (e.data.type === 'theme-toggle') toggleGlobalTheme(e.source);
+  if (e.data.type === 'cursor-toggle' && window.hubCursor) window.hubCursor.toggle();
+});
+
+// ---- shared hand tracker: one camera, one MediaPipe instance, broadcast to the active view ----
+function initHands(videoEl) {
+  const hnd = new Hands({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
+  hnd.setOptions({ maxNumHands: 2, modelComplexity: 0, minDetectionConfidence: 0.6, minTrackingConfidence: 0.6 });
+  hnd.onResults((res) => {
+    const f = active && frames.get(active.src);
+    if (!f || !f.classList.contains('on')) return;
+    const lm = (res.multiHandLandmarks || []).map(h => h.map(p => ({ x: p.x, y: p.y, z: p.z })));
+    try { f.contentWindow.postMessage({ type: 'hands', multiHandLandmarks: lm }, location.origin); } catch (e) {}
+  });
+  (async function pump() {
+    const s = performance.now();
+    if (videoEl.readyState >= 2) { try { await hnd.send({ image: videoEl }); } catch (e) {} }
+    setTimeout(pump, Math.max(0, 33 - (performance.now() - s)));
+  })();
+}
+
+// getUserMedia can hang forever with no error and no resolution in some sandboxed /
+// embedded browser contexts (no real device broker) — race it so the user always sees
+// SOME outcome instead of a silently stuck hub.
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)),
+  ]);
+}
+
+// ---- boot: ONE prompt for camera+mic; both streams shared with every view ----
+let booting = false;
+
+function revealStart() {
+  const el = $('start');
+  el.classList.remove('hide', 'out', 'booting');
+  $('go').disabled = false;
+}
+
+function dismissStart() {
+  const el = $('start');
+  el.classList.add('out');
+  return new Promise((resolve) => {
+    const done = () => {
+      el.classList.add('hide');
+      el.classList.remove('out', 'booting');
+      resolve();
+    };
+    el.addEventListener('transitionend', done, { once: true });
+    setTimeout(done, 100);
+  });
+}
+
+async function begin() {
+  if (booting) return;
+  booting = true;
+  const start = $('start');
+  start.classList.remove('hide', 'out');
+  start.classList.add('booting');
+  $('go').disabled = true;
+  $('startMsg').textContent = '';
+  let cam = null, mic = null, micError = null;
+  try {
+    const s = await withTimeout(
+      navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: true }),
+      15000, 'camera+mic request');
+    cam = new MediaStream(s.getVideoTracks());
+    mic = new MediaStream(s.getAudioTracks());
+  } catch (err) {
+    micError = err.name ? (err.name + ': ' + err.message) : String(err.message || err);
+    try {
+      cam = await withTimeout(
+        navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false }),
+        15000, 'camera-only request');
+    } catch (err2) {
+      console.warn('[hub] no camera — views load without hand tracking:', err2.message);
+    }
+  }
+  Object.assign(window.hubShared, { cam, mic, micError });
+  if (micError) console.warn('[hub] mic unavailable, camera-only:', micError);
+  if (cam) {
+    camVid.srcObject = cam; await camVid.play();
+    initHands(camVid);
+  } else {
+    console.warn('[hub] continuing without camera — hand tracking disabled:', micError);
+  }
+  await dismissStart();
+  const k = location.hash.slice(1);
+  // legacy #system hash → brand overlay instead of a tab
+  if (k === 'system') {
+    show('breathe');
+    setSysOverlayOpen(true);
+  } else {
+    show(VIEWS.some(v => v.key === k) ? k : 'loops');
+  }
+  booting = false;
+}
+$('go').onclick = () => begin();
+
+// Electron's Chromium ships without Google's proprietary STT — webkitSpeechRecognition
+// always errors with 'network'. Surface that up front; Chrome tab is the supported path.
+(function electronSpeechBanner() {
+  const inElectron = !!(ipc || (typeof process !== 'undefined' && process.versions && process.versions.electron)
+    || /Electron/i.test(navigator.userAgent || ''));
+  if (!inElectron) return;
+  const note = $('speechNote');
+  note.style.display = 'block';
+  note.innerHTML = 'Voice/dictation needs <b>Chrome</b> — Electron has no Google speech service. '
+    + 'Open <a href="http://localhost:4777/" target="_blank">http://localhost:4777</a> in Chrome '
+    + '(overlay still works for hands/camera).';
+})();
+
+(function hubClock() {
+  const el = $('hubClock');
+  const tip = $('hubClockTip');
+  if (!el || !tip) return;
+
+  let locLabel = 'local';
+  let ipLabel = '';
+  let tipPlain = '';
+  let copyFlash = null;
+
+  function shortDate(d) {
+    const wd = d.toLocaleDateString([], { weekday: 'short' });
+    const md = d.toLocaleDateString([], { month: 'numeric', day: 'numeric' });
+    return `${wd} ${md}`;
+  }
+  function shortTz(d) {
+    try {
+      const parts = new Intl.DateTimeFormat([], { timeZoneName: 'short' }).formatToParts(d);
+      return (parts.find((p) => p.type === 'timeZoneName') || {}).value || 'local';
+    } catch {
+      const off = -d.getTimezoneOffset();
+      const sign = off >= 0 ? '+' : '-';
+      const abs = Math.abs(off);
+      return `UTC${sign}${Math.floor(abs / 60)}`;
+    }
+  }
+  function shortLoc(city, region, country) {
+    const c = String(city || '').trim();
+    const r = String(region || '').trim();
+    const cc = String(country || '').trim().toUpperCase();
+    if (c && cc) {
+      const abbrev = c.includes(' ')
+        ? c.split(/\s+/).map((w) => w[0]).join('').toUpperCase().slice(0, 3)
+        : (c.length > 10 ? c.slice(0, 8) : c);
+      return `${abbrev}, ${cc}`;
+    }
+    if (r && cc) return `${r.slice(0, 8)}, ${cc}`;
+    if (cc) return cc;
+    return 'local';
+  }
+
+  function placeTip() {
+    const r = el.getBoundingClientRect();
+    tip.style.left = Math.max(8, r.left) + 'px';
+    tip.style.top = (r.bottom + 8) + 'px';
+  }
+  function showTip() {
+    placeTip();
+    tip.classList.add('show');
+    tip.setAttribute('aria-hidden', 'false');
+  }
+  function hideTip() {
+    tip.classList.remove('show');
+    tip.setAttribute('aria-hidden', 'true');
+  }
+
+  const tick = () => {
+    const now = new Date();
+    el.textContent = now.toLocaleTimeString([], {
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+    });
+    const date = shortDate(now);
+    const tz = shortTz(now);
+    window.hubGeo = window.hubGeo || {};
+    window.hubGeo.tz = tz;
+    tipPlain = ipLabel
+      ? `${date} · ${tz} · ${locLabel} · ${ipLabel}`
+      : `${date} · ${tz} · ${locLabel}`;
+    tip.innerHTML =
+      `<b>${date}</b><span class="sep">·</span>` +
+      `<b>${tz}</b><span class="sep">·</span>` +
+      `<b>${locLabel}</b>` +
+      (ipLabel ? `<span class="sep">·</span><b>${ipLabel}</b>` : '');
+    el.title = tipPlain + ' — click to copy';
+    if (tip.classList.contains('show')) placeTip();
+    if (typeof sysOverlayOpen !== 'undefined' && sysOverlayOpen) tickSysOverlay();
+  };
+
+  tick();
+  setInterval(tick, 1000);
+  interactiveOn(el);
+  interactiveOn(tip);
+
+  el.addEventListener('mouseenter', showTip);
+  el.addEventListener('mouseleave', hideTip);
+  el.addEventListener('focus', showTip);
+  el.addEventListener('blur', hideTip);
+  el.addEventListener('click', async () => {
+    if (!tipPlain) return;
+    try {
+      await navigator.clipboard.writeText(tipPlain);
+      el.classList.add('copied');
+      clearTimeout(copyFlash);
+      copyFlash = setTimeout(() => el.classList.remove('copied'), 900);
+    } catch { /* ignore */ }
+  });
+  addEventListener('resize', () => { if (tip.classList.contains('show')) placeTip(); });
+  addEventListener('scroll', () => { if (tip.classList.contains('show')) placeTip(); }, true);
+
+  fetch('/api/geo')
+    .then((r) => (r.ok ? r.json() : null))
+    .then((j) => {
+      if (!j) return;
+      locLabel = shortLoc(j.city, j.region_code || j.region, j.country_code || j.country);
+      ipLabel = String(j.ip || '').trim();
+      window.hubGeo = {
+        loc: locLabel,
+        ip: ipLabel,
+        tz: shortTz(new Date()),
+        city: j.city || null,
+        region: j.region || j.region_code || null,
+        country: j.country_code || j.country || null,
+      };
+      tick();
+    })
+    .catch(() => { /* keep local */ });
+})();
+
+(async () => {
+  try {
+    const c = await navigator.permissions.query({ name: 'camera' });
+    const m = await navigator.permissions.query({ name: 'microphone' }).catch(() => null);
+    if (c.state === 'granted' && (!m || m.state !== 'prompt')) {
+      begin();
+      return;
+    }
+  } catch (e) {}
+  revealStart();
+})();
+
+// ---- global cursor capture (all tabs + parked iframes) ----
+window.hubCursor = HubCursor.init({
+  storageKey: 'hub-cursor-on',
+  endpoint: '/api/activity/cursor-context',
+  getContext() {
+    const parked = [];
+    const loaded = [];
+    for (const v of VIEWS) {
+      if (!frames.has(v.src)) continue;
+      loaded.push(v.label);
+      if (!active || v.key !== active.key) parked.push(v.label);
+    }
+    return {
+      surface: 'hub',
+      activeTab: active?.label || active?.key || null,
+      activeKey: active?.key || null,
+      activeSrc: active?.src || null,
+      parked,
+      loaded,
+      statusLine: `VALINOR · ${active?.label || '—'} · ${loaded.length} loaded · ${parked.length} parked`,
+      panel: active?.label || null,
+    };
+  },
+  getCaptureTarget() {
+    const f = active && frames.get(active.src);
+    if (!f) {
+      return {
+        root: document.body,
+        originX: 0, originY: 0,
+        frameW: window.innerWidth, frameH: window.innerHeight,
+      };
+    }
+    const r = f.getBoundingClientRect();
+    try {
+      const doc = f.contentDocument;
+      if (doc && doc.body) {
+        return {
+          root: doc.body,
+          originX: r.left,
+          originY: r.top,
+          frameW: r.width,
+          frameH: r.height,
+        };
+      }
+    } catch { /* cross-origin (factory etc.) */ }
+    return {
+      root: document.body,
+      originX: 0, originY: 0,
+      frameW: window.innerWidth, frameH: window.innerHeight,
+    };
+  },
+  isUiChrome(t) {
+    return !!(t.closest && (
+      t.closest('#cursorToggle') ||
+      t.closest('#cursorDock') ||
+      t.closest('#liveCursor') ||
+      t.closest('#bar') ||
+      t.closest('#settingsPanel') ||
+      t.closest('#navDrawer') ||
+      t.closest('#cmdPalette') ||
+      t.closest('#start')
+    ));
+  },
+});
+</script>
+</body>
+</html>

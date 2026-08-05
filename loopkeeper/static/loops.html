@@ -1,0 +1,1914 @@
+<!DOCTYPE html>
+<html lang="en" data-accent="teal">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Loopkeeper</title>
+  <script>(function(){
+    var p = new URLSearchParams(location.search);
+    if (p.has('embed')) {
+      document.documentElement.dataset.embed = '1';
+      addEventListener('DOMContentLoaded', () => scrollTo(0, 0), { once: true });
+    }
+    var k = 'lk-theme', s = localStorage.getItem(k);
+    var dark = s === 'dark' || (s !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+    if (dark) document.documentElement.dataset.theme = 'dark';
+  })();</script>
+  <link rel="stylesheet" href="/static/loops.css" />
+  <style>
+    /* page chrome that must stay with the markup */
+    .topnav {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+      min-height: 52px;
+      margin: 0 0 1rem;
+      padding: 0 0 0.75rem;
+      background: transparent;
+      border-bottom: var(--lk-border);
+      position: relative;
+      z-index: 10;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      text-decoration: none;
+      color: inherit;
+    }
+    .brand-mark {
+      width: 30px;
+      height: 30px;
+      border-radius: 9px;
+      background: var(--lk-accent);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .brand-name {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--lk-accent-hover);
+    }
+    .topnav-meta {
+      font-family: var(--lk-font-mono);
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--lk-ink-soft);
+    }
+    .theme-toggle {
+      position: fixed;
+      top: 14px;
+      right: 1.5rem;
+      z-index: 30;
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.05rem;
+      line-height: 1;
+    }
+    html[data-embed="1"] .theme-toggle {
+      top: 10px;
+      right: clamp(1rem, 4vw, 2rem);
+    }
+    .wrap { padding-top: 1.25rem; }
+    header.page-hero h1 {
+      font-size: var(--lk-text-h1);
+      font-weight: var(--lk-weight-black);
+      letter-spacing: var(--lk-tracking-display);
+      margin: 0 0 0.35rem;
+      color: var(--lk-ink);
+    }
+    header.page-hero p {
+      margin: 0 0 1.5rem;
+      color: var(--lk-ink-soft);
+      font-size: var(--lk-text-body);
+      line-height: var(--lk-leading-body);
+    }
+    .coach {
+      border: var(--lk-border) !important;
+      box-shadow: var(--lk-shadow-sm);
+      border-radius: var(--lk-radius-lg) !important;
+    }
+    .coach::before { border-radius: var(--lk-radius-lg) 0 0 var(--lk-radius-lg); }
+    button:not(.ghost):not(.pill-close):not(.chip):not(.stage):not(.run-log-item) {
+      background: var(--lk-accent);
+      color: #fff;
+      border: 1px solid transparent;
+      border-radius: var(--lk-radius-md);
+      font-weight: 600;
+      box-shadow: var(--lk-shadow-sm);
+      transition: filter .15s ease, background .15s ease;
+    }
+    button:not(.ghost):not(.pill-close):not(.chip):not(.stage):not(.run-log-item):hover:not(:disabled) {
+      background: var(--lk-accent-hover);
+    }
+    button.ghost {
+      background: var(--lk-surface);
+      color: var(--lk-ink);
+      border: 1px solid var(--lk-line);
+      border-radius: var(--lk-radius-md);
+      box-shadow: none;
+    }
+    textarea, input[type="text"] {
+      border-radius: var(--lk-radius-md) !important;
+      background: var(--lk-surface) !important;
+      border: 1px solid var(--lk-line) !important;
+      box-shadow: var(--lk-shadow-sm);
+    }
+    textarea:focus, input[type="text"]:focus {
+      outline: none;
+      border-color: var(--lk-accent) !important;
+      box-shadow: var(--lk-focus-ring);
+    }
+    .chip {
+      border-radius: var(--lk-radius-pill) !important;
+      background: var(--lk-surface) !important;
+      box-shadow: var(--lk-shadow-sm);
+    }
+    .chip.active {
+      background: var(--lk-accent-soft) !important;
+      border-color: var(--lk-accent) !important;
+      color: var(--lk-accent-hover) !important;
+    }
+    .panel, .session-pill, .run-log-item, .new-loop-form {
+      border-radius: var(--lk-radius-lg) !important;
+      box-shadow: var(--lk-shadow-sm);
+      background: var(--lk-surface);
+    }
+    .stage {
+      border-radius: var(--lk-radius-sm) !important;
+      background: var(--lk-surface);
+    }
+    .urgency {
+      border-radius: var(--lk-radius-md);
+      background: var(--lk-surface);
+      border: 1px solid var(--lk-line);
+      padding: 0.65rem 0.85rem;
+    }
+    .nl-label {
+      font-family: var(--lk-font-mono);
+      letter-spacing: var(--lk-tracking-label);
+    }
+    .rail h3 {
+      font-family: var(--lk-font-mono);
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      font-weight: 500;
+      color: var(--lk-ink-soft);
+      margin: 0 0 0.65rem;
+    }
+    .new-loop-btn {
+      color: var(--lk-accent-hover) !important;
+      border-color: transparent !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      font-weight: 600;
+    }
+    .composer {
+      background: var(--lk-surface);
+      border: 1px solid var(--lk-line);
+      border-radius: var(--lk-radius-lg);
+      padding: 1rem;
+      box-shadow: var(--lk-shadow-sm);
+    }
+    .composer textarea {
+      border: none !important;
+      box-shadow: none !important;
+      background: transparent !important;
+      padding: 0.25rem 0.15rem !important;
+      min-height: 72px;
+    }
+    /* embedded in HUD Hub — header lives inside .wrap so it isn't clipped by the iframe */
+    html[data-embed="1"] .topnav {
+      display: flex !important;
+      min-height: 44px;
+      margin-bottom: 0.65rem;
+      padding-bottom: 0.55rem;
+    }
+    html[data-embed="1"] header.page-hero { display: block; }
+    html[data-embed="1"] header.page-hero h1 { font-size: 1.35rem; margin-bottom: 0.25rem; }
+    html[data-embed="1"] header.page-hero p { font-size: 0.88rem; margin-bottom: 1rem; }
+    html[data-embed="1"] .wrap {
+      max-width: min(960px, 100%);
+      margin: 0 auto;
+      padding: 0.65rem clamp(1.5rem, 5vw, 3rem) calc(2rem + env(safe-area-inset-bottom, 0px));
+      box-sizing: border-box;
+    }
+    html[data-embed="1"],
+    html[data-embed="1"] body { min-height: 100%; height: auto; overflow: auto; -webkit-overflow-scrolling: touch; }
+    /* mobile embed: coach/composer first, loop list + completed below */
+    @media (max-width: 760px) {
+      html[data-embed="1"] .app { display: flex; flex-direction: column; gap: 1rem; }
+      html[data-embed="1"] .main { order: 1; }
+      html[data-embed="1"] .rail { order: 2; }
+    }
+  </style>
+</head>
+<body>
+  <button type="button" class="ghost theme-toggle" id="theme-toggle" aria-label="Dark mode" title="Dark mode">
+    <span class="theme-toggle-icon" aria-hidden="true">☾</span>
+  </button>
+  <div class="wrap">
+    <nav class="topnav" aria-label="Loopkeeper">
+      <a class="brand" href="/loops">
+        <span class="brand-mark" aria-hidden="true">~</span>
+        <span class="brand-name">Loopkeeper</span>
+      </a>
+      <span class="topnav-meta" id="topnav-meta">Personal loops</span>
+    </nav>
+    <header class="page-hero">
+      <h1>What's shipping today</h1>
+      <p>Keep your loops going — one step at a time.</p>
+    </header>
+
+    <div class="app">
+    <aside class="rail">
+    <div class="personal-loops" id="personal-loops" hidden>
+      <h3>Personal loops</h3>
+      <div class="chips" id="template-chips"></div>
+      <p class="hint" id="template-hint" hidden></p>
+      <button type="button" class="ghost new-loop-btn" id="new-loop-btn">+ New loop</button>
+      <div class="new-loop-form" id="new-loop-form" hidden>
+        <label class="nl-label" for="nl-name">Name</label>
+        <input id="nl-name" type="text" placeholder="e.g. Coffee" maxlength="80" />
+        <label class="nl-label" for="nl-stages">Stages (one per line)</label>
+        <textarea id="nl-stages" rows="5" placeholder="Grind&#10;Boil&#10;Pour&#10;Drink"></textarea>
+        <label class="nl-label" for="nl-prompt">Start prompt (optional)</label>
+        <input id="nl-prompt" type="text" placeholder="I'm making coffee." />
+        <div class="nl-row">
+          <button type="button" id="nl-save">Save loop</button>
+          <button type="button" class="ghost" id="nl-cancel">Cancel</button>
+        </div>
+        <p class="err" id="nl-err"></p>
+      </div>
+    </div>
+
+    <div class="session-tray" id="session-tray" hidden>
+      <h3>Open loops <span id="session-count"></span></h3>
+      <div class="session-list" id="session-list"></div>
+      <p class="tray-hint">↑↓ switch · 1–5 jump · × to close</p>
+    </div>
+
+    <div class="run-log" id="run-log">
+      <div class="run-log-head">
+        <h3>Completed <span id="run-log-count"></span></h3>
+        <div class="run-log-actions">
+          <button type="button" class="ghost run-log-archive" id="run-log-archive">Archive all</button>
+          <button type="button" class="ghost run-log-refresh" id="run-log-refresh">Refresh</button>
+        </div>
+      </div>
+      <p class="run-log-empty" id="run-log-empty">No completed runs yet.</p>
+      <ul class="run-log-list" id="run-log-list" hidden></ul>
+    </div>
+    </aside>
+
+    <main class="main">
+    <div class="composer" id="composer">
+      <textarea id="query" placeholder="e.g. Help me do one load of laundry">Help me do one load of laundry.</textarea>
+      <div class="row">
+        <button id="start" type="button">Start loop</button>
+        <button id="refresh" class="ghost" type="button" disabled>Refresh</button>
+        <span id="err" class="err"></span>
+      </div>
+    </div>
+
+    <div class="stages" id="stages">
+      <div class="stage" data-s="DISCOVER">Discover</div>
+      <div class="stage" data-s="PLAN">Plan</div>
+      <div class="stage" data-s="EXECUTE">Execute</div>
+      <div class="stage" data-s="VERIFY">Verify</div>
+      <div class="stage" data-s="DONE">Done</div>
+    </div>
+    <p class="stages-hint" id="stages-hint" hidden>
+      Tap a stage to open it · past steps stay readable · use Continue to move forward
+    </p>
+
+    <div class="urgency" id="urgency" hidden>
+      <div class="urgency-meta">
+        <span id="urgency-label">Do it now</span>
+        <span id="urgency-clock">5:00</span>
+      </div>
+      <div class="urgency-track" aria-hidden="true">
+        <div class="urgency-fill" id="urgency-fill"></div>
+      </div>
+    </div>
+
+    <section class="coach" id="coach" hidden aria-live="polite">
+      <div class="coach-layout">
+        <div class="coach-main">
+          <div class="coach-topline">
+            <span id="coach-stage">Step 1 of 5 · Discover</span>
+            <div class="coach-topline-actions">
+              <button type="button" class="ghost coach-copy-md" id="coach-copy-md" hidden>Copy for agent</button>
+              <span class="coach-status" id="coach-status" hidden>started</span>
+            </div>
+          </div>
+          <p class="coach-viewing-banner" id="coach-viewing-banner" hidden>
+            Viewing a past step
+            <button type="button" class="ghost" id="coach-back-current">Back to current</button>
+          </p>
+          <h2 id="coach-headline"></h2>
+          <div class="coach-said" id="coach-said" hidden>
+            <span>You said</span>
+            <div id="coach-said-text"></div>
+          </div>
+          <p class="coach-guidance" id="coach-guidance"></p>
+          <ul class="coach-actions" id="coach-actions" hidden></ul>
+          <div class="coach-response" id="coach-response-wrap">
+            <label for="coach-response" id="coach-question"></label>
+            <textarea id="coach-response" placeholder=""></textarea>
+            <div class="row">
+              <button id="coach-continue" type="button">Continue</button>
+              <span class="err" id="coach-err"></span>
+            </div>
+          </div>
+          <button id="coach-restart" class="ghost coach-restart" type="button" hidden>Start another Laundry loop</button>
+        </div>
+        <div class="loop-ring" id="loop-ring" aria-hidden="true">
+          <svg viewBox="0 0 120 120">
+            <circle class="track" cx="60" cy="60" r="46"></circle>
+            <circle class="progress" id="ring-progress" cx="60" cy="60" r="46"
+              stroke-dasharray="289.027" stroke-dashoffset="289.027"></circle>
+            <g id="ring-dots"></g>
+            <text class="center-label" id="ring-step" x="60" y="58">1/5</text>
+            <text class="center-sub" id="ring-label" x="60" y="72">started</text>
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <div class="meta" id="meta">
+      <span>status <strong>—</strong></span>
+      <span>attempt <strong>—</strong></span>
+      <span>committed <strong>—</strong></span>
+      <span>run <strong>—</strong></span>
+    </div>
+
+    <div class="verdict" id="verdict" hidden>
+      <h2 id="verdict-title"></h2>
+      <p id="verdict-body"></p>
+      <ul id="verdict-list"></ul>
+    </div>
+
+    <div class="panel" id="timeline-panel">
+      <h2>What happened</h2>
+      <ul class="timeline" id="timeline">
+        <li class="empty full">No run yet. Start one above.</li>
+      </ul>
+    </div>
+    </main>
+    </div>
+  </div>
+
+  <script>
+    const API = window.location.origin;
+    const THEME_KEY = 'lk-theme';
+
+    function isDarkTheme() {
+      return document.documentElement.dataset.theme === 'dark';
+    }
+    function paintThemeToggle() {
+      const btn = document.getElementById('theme-toggle');
+      if (!btn) return;
+      const dark = isDarkTheme();
+      const icon = btn.querySelector('.theme-toggle-icon');
+      if (icon) icon.textContent = dark ? '☀' : '☾';
+      const label = dark ? 'Light mode' : 'Dark mode';
+      btn.title = label;
+      btn.setAttribute('aria-label', label);
+    }
+    function applyTheme(theme) {
+      if (theme === 'dark') document.documentElement.dataset.theme = 'dark';
+      else delete document.documentElement.dataset.theme;
+      paintThemeToggle();
+    }
+    function toggleTheme() {
+      const next = isDarkTheme() ? 'light' : 'dark';
+      localStorage.setItem(THEME_KEY, next);
+      applyTheme(next);
+      try {
+        if (window.parent !== window) window.parent.postMessage({ type: 'theme', theme: next }, location.origin);
+      } catch (e) {}
+    }
+    addEventListener('message', (e) => {
+      if (e.origin !== location.origin || !e.data) return;
+      if (e.data.type === 'theme' && (e.data.theme === 'dark' || e.data.theme === 'light')) {
+        localStorage.setItem(THEME_KEY, e.data.theme);
+        applyTheme(e.data.theme);
+      }
+    });
+    addEventListener('keydown', (e) => {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
+      if (e.key.toLowerCase() !== 'i') return;
+      const el = document.activeElement;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+      e.preventDefault();
+      toggleTheme(false);
+    });
+    const ORDER = ["DISCOVER", "PLAN", "EXECUTE", "VERIFY", "DONE"];
+    const MAX_OPEN = 5;
+    const STORAGE_KEY = "savar.loops.openSessions.v1";
+    let currentId = null;
+    let activeTemplateId = null;
+    let templatesCache = [];
+    let openSessions = loadSessions();
+    let _archiveView = false; // viewing a completed log entry (not an open tray slot)
+
+    function templateById(id) {
+      return templatesCache.find((t) => t.id === id) || null;
+    }
+
+    function isGuidedKind(id) {
+      if (!id) return false;
+      const t = templateById(id);
+      if (t) return !!t.guided;
+      return ["laundry", "gym", "japa", "sleep", "walk", "autoresearch"].includes(id);
+    }
+
+    function colorStyle(id) {
+      const t = templateById(id);
+      if (!t || !t.color) return "";
+      return ` style="--chip-color:${escapeHtml(t.color)}"`;
+    }
+
+    // Design hill-climb instrumentation — batch + POST /events, never block UI
+    const _uiQueue = [];
+    let _uiFlushTimer = null;
+    let _stepShownAt = null;
+    let _stepStage = null;
+    let _tapsOnStep = 0;
+    let _loopStartedAt = null;
+    let _firstActionSent = false;
+    let _lastShownKey = null;
+    const _completedEmitted = new Set();
+
+    function flushUiEvents() {
+      if (!_uiQueue.length) return;
+      const batch = _uiQueue.splice(0, _uiQueue.length);
+      try {
+        const body = JSON.stringify({ events: batch });
+        if (navigator.sendBeacon) {
+          const blob = new Blob([body], { type: "application/json" });
+          if (navigator.sendBeacon(`${API}/events`, blob)) return;
+        }
+        fetch(`${API}/events`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body,
+          keepalive: true,
+        }).catch(() => {});
+      } catch (_) {}
+    }
+
+    function emitUi(kind, extra = {}) {
+      const payload = {
+        kind,
+        run_id: extra.run_id ?? currentId ?? null,
+        loop_kind: extra.loop_kind ?? activeTemplateId ?? null,
+        stage_number: extra.stage_number ?? _stepStage ?? null,
+        ts: Date.now(),
+        meta: extra.meta || {},
+      };
+      if (extra.time_on_step != null) payload.time_on_step = extra.time_on_step;
+      _uiQueue.push(payload);
+      if (_uiFlushTimer) clearTimeout(_uiFlushTimer);
+      _uiFlushTimer = setTimeout(flushUiEvents, 400);
+    }
+
+    function stageNumberFromRun(run) {
+      const n = run?.coach?.stage_number;
+      if (typeof n === "number" && n > 0) return n;
+      const ring = run?.coach?.ring;
+      if (Array.isArray(ring) && ring.length) {
+        const idx = ring.findIndex((s) => s === (run.coach?.loop_status || run.coach?.gym_status || run.coach?.laundry_status));
+        if (idx >= 0) return idx + 1;
+      }
+      const st = run?.status;
+      const oi = ORDER.indexOf(st);
+      return oi >= 0 ? oi + 1 : 1;
+    }
+
+    function trackStepShown(run) {
+      if (!run?.id || !run?.guided) return;
+      const stage = stageNumberFromRun(run);
+      const key = `${run.id}:${stage}:${run.status || ""}`;
+      if (_lastShownKey === key) return;
+      const now = Date.now();
+      if (_stepShownAt != null && _stepStage != null && currentId === run.id) {
+        emitUi("step_shown", {
+          run_id: run.id,
+          loop_kind: run.loop || activeTemplateId,
+          stage_number: _stepStage,
+          time_on_step: Math.max(0, now - _stepShownAt),
+          meta: { leaving: true },
+        });
+      }
+      _lastShownKey = key;
+      _stepShownAt = now;
+      _stepStage = stage;
+      _tapsOnStep = 0;
+      const meta = {};
+      if (_loopStartedAt && !_firstActionSent) {
+        /* first paint after start — not an action yet */
+      }
+      emitUi("step_shown", {
+        run_id: run.id,
+        loop_kind: run.loop || activeTemplateId,
+        stage_number: stage,
+        time_on_step: 0,
+        meta,
+      });
+    }
+
+    window.addEventListener("pagehide", flushUiEvents);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") flushUiEvents();
+      else loadTemplates();
+    });
+    window.addEventListener("pageshow", () => loadTemplates());
+
+    const $ = (id) => document.getElementById(id);
+    paintThemeToggle();
+    $('theme-toggle').addEventListener('click', toggleTheme);
+
+    function loadSessions() {
+      try {
+        const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+        return Array.isArray(raw) ? raw.slice(0, MAX_OPEN) : [];
+      } catch (_) {
+        return [];
+      }
+    }
+
+    function saveSessions() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(openSessions.slice(0, MAX_OPEN)));
+    }
+
+    function sessionLabel(run, templateId) {
+      const kind = templateId || run.loop || "loop";
+      const status = run.loop_status || run.gym_status || run.laundry_status || run.status || "";
+      const prompt = (run.input_query || "").trim();
+      const short = prompt.length > 28 ? prompt.slice(0, 25) + "…" : prompt;
+      return short || `${kind} · ${status}`;
+    }
+
+    function upsertSession(run, templateId) {
+      const loop = run.loop || (run.guided ? templateId : null);
+      const kind = isGuidedKind(loop)
+        ? loop
+        : (run.guided && isGuidedKind(templateId) ? templateId : (run.guided ? (templateId || loop || "loop") : "notes"));
+      const entry = {
+        id: run.id,
+        kind,
+        templateId: templateId || loop || activeTemplateId || "notes",
+        label: sessionLabel(run, templateId),
+        status: run.status,
+        loop_status: run.loop_status || run.japa_status || run.gym_status || run.laundry_status || null,
+        updated_at: Date.now(),
+      };
+      const i = openSessions.findIndex((s) => s.id === run.id);
+      if (i >= 0) openSessions[i] = { ...openSessions[i], ...entry };
+      else openSessions.unshift(entry);
+      openSessions = openSessions.slice(0, MAX_OPEN);
+      currentId = run.id;
+      activeTemplateId = entry.templateId;
+      saveSessions();
+      paintSessionTray();
+    }
+
+    function removeSession(id, { abandoned = true } = {}) {
+      const sess = openSessions.find((s) => s.id === id);
+      if (abandoned && sess) {
+        emitUi("step_abandoned", {
+          run_id: id,
+          loop_kind: sess.kind,
+          stage_number: _stepStage,
+          meta: { reason: "closed" },
+        });
+      }
+      openSessions = openSessions.filter((s) => s.id !== id);
+      saveSessions();
+      if (currentId === id) {
+        currentId = openSessions[0]?.id || null;
+        activeTemplateId = openSessions[0]?.templateId || activeTemplateId;
+        _lastShownKey = null;
+        _stepShownAt = null;
+      }
+      paintSessionTray();
+    }
+
+    function paintSessionTray() {
+      const tray = $("session-tray");
+      const list = $("session-list");
+      if (!openSessions.length) {
+        tray.hidden = true;
+        list.innerHTML = "";
+        return;
+      }
+      tray.hidden = false;
+      list.style.setProperty("--open-count", String(Math.min(openSessions.length, MAX_OPEN)));
+      $("session-count").textContent = `(${openSessions.length}/${MAX_OPEN})`;
+      list.innerHTML = openSessions.map((s) => {
+        const meta = (s.loop_status || s.laundry_status || s.status || "").replace("_", " ");
+        const active = s.id === currentId ? " active" : "";
+        const done = /done/i.test(s.loop_status || s.status || "") ? " is-done" : "";
+        return `<div class="session-pill kind-${escapeHtml(s.kind || "notes")}${active}${done}${templateById(s.kind)?.color ? " has-color" : ""}" data-id="${escapeHtml(s.id)}"${colorStyle(s.kind)}>
+          <span class="pill-dot" aria-hidden="true"></span>
+          <span class="pill-label" title="${escapeHtml(s.label)}">${escapeHtml(s.label)}</span>
+          <span class="pill-meta">${escapeHtml(meta)}</span>
+          <button type="button" class="pill-close" data-close="${escapeHtml(s.id)}" aria-label="Close loop">×</button>
+        </div>`;
+      }).join("");
+
+      list.querySelectorAll(".session-pill").forEach((pill) => {
+        pill.addEventListener("click", (e) => {
+          if (e.target.closest("[data-close]")) return;
+          if (pill.dataset.id === currentId && !_archiveView) {
+            clearActiveView();
+            return;
+          }
+          activateSession(pill.dataset.id);
+        });
+      });
+      list.querySelectorAll("[data-close]").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const id = btn.getAttribute("data-close");
+          const wasActive = id === currentId;
+          removeSession(id);
+          if (wasActive) {
+            if (currentId) activateSession(currentId);
+            else clearActiveView();
+          }
+        });
+      });
+    }
+
+    function formatLogWhen(iso) {
+      if (!iso) return "";
+      try {
+        const d = new Date(iso.endsWith("Z") || iso.includes("+") ? iso : iso + "Z");
+        if (Number.isNaN(d.getTime())) return "";
+        return d.toLocaleString(undefined, {
+          month: "short",
+          day: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+        });
+      } catch (_) {
+        return "";
+      }
+    }
+
+    async function loadCompletedLog() {
+      const empty = $("run-log-empty");
+      const list = $("run-log-list");
+      const count = $("run-log-count");
+      try {
+        const res = await fetch(`${API}/runs?status=DONE&limit=40`);
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        const runs = data.runs || [];
+        count.textContent = runs.length ? `(${runs.length})` : "";
+        $("run-log-archive").disabled = !runs.length;
+        if (!runs.length) {
+          empty.hidden = false;
+          empty.textContent = "No completed runs yet.";
+          list.hidden = true;
+          list.innerHTML = "";
+          return;
+        }
+        empty.hidden = true;
+        list.hidden = false;
+        list.innerHTML = runs.map((r) => {
+          const active = r.id === currentId ? " active" : "";
+          return `<li>
+            <button type="button" class="run-log-item kind-${escapeHtml(r.loop || "notes")}${active}${templateById(r.loop)?.color ? " has-color" : ""}" data-id="${escapeHtml(r.id)}" data-kind="${escapeHtml(r.loop || "notes")}"${colorStyle(r.loop)}>
+              <span class="log-kind">${escapeHtml(r.loop || "notes")}</span>
+              <span class="log-label" title="${escapeHtml(r.label || "")}">${escapeHtml(r.label || r.id.slice(0, 8))}</span>
+              <span class="log-when">${escapeHtml(formatLogWhen(r.updated_at || r.created_at))}</span>
+            </button>
+          </li>`;
+        }).join("");
+        list.querySelectorAll(".run-log-item").forEach((btn) => {
+          btn.addEventListener("click", () => reopenCompletedRun(btn.dataset.id, btn.dataset.kind));
+        });
+      } catch (e) {
+        empty.hidden = false;
+        empty.textContent = "Couldn’t load completed runs.";
+        list.hidden = true;
+        console.warn(e);
+      }
+    }
+
+    async function archiveAllCompleted() {
+      const btn = $("run-log-archive");
+      if (!confirm("Archive all completed runs? They’ll leave this list (data stays in the DB).")) {
+        return;
+      }
+      btn.disabled = true;
+      try {
+        const res = await fetch(`${API}/runs/archive-completed`, { method: "POST" });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        if (_archiveView) clearActiveView();
+        await loadCompletedLog();
+        $("err").textContent = data.archived
+          ? `Archived ${data.archived} completed run${data.archived === 1 ? "" : "s"}.`
+          : "Nothing to archive.";
+        window.setTimeout(() => {
+          if ($("err").textContent.startsWith("Archived") || $("err").textContent === "Nothing to archive.") {
+            $("err").textContent = "";
+          }
+        }, 2500);
+      } catch (e) {
+        $("err").textContent = e.message || String(e);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function reopenCompletedRun(id, kind) {
+      if (!id) return;
+      if (id === currentId && _archiveView) {
+        clearActiveView();
+        return;
+      }
+      $("err").textContent = "";
+      // Completed log is read-only history — do not park in Open loops
+      _archiveView = true;
+      if (openSessions.some((s) => s.id === id)) {
+        openSessions = openSessions.filter((s) => s.id !== id);
+        saveSessions();
+        paintSessionTray();
+      }
+      const k = kind === "exercise" ? "gym" : (kind && kind !== "run" ? kind : "notes");
+      activeTemplateId = isGuidedKind(k) ? k : null;
+      currentId = id;
+      $("refresh").disabled = false;
+      $("composer").hidden = true;
+      try {
+        let run;
+        if (activeTemplateId && guidedApiBase(activeTemplateId)) {
+          try {
+            run = await fetchRun(id);
+          } catch (_) {
+            run = null;
+          }
+        }
+        if (!run) {
+          const res = await fetch(`${API}/runs/${id}`);
+          if (!res.ok) throw new Error(await res.text());
+          run = await res.json();
+        }
+        if (run.loop && isGuidedKind(run.loop)) {
+          activeTemplateId = run.loop;
+          // Prefer guided payload if we only got raw /runs
+          if (!run.guided && guidedApiBase(run.loop)) {
+            try {
+              run = await fetchRun(id);
+            } catch (_) { /* keep raw */ }
+          }
+        }
+        render(run);
+      } catch (e) {
+        $("err").textContent = e.message || String(e);
+      }
+      loadCompletedLog();
+    }
+
+    function clearActiveView() {
+      currentId = null;
+      _archiveView = false;
+      _activeRun = null;
+      $("coach").hidden = true;
+      $("composer").hidden = false;
+      $("refresh").disabled = true;
+      $("verdict").hidden = true;
+      $("timeline-panel").hidden = true;
+      $("meta").hidden = true;
+      $("stages").hidden = true;
+      $("stages-hint").hidden = true;
+      $("urgency").hidden = true;
+      stopUrgencyTimer();
+      _urgencyKey = null;
+      _urgencyEndsAt = null;
+      $("timeline").innerHTML = `<li class="empty full">Pick an open loop or start a new one.</li>`;
+      paintSessionTray();
+      loadCompletedLog();
+    }
+
+    async function activateSession(id) {
+      const sess = openSessions.find((s) => s.id === id);
+      if (!sess) return;
+      _archiveView = false;
+      currentId = id;
+      activeTemplateId = sess.templateId;
+      $("refresh").disabled = false;
+      paintSessionTray();
+      try {
+        render(await fetchRun(id));
+      } catch (e) {
+        $("err").textContent = e.message || String(e);
+        removeSession(id);
+        if (currentId) activateSession(currentId);
+        else clearActiveView();
+      }
+    }
+
+    async function loadTemplates() {
+      try {
+        const res = await fetch(`${API}/loops/templates`, { cache: "no-store" });
+        if (!res.ok) {
+          console.warn("loadTemplates failed:", res.status, await res.text());
+          return;
+        }
+        const data = await res.json();
+        const templates = data.templates || [];
+        if (!templates.length) return;
+        const prevActive = activeTemplateId;
+        templatesCache = templates;
+        // Merge server stage catalogs into client catalog (customs + builtins)
+        templates.forEach((t) => {
+          if (t.stage_catalog && Object.keys(t.stage_catalog).length) {
+            STAGE_CATALOG[t.id] = { ...(STAGE_CATALOG[t.id] || {}), ...t.stage_catalog };
+          }
+        });
+        const wrap = $("personal-loops");
+        const chips = $("template-chips");
+        wrap.hidden = false;
+        chips.innerHTML = templates.map((t) => {
+          const custom = t.custom ? " custom" : "";
+          const colored = t.color ? " has-color" : "";
+          return `<button type="button" class="chip kind-${escapeHtml(t.id)}${custom}${colored}" data-id="${escapeHtml(t.id)}" title="${escapeHtml(t.description || "")}"${colorStyle(t.id)}>${escapeHtml(t.name)}</button>`;
+        }).join("");
+        chips.querySelectorAll(".chip").forEach((btn) => {
+          btn.addEventListener("click", () => selectTemplate(btn.dataset.id));
+        });
+        if (prevActive && templateById(prevActive)) {
+          document.querySelectorAll(".chip").forEach((el) => {
+            el.classList.toggle("active", el.dataset.id === prevActive);
+          });
+        }
+      } catch (e) {
+        console.warn("loadTemplates error:", e);
+      }
+    }
+
+    function selectTemplate(id) {
+      const template = templateById(id);
+      if (!template) return;
+      activeTemplateId = id === "exercise" ? "gym" : id;
+      $("query").value = template.default_query || "";
+      document.querySelectorAll(".chip").forEach((el) => {
+        el.classList.toggle("active", el.dataset.id === id);
+      });
+      const hint = $("template-hint");
+      const stages = (template.statuses || []).map((s) => s.replace(/_/g, " ")).join(" → ");
+      hint.hidden = false;
+      hint.textContent = stages
+        ? `${template.custom ? "Custom" : "Guided"}: ${stages}. Tap a stage to reopen it.`
+        : (template.description || "Guided loop — one step at a time.");
+      $("start").textContent = `Start ${template.name} loop`;
+      $("composer").hidden = false;
+      $("query").focus();
+    }
+
+    const LAUNDRY_RING = ["started", "washing", "dried", "folded", "put_away"];
+    const GYM_RING = ["decide", "leave", "arrive", "work", "log"];
+    const JAPA_RING = ["sit", "practice", "log", "reflect", "done"];
+    const SLEEP_RING = ["recall", "hours", "quality", "note", "done"];
+    const WALK_RING = ["shoes", "leave", "walk", "return", "log", "done"];
+    const AUTORESEARCH_RING = ["seed", "propose", "score", "decide", "done"];
+    const RING_C = 2 * Math.PI * 46;
+
+    // Client copies of stage copy so past steps can be reopened without re-advancing
+    const STAGE_CATALOG = {
+      laundry: {
+        started: { headline: "Gather the load", guidance: "Look at the pile and decide what this load is. Lights, darks, towels, or a mixed quick load — pick one and collect it.", question: "What load are you starting, and where is it now?", cta: "I gathered it" },
+        washing: { headline: "Get it washing", guidance: "Load the washer, add detergent, pick a cycle, and start it. If it’s already running, just say so.", question: "Is the washer running, or what blocked you?", cta: "Washer’s going" },
+        dried: { headline: "Move it to dry", guidance: "When the wash finishes, move clothes to the dryer (or hang-dry). Start the dryer or set them out to air dry.", question: "Are they drying now — dryer or hang?", cta: "Drying now" },
+        folded: { headline: "Fold while it’s warm", guidance: "Pull dry clothes and fold (or hang) them. Imperfect folds still count — speed over perfection.", question: "Folded yet, or still a warm heap?", cta: "Folded" },
+        put_away: { headline: "Put it away", guidance: "Walk the folded stack to drawers / closet / shelves. When it’s away, this load is done.", question: "Is everything put away?", cta: "Put away — done" },
+      },
+      gym: {
+        decide: { headline: "Decide the session", guidance: "Gym or home? Pick a focus that fits the next ~20 minutes.", question: "What are you doing, and where?", cta: "Decided" },
+        leave: { headline: "Leave", guidance: "Grab what you need and head out (or set up at home).", question: "On your way?", cta: "Left" },
+        arrive: { headline: "Arrive / set up", guidance: "You’re there. First movement or first machine.", question: "Ready to work?", cta: "Arrived" },
+        work: { headline: "Do the work", guidance: "Train. Keep it simple and finishable.", question: "Done with the work block?", cta: "Worked" },
+        log: { headline: "Log it", guidance: "Minutes × intensity. Rough numbers count.", question: "Minutes and intensity?", cta: "Logged" },
+      },
+      japa: {
+        sit: { headline: "Sit and settle", guidance: "Find your seat. One breath. You’re about to practice — no need to perfect the setup.", question: "Are you seated and ready to begin?", cta: "I’m sitting" },
+        practice: { headline: "Do the practice", guidance: "Start your japa or meditation. Malas, timer, or open sits — whatever you planned. Stay with it.", question: "Finished the session, or still going?", cta: "Practice done" },
+        log: { headline: "Log the basics", guidance: "Capture duration in minutes and optional mala count (rounds of 108). Numbers only are fine.", question: "How long (minutes)? Any malas?", cta: "Logged" },
+        reflect: { headline: "Optional note", guidance: "Mantra name, quality of mind, or one line of what stayed with you. Skip if you want — empty is ok.", question: "Anything to remember from this sit?", cta: "Save session" },
+        done: { headline: "Session saved", guidance: "Japa note written. Sit → practice → log → reflect → done.", question: "", cta: "Done" },
+      },
+      sleep: {
+        recall: { headline: "Recall last night", guidance: "Think back to bedtime and wake. Rough memory is enough.", question: "Ready to log last night’s sleep?", cta: "Ready" },
+        hours: { headline: "How many hours?", guidance: "Total sleep time. Ballpark is fine (e.g. 7 or 6.5).", question: "Hours slept?", cta: "Logged hours" },
+        quality: { headline: "Quality (optional)", guidance: "Rate 1–5, or skip. 1 = rough, 5 = great.", question: "Quality 1–5, or Continue to skip?", cta: "Next" },
+        note: { headline: "One line (optional)", guidance: "Dreams, wake-ups, caffeine — or leave blank.", question: "Anything else?", cta: "Save sleep log" },
+        done: { headline: "Sleep logged", guidance: "Note saved with tag sleep.", question: "", cta: "Done" },
+      },
+      walk: {
+        shoes: { headline: "Get ready", guidance: "Shoes, keys, phone, water if you want. Keep it light — you’re going for a walk.", question: "Ready at the door?", cta: "Ready" },
+        leave: { headline: "Step outside", guidance: "Out the door. No optimizing the route yet — just leave.", question: "Outside?", cta: "Left" },
+        walk: { headline: "Walk", guidance: "Move. Block or park or loop around the block — whatever fits.", question: "Still walking, or heading back?", cta: "Walking / done moving" },
+        return: { headline: "Head home", guidance: "Turn around when it feels right. Getting back counts.", question: "Back inside?", cta: "Home" },
+        log: { headline: "Log the walk", guidance: "Minutes (rough is fine) and optional one-liner — route, weather, mood.", question: "How long? Anything to note?", cta: "Saved" },
+        done: { headline: "Walk logged", guidance: "Note saved with tag walk. Shoes → leave → walk → return → log → done.", question: "", cta: "Done" },
+      },
+      autoresearch: {
+        seed: { headline: "Set the seed", guidance: "One objective + a starting candidate. Keep it small.", question: "What’s the objective and seed idea?", cta: "Seed set" },
+        propose: { headline: "Propose one neighbor", guidance: "Change exactly one variable. No multi-edit.", question: "What’s the single proposed change?", cta: "Proposed" },
+        score: { headline: "Score one metric", guidance: "Name the metric and a rough score (0–1 or better/worse).", question: "Metric + score?", cta: "Scored" },
+        decide: { headline: "Keep or discard", guidance: "Keep only if the metric improved. Otherwise discard.", question: "Keep or discard?", cta: "Decision logged" },
+        done: { headline: "Climb step saved", guidance: "Seed → propose → score → decide. Run another loop to climb again.", question: "", cta: "Done" },
+      },
+    };
+
+    let _activeRun = null;
+    let _viewStageName = null; // null = follow live current stage
+
+    const URGENCY_MS = 5 * 60 * 1000; // 5 minutes per live step
+    let _urgencyEndsAt = null;
+    let _urgencyKey = null;
+    let _urgencyRaf = null;
+
+    function formatUrgencyClock(msLeft) {
+      const s = Math.max(0, Math.ceil(msLeft / 1000));
+      const m = Math.floor(s / 60);
+      const r = s % 60;
+      return `${m}:${String(r).padStart(2, "0")}`;
+    }
+
+    function stopUrgencyTimer() {
+      if (_urgencyRaf) {
+        cancelAnimationFrame(_urgencyRaf);
+        _urgencyRaf = null;
+      }
+      const box = $("urgency");
+      if (box) {
+        box.hidden = true;
+        box.classList.remove("warn", "critical", "empty");
+      }
+    }
+
+    function tickUrgency() {
+      const box = $("urgency");
+      const fill = $("urgency-fill");
+      const clock = $("urgency-clock");
+      const label = $("urgency-label");
+      if (!box || box.hidden || _urgencyEndsAt == null) return;
+
+      const left = _urgencyEndsAt - Date.now();
+      const pct = Math.max(0, Math.min(1, left / URGENCY_MS));
+      fill.style.width = `${pct * 100}%`;
+      clock.textContent = formatUrgencyClock(left);
+
+      box.classList.toggle("warn", pct > 0 && pct <= 0.4);
+      box.classList.toggle("critical", pct > 0 && pct <= 0.15);
+      box.classList.toggle("empty", pct <= 0);
+      if (pct <= 0) {
+        label.textContent = "Time’s up — still do the step";
+        clock.textContent = "0:00";
+        fill.style.width = "0%";
+        _urgencyRaf = null;
+        return;
+      }
+      label.textContent = pct <= 0.15 ? "Almost gone — go" : "Do it now";
+      _urgencyRaf = requestAnimationFrame(tickUrgency);
+    }
+
+    function startUrgencyTimer(key) {
+      if (_archiveView) {
+        stopUrgencyTimer();
+        return;
+      }
+      if (_urgencyKey === key && _urgencyEndsAt != null && _urgencyEndsAt > Date.now()) {
+        // same step — keep counting
+        $("urgency").hidden = false;
+        if (!_urgencyRaf) _urgencyRaf = requestAnimationFrame(tickUrgency);
+        return;
+      }
+      _urgencyKey = key;
+      _urgencyEndsAt = Date.now() + URGENCY_MS;
+      const box = $("urgency");
+      box.hidden = false;
+      box.classList.remove("warn", "critical", "empty");
+      $("urgency-label").textContent = "Do it now";
+      $("urgency-fill").style.width = "100%";
+      $("urgency-clock").textContent = formatUrgencyClock(URGENCY_MS);
+      if (_urgencyRaf) cancelAnimationFrame(_urgencyRaf);
+      _urgencyRaf = requestAnimationFrame(tickUrgency);
+    }
+
+    function syncUrgencyForRun(run, { isPastView = false, finished = false } = {}) {
+      if (!run?.guided || finished || isPastView || _archiveView) {
+        stopUrgencyTimer();
+        return;
+      }
+      const live = liveStageName(run);
+      startUrgencyTimer(`${run.id}:${live}`);
+    }
+
+    function liveStageName(run) {
+      return domainStatusKey(run) || domainStatusKey(run?.coach) || null;
+    }
+
+    function stageCatalogFor(run) {
+      const loop = run?.loop || activeTemplateId;
+      return STAGE_CATALOG[loop] || {};
+    }
+
+    function historyMessageForStage(run, stageName) {
+      const hist = run?.history || [];
+      // Prefer the message that landed on this status; else last message while leaving previous
+      const hits = hist.filter((h) => h.status === stageName && h.mode !== "start");
+      if (hits.length) return hits[hits.length - 1].message;
+      const fromHere = hist.filter((h) => h.from === stageName);
+      if (fromHere.length) return fromHere[fromHere.length - 1].message;
+      const start = hist.find((h) => h.mode === "start" && h.status === stageName);
+      return start?.message || null;
+    }
+
+    function loopTitleForRun(run) {
+      const kind = run?.loop || activeTemplateId;
+      const t = templateById(kind);
+      if (t?.name) return t.name;
+      return titleCaseDomain(kind) || "Loop";
+    }
+
+    function buildLoopMarkdown(run, { includeDraft = true } = {}) {
+      if (!run?.guided) return "";
+      const ring = run.coach?.ring || [];
+      if (!ring.length) return "";
+
+      const live = liveStageName(run);
+      const finished = run.status === "DONE" || run.coach?.stage === "DONE";
+      const liveIdx = finished ? ring.length - 1 : Math.max(0, ring.indexOf(live));
+      const lines = [`# ${loopTitleForRun(run)} loop`, ""];
+      const prompt = (run.input_query || "").trim();
+      if (prompt) {
+        lines.push(`**Started with:** ${prompt}`, "");
+      }
+
+      for (let i = 0; i <= liveIdx; i += 1) {
+        const stageName = ring[i];
+        const message = (historyMessageForStage(run, stageName) || "").trim();
+        const isCurrent = !finished && i === liveIdx;
+        const draft = isCurrent && includeDraft ? $("coach-response").value.trim() : "";
+        if (!message && !draft) continue;
+
+        lines.push(`## Step ${i + 1} · ${titleCaseDomain(stageName)}`);
+        if (message) lines.push(message);
+        if (draft && draft !== message) {
+          if (message) lines.push("");
+          lines.push(`${draft}${isCurrent ? " _(draft — not submitted yet)_" : ""}`);
+        }
+        lines.push("");
+      }
+
+      return lines.join("\n").trim();
+    }
+
+    function hasCopyableLoopContent(run) {
+      if (!run?.guided) return false;
+      if ((run.history || []).length) return true;
+      return !!$("coach-response").value.trim();
+    }
+
+    async function copyLoopMarkdown() {
+      const run = _activeRun;
+      const btn = $("coach-copy-md");
+      if (!run?.guided) return;
+      const md = buildLoopMarkdown(run);
+      if (!md) return;
+
+      const prev = btn.textContent;
+      try {
+        await navigator.clipboard.writeText(md);
+        btn.textContent = "Copied!";
+        window.setTimeout(() => {
+          if (btn) btn.textContent = prev;
+        }, 1600);
+      } catch {
+        btn.textContent = "Copy failed";
+        window.setTimeout(() => {
+          if (btn) btn.textContent = prev;
+        }, 1600);
+      }
+    }
+
+    function paintLoopRing(coach) {
+      const ring = coach.ring
+        || (coach.japa_status ? JAPA_RING : null)
+        || (coach.gym_status ? GYM_RING : null)
+        || (coach.loop_status && WALK_RING.includes(coach.loop_status) ? WALK_RING : null)
+        || (coach.loop_status && SLEEP_RING.includes(coach.loop_status) ? SLEEP_RING : null)
+        || (coach.loop_status && AUTORESEARCH_RING.includes(coach.loop_status) ? AUTORESEARCH_RING : null)
+        || LAUNDRY_RING;
+      const statusKey = coach.loop_status || coach.japa_status || coach.gym_status || coach.laundry_status;
+      const total = coach.stage_total || ring.length || 5;
+      const num = Math.min(Math.max(coach.stage_number || 1, 1), total);
+      const status = String(statusKey || "").replace("_", " ");
+      const idx = Math.max(0, ring.indexOf(statusKey));
+      const doneCount = coach.stage === "DONE" ? total : Math.max(idx, 0);
+      const pct = coach.stage === "DONE" ? 1 : doneCount / total;
+
+      const progress = $("ring-progress");
+      progress.setAttribute("stroke-dasharray", String(RING_C));
+      progress.setAttribute("stroke-dashoffset", String(RING_C * (1 - pct)));
+
+      $("ring-step").textContent = `${num}/${total}`;
+      $("ring-label").textContent = status || labelState(coach.stage);
+
+      const dots = $("ring-dots");
+      const cx = 60, cy = 60, r = 46;
+      dots.innerHTML = ring.map((name, i) => {
+        const angle = (-Math.PI / 2) + (i / ring.length) * 2 * Math.PI;
+        const x = cx + r * Math.cos(angle);
+        const y = cy + r * Math.sin(angle);
+        let cls = "dot";
+        if (coach.stage === "DONE" || i < idx) cls += " done";
+        if (i === idx && coach.stage !== "DONE") cls += " current";
+        if (coach.stage === "DONE" && i === ring.length - 1) cls += " current";
+        return `<circle class="${cls}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5">
+          <title>${name}</title>
+        </circle>`;
+      }).join("");
+    }
+
+    function paintCoach(run, { viewStage } = {}) {
+      const box = $("coach");
+      if (!run?.guided || !run.coach) {
+        box.hidden = true;
+        stopUrgencyTimer();
+        return;
+      }
+
+      _activeRun = run;
+      const ring = run.coach.ring || [];
+      const live = liveStageName(run);
+      const finished = run.status === "DONE" || run.coach.stage === "DONE";
+      const effectiveLive = finished ? (ring[ring.length - 1] || live) : live;
+      const target = viewStage || _viewStageName || effectiveLive;
+      const isPastView = !!(target && effectiveLive && target !== effectiveLive);
+
+      const catalog = stageCatalogFor(run);
+      const snap = catalog[target] || {};
+      const coach = isPastView
+        ? {
+            ...run.coach,
+            ...snap,
+            loop_status: target,
+            stage_number: Math.max(1, ring.indexOf(target) + 1),
+            stage_total: ring.length,
+          }
+        : run.coach;
+
+      const liveIdx = Math.max(0, ring.indexOf(effectiveLive));
+
+      box.hidden = false;
+      $("coach-stage").textContent =
+        `Step ${coach.stage_number || "—"} of ${coach.stage_total || ring.length || 5} · ${titleCaseDomain(target || domainStepLabel(coach))}`;
+      $("coach-status").textContent = String(target || domainStatusKey(coach)).replace(/_/g, " ");
+      $("coach-headline").textContent = (isPastView ? snap.headline : coach.headline) || coach.headline || "";
+      $("coach-guidance").textContent = (isPastView ? snap.guidance : coach.guidance) || coach.guidance || "";
+      $("coach-question").textContent = isPastView
+        ? (snap.question ? `Asked then: ${snap.question}` : "Past step")
+        : (coach.question || "");
+      $("coach-continue").textContent = coach.cta || snap.cta || "Continue";
+
+      paintLoopRing({
+        ...run.coach,
+        loop_status: effectiveLive,
+        stage: finished ? "DONE" : run.coach.stage,
+        stage_number: finished ? ring.length : liveIdx + 1,
+        stage_total: ring.length,
+        ring,
+      });
+
+      $("coach-viewing-banner").hidden = !isPastView;
+
+      const said = historyMessageForStage(run, target || effectiveLive);
+      const saidBox = $("coach-said");
+      if (said) {
+        saidBox.hidden = false;
+        $("coach-said-text").textContent = said;
+      } else {
+        saidBox.hidden = true;
+      }
+
+      $("coach-actions").hidden = true;
+      $("coach-actions").innerHTML = "";
+
+      $("coach-response-wrap").hidden = isPastView || finished;
+      $("coach-restart").hidden = !finished || isPastView;
+      $("coach-restart").textContent = ({
+        gym: "Start another Gym loop",
+        japa: "Start another Japa loop",
+        sleep: "Start another Sleep loop",
+        autoresearch: "Start another Autoresearch",
+        laundry: "Start another Laundry loop",
+      })[run.loop || activeTemplateId] || "Start another loop";
+      if (!isPastView && !finished) {
+        window.setTimeout(() => $("coach-response").focus(), 50);
+      }
+      const copyBtn = $("coach-copy-md");
+      if (copyBtn) copyBtn.hidden = !hasCopyableLoopContent(run);
+      syncUrgencyForRun(run, { isPastView, finished });
+    }
+
+    function openStageView(stageName) {
+      if (!_activeRun?.guided) return;
+      const ring = _activeRun.coach?.ring || [];
+      const live = liveStageName(_activeRun);
+      const finished = _activeRun.status === "DONE" || _activeRun.coach?.stage === "DONE";
+      const liveIdx = finished ? ring.length - 1 : Math.max(0, ring.indexOf(live));
+      const i = ring.indexOf(stageName);
+      if (i < 0 || i > liveIdx) return; // locked future
+      _viewStageName = stageName;
+      paintCoach(_activeRun, { viewStage: stageName });
+      paintStagesForRun(_activeRun);
+    }
+
+    function backToCurrentStage() {
+      if (!_activeRun) return;
+      _viewStageName = null;
+      paintCoach(_activeRun);
+      paintStagesForRun(_activeRun);
+    }
+
+    function domainStatusKey(coachOrRun) {
+      return (
+        coachOrRun.loop_status ||
+        coachOrRun.japa_status ||
+        coachOrRun.gym_status ||
+        coachOrRun.laundry_status ||
+        coachOrRun.coach?.loop_status ||
+        coachOrRun.coach?.japa_status ||
+        coachOrRun.coach?.gym_status ||
+        coachOrRun.coach?.laundry_status ||
+        ""
+      );
+    }
+
+    function titleCaseDomain(status) {
+      if (!status) return "";
+      return String(status)
+        .split("_")
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" ");
+    }
+
+    function domainStepLabel(coach) {
+      const key = domainStatusKey(coach);
+      return titleCaseDomain(key) || labelState(coach.stage);
+    }
+
+    function defaultStageStrip() {
+      return ORDER.map((s) =>
+        `<div class="stage" data-s="${s}">${labelState(s)}</div>`
+      ).join("");
+    }
+
+    function paintStages(status) {
+      const box = $("stages");
+      // Ensure generic strip exists for non-guided
+      if (![...box.querySelectorAll(".stage")].every((el) => ORDER.includes(el.dataset.s))) {
+        box.innerHTML = defaultStageStrip();
+      }
+      const idx = ORDER.indexOf(status === "FAILED" ? "DONE" : status === "ITERATE" ? "PLAN" : status);
+      box.querySelectorAll(".stage").forEach((el) => {
+        el.classList.remove("active", "done", "fail");
+        const i = ORDER.indexOf(el.dataset.s);
+        if (status === "FAILED" && el.dataset.s === "DONE") {
+          el.classList.add("fail");
+          el.textContent = "Failed";
+        } else {
+          el.textContent = labelState(el.dataset.s);
+          if (idx > i) el.classList.add("done");
+          else if (idx === i) el.classList.add("active");
+        }
+      });
+    }
+
+    function paintStagesForRun(run) {
+      const box = $("stages");
+      const hint = $("stages-hint");
+      const coach = run?.coach;
+      const ring = coach?.ring;
+      if (run?.guided && Array.isArray(ring) && ring.length) {
+        const live = liveStageName(run);
+        const finished = run.status === "DONE" || coach.stage === "DONE";
+        const liveIdx = finished ? ring.length - 1 : Math.max(0, ring.indexOf(live));
+        const effectiveLive = ring[liveIdx] || live;
+        const viewing = _viewStageName || effectiveLive;
+        box.innerHTML = ring.map((name, i) => {
+          let cls = "stage";
+          const unlocked = i <= liveIdx;
+          if (finished || i < liveIdx) cls += " done";
+          if (!finished && i === liveIdx) cls += " active";
+          if (finished && i === ring.length - 1) cls += " active";
+          if (unlocked) cls += " viewable";
+          if (name === viewing) cls += " viewing";
+          return `<button type="button" class="${cls}" data-s="${escapeHtml(name)}" data-i="${i}" ${unlocked ? "" : "disabled"}>${escapeHtml(titleCaseDomain(name))}</button>`;
+        }).join("");
+        hint.hidden = true;
+        box.onclick = (ev) => {
+          const btn = ev.target.closest("button.stage.viewable");
+          if (!btn || btn.disabled) return;
+          openStageView(btn.dataset.s);
+        };
+        return;
+      }
+      hint.hidden = true;
+      box.onclick = null;
+      paintStages(run?.status || "");
+    }
+
+    function paintRawRing(run) {
+      if (run?.guided) return;
+      const status = run?.status || "DISCOVER";
+      const idx = Math.max(0, ORDER.indexOf(status === "FAILED" ? "DONE" : status));
+      const coach = {
+        ring: ORDER.map((s) => s.toLowerCase()),
+        loop_status: ORDER[idx].toLowerCase(),
+        stage_number: idx + 1,
+        stage_total: ORDER.length,
+        stage: status,
+      };
+      // Reuse ring SVG inside coach — show coach shell with ring only for raw? Better: unhide coach layout ring.
+      // Simpler: show coach section with minimal copy + ring for progress.
+      const box = $("coach");
+      box.hidden = false;
+      $("coach-stage").textContent = `Step ${idx + 1} of ${ORDER.length} · ${labelState(status)}`;
+      $("coach-status").textContent = (status || "").toLowerCase();
+      $("coach-headline").textContent = status === "DONE" ? "Run finished" : "Running loop…";
+      $("coach-guidance").textContent =
+        status === "DONE"
+          ? "This was an auto run (not step-by-step). Guided loops like Laundry, Gym, and Japa show the circle and stage buttons."
+          : "Auto agent run — stages update as it goes. Prefer Japa / Laundry / Gym for the interactive circle.";
+      $("coach-said").hidden = true;
+      $("coach-response-wrap").hidden = true;
+      $("coach-restart").hidden = status !== "DONE";
+      $("coach-restart").textContent = "Start another loop";
+      paintLoopRing({
+        ...coach,
+        ring: ["discover", "plan", "execute", "verify", "done"],
+        loop_status: ["discover", "plan", "execute", "verify", "done"][Math.min(idx, 4)],
+      });
+    }
+
+    function paintMeta(run) {
+      $("meta").innerHTML = `
+        <span>status <strong>${run.status || "—"}</strong></span>
+        <span>attempt <strong>${run.attempt ?? "—"} / ${run.max_attempts ?? "—"}</strong></span>
+        <span>committed <strong>${run.committed ? "yes" : "no"}</strong></span>
+        <span>run <strong>${run.id ? run.id.slice(0, 8) : "—"}</strong></span>
+      `;
+    }
+
+    function shortId(id) {
+      if (!id) return "a note";
+      return `note ${String(id).slice(0, 8)}`;
+    }
+
+    function describeOp(op) {
+      const type = op.op || op.source?.op || "?";
+      const p = op.payload || {};
+      const src = op.source || {};
+      if (type === "createNote" || (type === "rewrite" && !src.note_id && !p.note_id)) {
+        const title = p.title || src.title || "untitled";
+        const tags = (p.tags || src.tags || []).join(", ");
+        return `Create note “${title}”${tags ? ` (${tags})` : ""}`;
+      }
+      if (type === "updateNote") {
+        return `Update ${shortId(p.note_id)}`;
+      }
+      if (type === "tag") {
+        const tags = (p.tags || src.tags || []).join(", ") || "tags";
+        return `Tag ${shortId(p.note_id || src.note_id)} → ${tags}`;
+      }
+      if (type === "linkNotes" || type === "link") {
+        return `Link ${shortId(p.src_note_id || src.note_id)} → ${shortId(p.dst_note_id || src.target_note_id)}`;
+      }
+      if (type === "embed") {
+        return `Embed ${shortId(p.note_id)} for search`;
+      }
+      if (type === "summarize" || type === "extract" || type === "rewrite") {
+        if (src.note_id || p.note_id) return `${type} ${shortId(src.note_id || p.note_id)}`;
+        return `${type}: create “${src.title || p.title || "new note"}”`;
+      }
+      return String(type);
+    }
+
+    function summarizeStep(step) {
+      const out = step.output || {};
+      const state = step.state;
+      const lines = [];
+
+      if (out.guided) {
+        if (step.input?.message) lines.push(`You: ${step.input.message}`);
+        if (out.headline) lines.push(out.headline);
+        if (out.guidance) lines.push(out.guidance);
+      } else if (state === "DISCOVER") {
+        const intent = out.intent?.intent || out.intent;
+        const n = (out.candidates || []).length;
+        if (typeof intent === "string" && intent.trim()) {
+          const short = intent.length > 120 ? intent.slice(0, 117) + "…" : intent;
+          lines.push(`Understood: ${short}`);
+        } else {
+          lines.push("Parsed your request");
+        }
+        lines.push(n ? `Found ${n} related note${n === 1 ? "" : "s"}` : "No existing notes matched — will create new ones");
+      } else if (state === "PLAN") {
+        const ops = out.ops || [];
+        if (!ops.length) lines.push("No actions planned");
+        else {
+          lines.push(`Planned ${ops.length} action${ops.length === 1 ? "" : "s"}:`);
+          ops.slice(0, 6).forEach((op) => lines.push(describeOp({ op: op.op, payload: op, source: op })));
+          if (ops.length > 6) lines.push(`…and ${ops.length - 6} more`);
+        }
+      } else if (state === "EXECUTE") {
+        const ops = out.ops || [];
+        if (out.sealed === false || (out.preflight && out.preflight.ok === false)) {
+          const errs = out.preflight?.errors || ["preflight failed"];
+          lines.push("Staged changes blocked before apply:");
+          errs.slice(0, 4).forEach((e) => lines.push(e));
+        } else if (!ops.length) {
+          lines.push("Nothing staged");
+        } else {
+          lines.push(`Staged ${ops.length} change${ops.length === 1 ? "" : "s"} (not saved yet):`);
+          ops.filter((o) => o.op !== "embed").slice(0, 6).forEach((op) => lines.push(describeOp(op)));
+        }
+      } else if (state === "VERIFY") {
+        if (out.passed) lines.push("Checks passed — safe to save");
+        else {
+          lines.push("Checks failed");
+          (out.deterministic_reasons || []).slice(0, 4).forEach((r) => lines.push(r));
+          (out.semantic?.reasons || []).slice(0, 2).forEach((r) => lines.push(r));
+        }
+      } else if (state === "DONE") {
+        const results = out.commit_results || [];
+        if (out.rolled_back) lines.push("Save failed and was rolled back");
+        else if (results.length) {
+          lines.push(`Saved ${results.length} change${results.length === 1 ? "" : "s"}:`);
+          results.slice(0, 6).forEach((r) => {
+            const res = r.result || {};
+            if (r.op === "createNote") lines.push(`Created “${res.title || "note"}”`);
+            else if (r.op === "tag") lines.push(`Tagged “${res.title || shortId(res.id)}” → ${(res.tags || []).join(", ")}`);
+            else if (r.op === "updateNote") lines.push(`Updated “${res.title || shortId(res.id)}”`);
+            else if (r.op === "linkNotes") lines.push(`Linked notes`);
+            else if (r.op === "embed") { /* skip noise */ }
+            else lines.push(r.op);
+          });
+        } else if (out.best != null || out.history) {
+          lines.push(`Autoresearch finished — best score ${out.best?.score ?? "—"}`);
+        } else {
+          lines.push("Committed");
+        }
+      } else if (state === "FAILED") {
+        const reasons = out.failure_reasons || [];
+        lines.push("Run failed");
+        reasons.slice(0, 5).forEach((r) => lines.push(String(r)));
+      } else if (state === "ITERATE") {
+        lines.push(`Retrying (attempt ${(out.next && step.input?.attempt) || "…"})`);
+        (step.input?.failure_reasons || []).slice(0, 3).forEach((r) => lines.push(String(r)));
+      } else {
+        lines.push(state);
+      }
+
+      return lines.filter(Boolean);
+    }
+
+    function paintVerdict(run) {
+      const box = $("verdict");
+      const title = $("verdict-title");
+      const body = $("verdict-body");
+      const list = $("verdict-list");
+      if (run?.guided) {
+        box.hidden = true;
+        return;
+      }
+      if (!run || !run.status || run.status === "DISCOVER") {
+        box.hidden = true;
+        return;
+      }
+      box.hidden = false;
+      box.classList.remove("ok", "bad");
+      list.innerHTML = "";
+
+      const done = (run.steps || []).find((s) => s.state === "DONE");
+      const failed = (run.steps || []).find((s) => s.state === "FAILED");
+      const exec = [...(run.steps || [])].reverse().find((s) => s.state === "EXECUTE");
+
+      if (run.status === "DONE" && run.committed) {
+        box.classList.add("ok");
+        title.textContent = "Saved";
+        const results = done?.output?.commit_results || [];
+        const meaningful = results.filter((r) => r.op !== "embed");
+        body.textContent = meaningful.length
+          ? `This run wrote ${meaningful.length} change${meaningful.length === 1 ? "" : "s"} to your notes.`
+          : "Run finished and committed.";
+        meaningful.slice(0, 8).forEach((r) => {
+          const li = document.createElement("li");
+          const res = r.result || {};
+          if (r.op === "createNote") li.textContent = `Created “${res.title || "note"}”`;
+          else if (r.op === "tag") li.textContent = `Tagged “${res.title || "note"}” with ${(res.tags || []).join(", ")}`;
+          else if (r.op === "updateNote") li.textContent = `Updated “${res.title || "note"}”`;
+          else li.textContent = describeOp(r);
+          list.appendChild(li);
+        });
+      } else if (run.status === "FAILED") {
+        box.classList.add("bad");
+        title.textContent = "Didn’t save";
+        body.textContent = "The loop stopped without committing changes.";
+        (failed?.output?.failure_reasons || run.failure_reasons || []).slice(0, 5).forEach((r) => {
+          const li = document.createElement("li");
+          li.textContent = String(r);
+          list.appendChild(li);
+        });
+      } else {
+        title.textContent = run.status;
+        body.textContent = exec
+          ? "Working through the stagegate…"
+          : "Run in progress.";
+      }
+    }
+
+    function paintTimeline(run) {
+      const steps = run.steps || [];
+      const tl = $("timeline");
+      if (!steps.length) {
+        tl.innerHTML = `<li class="empty full">Waiting for steps…</li>`;
+        return;
+      }
+      // Hide noisy ITERATE duplicates; keep the story readable
+      const shown = steps.filter((s) => s.state !== "ITERATE" || (s.input?.failure_reasons || []).length);
+      tl.innerHTML = shown.map((s) => {
+        const lines = summarizeStep(s);
+        const bullets = lines.map((l) => `<li>${escapeHtml(l)}</li>`).join("");
+        const raw = s.output && !run.guided ? JSON.stringify(s.output, null, 2) : "";
+        const domain =
+          s.output?.loop_status ||
+          s.output?.gym_status ||
+          s.output?.laundry_status;
+        const stateLabel = run.guided && domain
+          ? titleCaseDomain(domain)
+          : labelState(s.state);
+        return `<li>
+          <div class="state">${escapeHtml(stateLabel)}</div>
+          <div>
+            <div class="time">${s.created_at ? new Date(s.created_at).toLocaleTimeString() : ""}</div>
+            <ul class="summary">${bullets}</ul>
+            ${raw ? `<details class="raw"><summary>raw</summary><pre>${escapeHtml(raw)}</pre></details>` : ""}
+          </div>
+        </li>`;
+      }).join("");
+    }
+
+    function labelState(state) {
+      return ({
+        DISCOVER: "Discover",
+        PLAN: "Plan",
+        EXECUTE: "Execute",
+        VERIFY: "Verify",
+        DONE: "Done",
+        FAILED: "Fail",
+        ITERATE: "Iterate",
+      })[state] || state;
+    }
+
+    function escapeHtml(t) {
+      return String(t).replace(/[&<>"']/g, (c) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      })[c]);
+    }
+
+    function render(run) {
+      if (!run?.id) {
+        clearActiveView();
+        return;
+      }
+      if (!_archiveView) upsertSession(run, run.loop || activeTemplateId);
+      else currentId = run.id;
+      const guided = !!run?.guided;
+      // Reset section view when run changes or live stage advances
+      if (!_activeRun || _activeRun.id !== run?.id) _viewStageName = null;
+      else if (guided && liveStageName(run) !== liveStageName(_activeRun)) _viewStageName = null;
+      $("stages").hidden = false;
+      $("meta").hidden = true;
+      $("timeline-panel").hidden = true;
+      $("composer").hidden = guided || _archiveView;
+      paintStagesForRun(run);
+      paintMeta(run);
+      if (guided) paintCoach(run);
+      else paintRawRing(run);
+      paintVerdict(run);
+      if (guided && !_archiveView) trackStepShown(run);
+      if (guided && !_archiveView && (run.status === "DONE" || run.committed) && !_completedEmitted.has(run.id)) {
+        _completedEmitted.add(run.id);
+        emitUi("loop_completed", {
+          run_id: run.id,
+          loop_kind: run.loop || activeTemplateId,
+          stage_number: stageNumberFromRun(run),
+        });
+        loadCompletedLog();
+      }
+      if (_archiveView) loadCompletedLog();
+    }
+
+    function guidedApiBase(kind) {
+      if (!kind) return null;
+      if (kind === "exercise") kind = "gym";
+      const t = templateById(kind);
+      if (t && t.guided) return `/guided-runs/${kind === "exercise" ? "gym" : kind}`;
+      if (["laundry", "gym", "japa", "sleep", "walk", "autoresearch"].includes(kind)) {
+        return `/guided-runs/${kind}`;
+      }
+      // Custom / unknown guided slug — try generic simple engine route
+      if (kind !== "notes" && kind !== "loop") return `/guided-runs/${kind}`;
+      return null;
+    }
+
+    async function fetchRun(id) {
+      const sess = openSessions.find((s) => s.id === id);
+      const kind = sess?.kind || activeTemplateId || "notes";
+      const guided = guidedApiBase(kind);
+      const path = guided ? `${guided}/${id}` : `/runs/${id}`;
+      const res = await fetch(`${API}${path}`);
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    }
+
+    async function startRun() {
+      _archiveView = false;
+      $("err").textContent = "";
+      if (openSessions.length >= MAX_OPEN) {
+        $("err").textContent = `Already ${MAX_OPEN} open loops — close one in the tray first.`;
+        return;
+      }
+      const startBtn = $("start");
+      const startLabel = startBtn.textContent;
+      startBtn.disabled = true;
+      startBtn.textContent = "Tailoring this step…";
+      try {
+        const kind = activeTemplateId === "exercise" ? "gym" : activeTemplateId;
+        const guided = guidedApiBase(kind);
+        const res = await fetch(
+          guided ? `${API}${guided}` : `${API}/runs`,
+          {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            guided
+              ? { prompt: $("query").value.trim() }
+              : { query: $("query").value.trim(), max_attempts: 3 }
+          ),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const run = await res.json();
+        currentId = run.id;
+        if (kind) activeTemplateId = kind;
+        $("refresh").disabled = !currentId;
+        _loopStartedAt = Date.now();
+        _firstActionSent = false;
+        _lastShownKey = null;
+        _tapsOnStep = 0;
+        emitUi("loop_started", {
+          run_id: run.id,
+          loop_kind: kind || run.loop || "run",
+          stage_number: stageNumberFromRun(run),
+        });
+        render(run);
+      } catch (e) {
+        $("err").textContent = e.message || String(e);
+      } finally {
+        startBtn.disabled = false;
+        startBtn.textContent = startLabel;
+      }
+    }
+
+    async function continueGuided(opts = {}) {
+      const allowEmpty = !!opts.allowEmpty;
+      let message = $("coach-response").value.trim();
+      $("coach-err").textContent = "";
+      if (!message && allowEmpty) {
+        message = $("coach-continue").textContent.trim() || "next";
+      }
+      if (!message) {
+        $("coach-err").textContent = "Tell me what happened first — or tap the next stage.";
+        $("coach-response").focus();
+        return;
+      }
+      if (!currentId) {
+        $("coach-err").textContent = "No active loop selected.";
+        return;
+      }
+      const sess = openSessions.find((s) => s.id === currentId);
+      const kind = sess?.kind || activeTemplateId;
+      const base = guidedApiBase(kind);
+      if (!base) {
+        $("coach-err").textContent = "This loop isn’t guided.";
+        return;
+      }
+      _tapsOnStep += 1;
+      if (!_firstActionSent && _loopStartedAt) {
+        _firstActionSent = true;
+        emitUi("step_shown", {
+          run_id: currentId,
+          loop_kind: kind,
+          stage_number: _stepStage,
+          time_on_step: Math.max(0, Date.now() - (_stepShownAt || _loopStartedAt)),
+          meta: { time_to_first_action_ms: Date.now() - _loopStartedAt, first_action: true },
+        });
+      }
+      const prevStage = _stepStage;
+      $("coach-continue").disabled = true;
+      try {
+        const res = await fetch(`${API}${base}/${currentId}/respond`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message }),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const run = await res.json();
+        const nextStage = stageNumberFromRun(run);
+        const advanced =
+          nextStage !== prevStage ||
+          run.status === "DONE" ||
+          !!run.committed;
+        if (advanced) {
+          emitUi("step_advanced", {
+            run_id: run.id,
+            loop_kind: kind,
+            stage_number: nextStage,
+            meta: { taps: _tapsOnStep, from_stage: prevStage, via: opts.via || "continue" },
+          });
+          _tapsOnStep = 0;
+        }
+        $("coach-response").value = "";
+        render(run);
+      } catch (e) {
+        $("coach-err").textContent = e.message || String(e);
+      } finally {
+        $("coach-continue").disabled = false;
+      }
+    }
+
+    function resetGuided() {
+      const resetId = currentId;
+      const resetKind = activeTemplateId;
+      if (resetId) {
+        emitUi("loop_reset", {
+          run_id: resetId,
+          loop_kind: resetKind,
+          stage_number: _stepStage,
+        });
+        removeSession(resetId, { abandoned: false });
+      }
+      const nextKind = ["gym", "exercise", "japa", "laundry", "sleep", "autoresearch"].includes(activeTemplateId)
+        ? (activeTemplateId === "exercise" ? "gym" : activeTemplateId)
+        : "laundry";
+      activeTemplateId = nextKind;
+      const defaults = {
+        gym: {
+          q: "Gym loop — I need to go to the gym or decide what exercise to do. I can leave in about 20 minutes.",
+          btn: "Start Gym loop",
+        },
+        japa: { q: "Log my japa / meditation session.", btn: "Start Japa loop" },
+        sleep: { q: "Log last night's sleep.", btn: "Start Sleep loop" },
+        autoresearch: { q: $("query").value || "Start autoresearch climb.", btn: "Start Autoresearch" },
+        laundry: { q: "Help me do one load of laundry.", btn: "Start Laundry loop" },
+      };
+      const d = defaults[nextKind] || defaults.laundry;
+      $("query").value = d.q;
+      $("start").textContent = d.btn;
+      document.querySelectorAll(".chip").forEach((el) => {
+        el.classList.toggle(
+          "active",
+          el.dataset.id === nextKind || (nextKind === "gym" && el.dataset.id === "exercise")
+        );
+      });
+      if (currentId) activateSession(currentId);
+      else clearActiveView();
+      $("composer").hidden = false;
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      $("query").focus();
+    }
+
+    $("start").addEventListener("click", startRun);
+    $("coach-continue").addEventListener("click", continueGuided);
+    $("coach-copy-md").addEventListener("click", copyLoopMarkdown);
+    $("coach-restart").addEventListener("click", resetGuided);
+    $("coach-back-current").addEventListener("click", backToCurrentStage);
+    $("run-log-refresh").addEventListener("click", loadCompletedLog);
+    $("run-log-archive").addEventListener("click", archiveAllCompleted);
+    $("coach-response").addEventListener("keydown", (event) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+        continueGuided();
+      }
+    });
+    // Keyboard switching between open loops (Linear-style). Ignored while typing.
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        const a = document.activeElement;
+        if (a && /^(textarea|input)$/i.test(a.tagName)) a.blur();
+        return;
+      }
+      const tag = ((e.target && e.target.tagName) || "").toLowerCase();
+      if (tag === "textarea" || tag === "input" || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (!openSessions.length) return;
+      const ids = openSessions.map((s) => s.id);
+      let idx = ids.indexOf(currentId);
+      if (e.key === "j" || e.key === "ArrowDown") {
+        e.preventDefault();
+        idx = (idx + 1 + ids.length) % ids.length;
+        activateSession(ids[idx]);
+      } else if (e.key === "k" || e.key === "ArrowUp") {
+        e.preventDefault();
+        idx = (idx - 1 + ids.length) % ids.length;
+        activateSession(ids[idx]);
+      } else if (/^[1-9]$/.test(e.key)) {
+        const n = parseInt(e.key, 10) - 1;
+        if (n < ids.length) { e.preventDefault(); activateSession(ids[n]); }
+      }
+    });
+
+    loadTemplates();
+    paintSessionTray();
+    loadCompletedLog();
+    clearActiveView();
+
+    $("new-loop-btn").addEventListener("click", () => {
+      $("new-loop-form").hidden = false;
+      $("nl-err").textContent = "";
+      $("nl-name").focus();
+    });
+    $("nl-cancel").addEventListener("click", () => {
+      $("new-loop-form").hidden = true;
+      $("nl-err").textContent = "";
+    });
+    $("nl-save").addEventListener("click", async () => {
+      $("nl-err").textContent = "";
+      const name = $("nl-name").value.trim();
+      const stages = $("nl-stages").value
+        .split(/\n|,/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const default_query = $("nl-prompt").value.trim();
+      if (!name) {
+        $("nl-err").textContent = "Name required";
+        return;
+      }
+      if (stages.length < 2) {
+        $("nl-err").textContent = "Add at least 2 stages (one per line)";
+        return;
+      }
+      $("nl-save").disabled = true;
+      try {
+        const res = await fetch(`${API}/loops/templates`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, stages, default_query }),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const created = await res.json();
+        $("new-loop-form").hidden = true;
+        $("nl-name").value = "";
+        $("nl-stages").value = "";
+        $("nl-prompt").value = "";
+        await loadTemplates();
+        selectTemplate(created.id);
+      } catch (e) {
+        $("nl-err").textContent = e.message || String(e);
+      } finally {
+        $("nl-save").disabled = false;
+      }
+    });
+
+    $("refresh").addEventListener("click", async () => {
+      if (!currentId) return;
+      try {
+        render(await fetchRun(currentId));
+      } catch (e) {
+        $("err").textContent = e.message || String(e);
+      }
+    });
+  </script>
+</body>
+</html>

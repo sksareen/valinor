@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<title>Live — companion</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root { --accent: #7dd3fc; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #05060a;
+    font-family: Lato, sans-serif; color: #e2e8f0; }
+  #self { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover;
+    transform: scaleX(-1); background: #05060a; }
+  .scrim { position: fixed; inset: 0; background: linear-gradient(to top, rgba(5,6,10,.78) 0%, rgba(5,6,10,.2) 42%, rgba(5,6,10,.35) 100%);
+    pointer-events: none; }
+
+  #status { position: fixed; top: 52px; left: 50%; transform: translateX(-50%); z-index: 5;
+    font: 700 11px Lato, sans-serif; letter-spacing: .14em; text-transform: uppercase;
+    padding: 7px 14px; border-radius: 999px; background: rgba(8,10,18,.72);
+    border: 1px solid rgba(255,255,255,.1); color: #94a3b8; backdrop-filter: blur(10px); }
+  #status.listening { color: var(--accent); border-color: rgba(125,211,252,.35); }
+  #status.thinking { color: #fbbf24; border-color: rgba(251,191,36,.35); }
+  #status.speaking { color: #34d399; border-color: rgba(52,211,153,.35); }
+  #status.paused { color: #64748b; }
+
+  #captions { position: fixed; left: 50%; bottom: 140px; transform: translateX(-50%);
+    width: min(720px, 90vw); z-index: 5; display: flex; flex-direction: column; gap: 10px;
+    max-height: 38vh; overflow-y: auto; pointer-events: none; }
+  .cap { padding: 12px 16px; border-radius: 14px; font: 550 17px/1.45 Lato, sans-serif;
+    text-shadow: 0 2px 14px rgba(0,0,0,.85); backdrop-filter: blur(8px); }
+  .cap.you { align-self: flex-end; background: rgba(125,211,252,.14); border: 1px solid rgba(125,211,252,.25);
+    color: #e0f2fe; max-width: 92%; }
+  .cap.you.interim { opacity: .65; font-style: italic; }
+  .cap.ai { align-self: flex-start; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12);
+    color: #f8fafc; max-width: 92%; }
+  .cap .who { display: block; font: 700 10px Lato, sans-serif; letter-spacing: .12em;
+    text-transform: uppercase; opacity: .55; margin-bottom: 4px; }
+
+  #bar { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 10px; padding: 10px 14px; z-index: 6;
+    background: rgba(8,10,18,.7); backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,.08); border-radius: 999px; }
+  .btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 15px; border-radius: 999px;
+    border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.05); color: #e2e8f0;
+    font: 600 13px Lato, sans-serif; cursor: pointer; white-space: nowrap; transition: .12s; }
+  .btn:hover { background: rgba(255,255,255,.12); }
+  .btn.primary { background: var(--accent); color: #05060a; border-color: transparent; }
+  #hint { position: fixed; bottom: 132px; left: 50%; transform: translateX(-50%); z-index: 5;
+    font: 600 12px Lato, sans-serif; color: #64748b; max-width: 80vw; text-align: center;
+    text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
+  #hint.retry { color: #fbbf24; cursor: pointer; text-decoration: underline; }
+
+  #chat { position: fixed; bottom: 78px; left: 50%; transform: translateX(-50%); z-index: 6;
+    display: flex; align-items: center; gap: 8px; width: min(560px, 92vw);
+    padding: 8px 10px; background: rgba(8,10,18,.78); backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,.1); border-radius: 16px; }
+  #chatIn { flex: 1; min-width: 0; background: transparent; border: 0; outline: none;
+    color: #f8fafc; font: 550 15px/1.3 Lato, sans-serif; padding: 6px 8px; }
+  #chatIn::placeholder { color: #64748b; }
+  #chatSend { flex: 0 0 auto; }
+
+  /* Cmd+J console panel — drops from top */
+  #tray { position: fixed; top: 44px; left: 0; right: 0; height: min(42vh, 360px); z-index: 29;
+    display: flex; flex-direction: column; background: rgba(8,10,18,.94);
+    border-bottom: 1px solid rgba(255,255,255,.1); backdrop-filter: blur(16px);
+    transform: translateY(calc(-100% - 44px)); transition: transform .2s ease; pointer-events: none; }
+  #tray.open { transform: translateY(0); pointer-events: auto; }
+  #trayHead { display: flex; align-items: center; gap: 10px; padding: 14px 16px;
+    border-bottom: 1px solid rgba(255,255,255,.08); flex: 0 0 auto; }
+  #trayHead h2 { font: 700 12px Lato, sans-serif; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--accent); flex: 1; }
+  #trayHead .kbd { font: 600 11px Lato, sans-serif; color: #64748b; }
+  #logClear { padding: 5px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,.12);
+    background: rgba(255,255,255,.05); color: #94a3b8; font: 600 11px Lato, sans-serif; cursor: pointer; }
+  #logClear:hover { background: rgba(255,255,255,.1); color: #e2e8f0; }
+  #log { flex: 1; overflow-y: auto; padding: 12px 14px; font: 500 12px/1.45 "SF Mono", ui-monospace, monospace;
+    color: #94a3b8; }
+  #log .line { padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,.04); word-break: break-word; }
+  #log .line .ts { color: #475569; margin-right: 8px; }
+  #log .line.info { color: #94a3b8; }
+  #log .line.ok { color: #34d399; }
+  #log .line.warn { color: #fbbf24; }
+  #log .line.err { color: #f87171; }
+  #log .line.you { color: #7dd3fc; }
+  #log .line.ai { color: #e2e8f0; }
+
+  /* Board mini-page — height = viewport/3.5; width follows 3.5:1 so the frame isn't stretched */
+  #boardMini {
+    --board-h: calc(100dvh / 3.5);
+    position: fixed; top: 56px; right: 14px; z-index: 7;
+    height: var(--board-h);
+    width: min(calc(var(--board-h) * 3.5), calc(100vw - 28px));
+    display: flex; flex-direction: column;
+    background: rgba(7, 9, 16, .92); border: 1px solid rgba(255,255,255,.12);
+    border-radius: 14px; overflow: hidden; backdrop-filter: blur(12px);
+    box-shadow: 0 16px 48px rgba(0,0,0,.45);
+    transition: opacity .18s, transform .18s;
+  }
+  #boardMini.collapsed {
+    height: auto; width: auto; min-width: 0;
+    background: transparent; border: 0; box-shadow: none; backdrop-filter: none;
+  }
+  #boardMini.collapsed #boardMiniBody { display: none; }
+  #boardMiniHead {
+    flex: 0 0 auto; display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px; border-bottom: 1px solid rgba(255,255,255,.08);
+    background: rgba(8,10,18,.72);
+  }
+  #boardMini.collapsed #boardMiniHead {
+    border: 1px solid rgba(255,255,255,.12); border-radius: 999px;
+    background: rgba(8,10,18,.78); backdrop-filter: blur(12px);
+  }
+  #boardMiniHead .lbl {
+    font: 700 11px Lato, sans-serif; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--accent); flex: 1;
+  }
+  #boardMini.collapsed #boardMiniHead .lbl { display: none; }
+  #boardMiniHead a, #boardMiniHead button {
+    height: 24px; padding: 0 9px; border-radius: 8px;
+    border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.05);
+    color: #94a3b8; font: 600 11px Lato, sans-serif; cursor: pointer;
+    text-decoration: none; display: inline-flex; align-items: center;
+  }
+  #boardMiniHead a:hover, #boardMiniHead button:hover {
+    background: rgba(255,255,255,.12); color: #e2e8f0;
+  }
+  #boardMiniBody { flex: 1; min-height: 0; position: relative; background: #070910; }
+  #boardMiniBody iframe {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    border: 0; background: #070910; filter: blur(2px) saturate(.7); opacity: .45;
+    pointer-events: none;
+  }
+  #boardSoon {
+    position: absolute; inset: 0; z-index: 2;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 6px; text-align: center; padding: 16px;
+    background: rgba(5,6,10,.72); backdrop-filter: blur(6px);
+  }
+  #boardSoon .tag {
+    font: 700 11px Lato, sans-serif; letter-spacing: .16em; text-transform: uppercase;
+    color: #fbbf24;
+  }
+  #boardSoon .msg {
+    font: 600 15px/1.35 Lato, sans-serif; color: #e2e8f0; max-width: 22ch;
+  }
+  #boardSoon .sub {
+    font: 500 12px/1.4 Lato, sans-serif; color: #64748b; max-width: 28ch;
+  }
+  @media (max-width: 720px) {
+    #boardMini {
+      left: 10px; right: 10px; top: 52px;
+      width: auto; height: calc(100dvh / 3.5);
+    }
+  }
+</style>
+</head>
+<body>
+  <video id="self" autoplay playsinline muted></video>
+  <div class="scrim"></div>
+  <div id="status" class="paused">paused</div>
+  <div id="captions"></div>
+  <div id="hint"></div>
+
+  <aside id="boardMini" aria-label="board mini">
+    <div id="boardMiniHead">
+      <span class="lbl">Board</span>
+      <a id="boardOpen" href="board.html" title="open full board">↗</a>
+      <button type="button" id="boardMiniToggle" title="hide board">Hide</button>
+    </div>
+    <div id="boardMiniBody">
+      <iframe id="boardFrame" src="about:blank" title="Board" aria-hidden="true"></iframe>
+      <div id="boardSoon" aria-live="polite">
+        <div class="tag">Coming soon</div>
+        <div class="msg">Board on Live</div>
+        <div class="sub">Notes + agent cards land here. Open full Board for now.</div>
+      </div>
+    </div>
+  </aside>
+
+  <form id="chat" autocomplete="off">
+    <input id="chatIn" type="text" placeholder="Type to talk…" maxlength="500" />
+    <button class="btn primary" id="chatSend" type="submit">Send</button>
+  </form>
+  <div id="bar">
+    <button class="btn primary" id="liveBtn">Live on</button>
+    <button class="btn" id="boardBtn" type="button" title="toggle board mini">Board</button>
+    <button class="btn" id="resetBtn">Reset</button>
+  </div>
+
+  <aside id="tray" aria-label="console">
+    <div id="trayHead">
+      <h2>Console</h2>
+      <span class="kbd">⌘J</span>
+      <button id="logClear" type="button">Clear</button>
+    </div>
+    <div id="log"></div>
+  </aside>
+
+<script src="hub-client.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const self = $('self'), caps = $('captions'), statusEl = $('status'), hintEl = $('hint');
+const tray = $('tray'), logEl = $('log');
+HubClient.forwardNavKeys();
+
+const SPEECH_ID = 'live';
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const LOG_MAX = 400;
+const ECHO_COOLDOWN_MS = 500;
+
+let liveOn = true;
+let busy = false;          // thinking / speaking / post-TTS cooldown — ignore ALL STT
+let rec = null;
+let stream = null;
+let micStream = null;
+let youInterimEl = null;
+let aiEl = null;
+let trayOpen = false;
+let ttsVoice = null;
+let ttsVoiceReady = null;
+let tickTimer = null;
+let lastUserSpeechAt = 0;
+let lastFrameHash = '';
+let lastTickAt = 0;
+
+function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+
+function clearInterim() {
+  if (youInterimEl) {
+    try { youInterimEl.remove(); } catch (e) {}
+    youInterimEl = null;
+  }
+}
+
+/** Stop recognizer without releasing the hub speech claim — resume after TTS. */
+function pauseRec(reason) {
+  if (rec) {
+    try { rec.onend = null; rec.onerror = null; rec.onresult = null; rec.stop(); } catch (e) {}
+    rec = null;
+    if (reason) log('stt pause — ' + reason, 'warn');
+  }
+}
+
+function fmtTs(d = new Date()) {
+  return d.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+function log(msg, kind = 'info') {
+  const line = document.createElement('div');
+  line.className = 'line ' + kind;
+  const ts = document.createElement('span');
+  ts.className = 'ts';
+  ts.textContent = fmtTs();
+  line.appendChild(ts);
+  line.appendChild(document.createTextNode(String(msg)));
+  logEl.appendChild(line);
+  while (logEl.children.length > LOG_MAX) logEl.removeChild(logEl.firstChild);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+function setTray(on) {
+  trayOpen = !!on;
+  tray.classList.toggle('open', trayOpen);
+}
+function toggleTray() { setTray(!trayOpen); }
+
+function setStatus(s) {
+  statusEl.className = s;
+  statusEl.textContent = s;
+  log('status → ' + s);
+}
+function setHint(msg, retry) {
+  hintEl.textContent = msg || '';
+  hintEl.classList.toggle('retry', !!retry);
+  if (msg) log(msg, retry ? 'warn' : 'info');
+}
+function scrollCaps() { caps.scrollTop = caps.scrollHeight; }
+
+function addCap(role, text, interim) {
+  const div = document.createElement('div');
+  div.className = 'cap ' + role + (interim ? ' interim' : '');
+  const who = document.createElement('span');
+  who.className = 'who';
+  who.textContent = role === 'you' ? 'you' : 'ai';
+  div.appendChild(who);
+  div.appendChild(document.createTextNode(text));
+  caps.appendChild(div);
+  scrollCaps();
+  return div;
+}
+
+function renderHistory(messages) {
+  caps.innerHTML = '';
+  for (const m of messages) {
+    addCap(m.role === 'assistant' ? 'ai' : 'you', m.text, false);
+  }
+  if (messages.length) log('restored ' + messages.length + ' messages', 'ok');
+}
+
+async function initCam() {
+  const hubCam = HubClient.embedded && HubClient.camera();
+  const hubMic = HubClient.embedded && HubClient.mic();
+  if (hubCam && hubCam.active) {
+    stream = new MediaStream([
+      ...hubCam.getVideoTracks(),
+      ...(hubMic && hubMic.active ? hubMic.getAudioTracks() : []),
+    ]);
+  } else {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { width: 1280, height: 720, facingMode: 'user' },
+      audio: true,
+    });
+  }
+  self.srcObject = stream;
+  await self.play();
+}
+
+async function ensureMic() {
+  if (micStream && micStream.active) return true;
+  if (HubClient.embedded) {
+    const m = HubClient.mic();
+    if (m && m.active) { micStream = m; return true; }
+    if (HubClient.micError()) {
+      setHint('hub mic unavailable: ' + HubClient.micError());
+      return false;
+    }
+  }
+  if (stream && stream.active && stream.getAudioTracks().length) {
+    micStream = stream; return true;
+  }
+  try { micStream = await navigator.mediaDevices.getUserMedia({ audio: true }); return true; }
+  catch (e) {
+    setHint('mic unavailable: ' + (e.name || e));
+    return false;
+  }
+}
+
+function stopVoice() {
+  HubClient.releaseSpeech(SPEECH_ID);
+  if (rec) {
+    try { rec.onend = null; rec.onerror = null; rec.onresult = null; rec.stop(); } catch (e) {}
+    rec = null;
+  }
+}
+
+function pickTtsVoice() {
+  if (!window.speechSynthesis) return null;
+  const voices = speechSynthesis.getVoices() || [];
+  if (!voices.length) return null;
+  const prefer = /male|daniel|alex|fred|david|google us english male|microsoft (david|mark|guy)/i;
+  const en = voices.filter((v) => /^en([-_]|$)/i.test(v.lang || ''));
+  const pool = en.length ? en : voices;
+  return (
+    pool.find((v) => prefer.test(v.name || '')) ||
+    pool.find((v) => /male/i.test(v.name || '')) ||
+    pool.find((v) => /^en-US/i.test(v.lang || '')) ||
+    pool[0] ||
+    null
+  );
+}
+
+function ensureTtsVoice() {
+  if (ttsVoice) return Promise.resolve(ttsVoice);
+  if (ttsVoiceReady) return ttsVoiceReady;
+  ttsVoiceReady = new Promise((resolve) => {
+    let done = false;
+    const apply = () => {
+      if (done) return;
+      done = true;
+      ttsVoice = pickTtsVoice();
+      if (ttsVoice) log('tts voice → ' + ttsVoice.name + ' (' + ttsVoice.lang + ')', 'ok');
+      resolve(ttsVoice);
+    };
+    if (pickTtsVoice()) { apply(); return; }
+    if (!window.speechSynthesis) { apply(); return; }
+    const once = () => {
+      speechSynthesis.removeEventListener('voiceschanged', once);
+      apply();
+    };
+    speechSynthesis.addEventListener('voiceschanged', once);
+    setTimeout(() => {
+      speechSynthesis.removeEventListener('voiceschanged', once);
+      apply();
+    }, 800);
+  });
+  return ttsVoiceReady;
+}
+
+async function speak(text) {
+  try { speechSynthesis.cancel(); } catch (e) {}
+  if (!window.speechSynthesis || !text) return;
+  pauseRec('before tts');
+  await ensureTtsVoice();
+  await new Promise((resolve) => {
+    const u = new SpeechSynthesisUtterance(text);
+    if (ttsVoice) u.voice = ttsVoice;
+    u.pitch = 0.95; // flat male delivery
+    u.rate = 0.97;
+    u.onend = () => resolve();
+    u.onerror = () => resolve();
+    setStatus('speaking');
+    speechSynthesis.speak(u);
+  });
+}
+
+/** Grab a JPEG still from #self for the vision turn. CSS mirror is display-only. */
+function grabFrame(quiet) {
+  try {
+    if (!self || self.readyState < 2 || !self.videoWidth || !self.videoHeight) {
+      if (!quiet) log('frame skip: video not ready', 'warn');
+      return null;
+    }
+    const c = document.createElement('canvas');
+    c.width = self.videoWidth;
+    c.height = self.videoHeight;
+    const ctx = c.getContext('2d');
+    if (!ctx) {
+      if (!quiet) log('frame skip: no canvas context', 'warn');
+      return null;
+    }
+    ctx.drawImage(self, 0, 0);
+    const dataUrl = c.toDataURL('image/jpeg', 0.7);
+    if (!dataUrl || dataUrl.length < 32) {
+      if (!quiet) log('frame skip: empty capture', 'warn');
+      return null;
+    }
+    if (!quiet) log('frame captured', 'ok');
+    return dataUrl;
+  } catch (e) {
+    if (!quiet) log('frame skip: ' + (e.message || e), 'warn');
+    return null;
+  }
+}
+
+/** Cheap stable-ish fingerprint of a data URL (length + sparse samples). */
+function cheapFrameHash(dataUrl) {
+  if (!dataUrl) return 'none';
+  let h = dataUrl.length >>> 0;
+  for (let i = 22; i < dataUrl.length; i += 1117) {
+    h = Math.imul(h ^ dataUrl.charCodeAt(i), 16777619) >>> 0;
+  }
+  return h.toString(36) + ':' + dataUrl.length;
+}
+
+function hubIsActive() {
+  return !HubClient.embedded || HubClient.isActive();
+}
+
+function ticksWanted() {
+  return liveOn && hubIsActive() && document.visibilityState !== 'hidden';
+}
+
+function stopTickLoop() {
+  if (tickTimer) {
+    clearInterval(tickTimer);
+    tickTimer = null;
+  }
+}
+
+function startTickLoop() {
+  stopTickLoop();
+  if (!ticksWanted()) return;
+  tickTimer = setInterval(() => { void runTick(); }, 5000);
+  log('tick loop on (5s)', 'ok');
+}
+
+async function runTick() {
+  if (!ticksWanted() || busy) return;
+  const image = grabFrame(true);
+  const hash = cheapFrameHash(image);
+  const speechSince = lastUserSpeechAt > lastTickAt;
+  // Heuristic: identical frame + no new user speech → local skip (no API call).
+  if (hash === lastFrameHash && !speechSince) {
+    lastTickAt = Date.now();
+    log('tick skip', 'info');
+    return;
+  }
+  lastFrameHash = hash;
+  lastTickAt = Date.now();
+  await askAi('', { tick: true, image });
+}
+
+function getActiveTab() {
+  try {
+    if (window.parent && window.parent !== window) {
+      const h = String(window.parent.location.hash || '').replace(/^#/, '').trim();
+      if (h) return h;
+    }
+  } catch (e) { /* cross-origin */ }
+  try {
+    const h = String(location.hash || '').replace(/^#/, '').trim();
+    if (h) return h;
+  } catch (e) {}
+  return 'live';
+}
+
+async function askAi(text, opts = {}) {
+  if (busy) return;
+  busy = true;
+  const isTick = !!opts.tick;
+  clearInterim();
+  pauseRec(isTick ? 'tick start' : 'turn start');
+  setStatus('thinking');
+  if (!isTick) log('you → ' + text, 'you');
+  else log('tick → router', 'info');
+  const image = opts.image !== undefined ? opts.image : grabFrame();
+  aiEl = null;
+  let full = '';
+  let skipped = false;
+  try {
+    const payload = {
+      text: text || '',
+      tick: isTick,
+      activeTab: getActiveTab(),
+    };
+    if (image) payload.image = image;
+    const r = await fetch('/api/live', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!r.ok) {
+      const err = await r.text();
+      throw new Error(err || ('HTTP ' + r.status));
+    }
+    const reader = r.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const chunks = buf.split('\n\n');
+      buf = chunks.pop() || '';
+      for (const chunk of chunks) {
+        const line = chunk.split('\n').find(l => l.startsWith('data:'));
+        if (!line) continue;
+        const payloadLine = line.slice(5).trim();
+        if (!payloadLine || payloadLine === ': ok') continue;
+        let ev;
+        try { ev = JSON.parse(payloadLine); } catch { continue; }
+        if (ev.type === 'skip') {
+          skipped = true;
+          log('tick skip', 'info');
+        } else if (ev.type === 'token') {
+          if (!aiEl) aiEl = addCap('ai', '', false);
+          full += ev.text;
+          aiEl.lastChild.textContent = full;
+          scrollCaps();
+        } else if (ev.type === 'done') {
+          if (ev.skipped) skipped = true;
+          full = (ev.text != null && ev.text !== '') ? ev.text : full;
+          if (skipped || !String(full).trim()) {
+            skipped = true;
+            if (aiEl) {
+              try { aiEl.remove(); } catch (e) {}
+              aiEl = null;
+            }
+            if (isTick && !ev.skipped) log('tick skip', 'info');
+          } else {
+            if (!aiEl) aiEl = addCap('ai', full, false);
+            else aiEl.lastChild.textContent = full;
+            log('ai ← ' + (full.slice(0, 120) + (full.length > 120 ? '…' : '')), 'ai');
+            if (ev.persist === null) log('session memory-only (disk persist unavailable)', 'warn');
+          }
+        } else if (ev.type === 'error') {
+          throw new Error(ev.message || 'live error');
+        }
+      }
+    }
+    clearInterim();
+    const say = skipped ? '' : full.trim();
+    if (!isTick && !say && aiEl) aiEl.lastChild.textContent = '…';
+    if (say) {
+      await speak(say);
+      await sleep(ECHO_COOLDOWN_MS); // let speaker echo die before STT resumes
+    }
+  } catch (e) {
+    if (isTick) {
+      log('tick err: ' + (e.message || e), 'err');
+    } else {
+      if (!aiEl) aiEl = addCap('ai', '', false);
+      if (aiEl) aiEl.lastChild.textContent = 'error: ' + (e.message || e);
+      log(String(e.message || e), 'err');
+      setHint(String(e.message || e));
+    }
+  } finally {
+    busy = false;
+    aiEl = null;
+    if (ticksWanted()) {
+      setStatus('listening');
+      startVoice();
+      if (!tickTimer) startTickLoop();
+    } else {
+      setStatus('paused');
+      stopTickLoop();
+    }
+  }
+}
+
+function onSpeech(e) {
+  // Never caption or reply while thinking/speaking/cooldown — kills TTS echo loop
+  if (busy) return;
+  let finals = '', interim = '';
+  for (let i = e.resultIndex; i < e.results.length; i++) {
+    const r = e.results[i];
+    if (r.isFinal) finals += r[0].transcript + ' ';
+    else interim += r[0].transcript + ' ';
+  }
+  if (interim.trim()) {
+    if (!youInterimEl) youInterimEl = addCap('you', interim.trim(), true);
+    else youInterimEl.lastChild.textContent = interim.trim();
+    scrollCaps();
+  }
+  const finalText = finals.trim();
+  if (!finalText) return;
+  if (youInterimEl) {
+    youInterimEl.classList.remove('interim');
+    youInterimEl.lastChild.textContent = finalText;
+    youInterimEl = null;
+  } else {
+    addCap('you', finalText, false);
+  }
+  lastUserSpeechAt = Date.now();
+  log('stt final: ' + finalText, 'you');
+  askAi(finalText);
+}
+
+async function startVoice() {
+  if (!liveOn || busy) return;
+  if (!SR) {
+    setHint('no speech recognition — use Chrome');
+    liveOn = false; syncLiveBtn(); setStatus('paused');
+    return;
+  }
+  if (HubClient.isElectron()) {
+    setHint(HubClient.speechHint(), false);
+    liveOn = false; syncLiveBtn(); setStatus('paused');
+    return;
+  }
+  if (HubClient.embedded && !HubClient.isActive()) return;
+  if (document.visibilityState === 'hidden') return;
+  stopVoice();
+  if (!await ensureMic()) { liveOn = false; syncLiveBtn(); setStatus('paused'); return; }
+  if (!liveOn || busy) return;
+  if (HubClient.embedded && !HubClient.isActive()) return;
+  HubClient.claimSpeech(SPEECH_ID, () => { stopVoice(); });
+  rec = new SR();
+  rec.continuous = true;
+  rec.interimResults = true;
+  rec.lang = 'en-US';
+  rec.onresult = onSpeech;
+  rec.onerror = (e) => {
+    if (e.error === 'no-speech' || e.error === 'aborted') return;
+    if (e.error === 'network') {
+      setHint(HubClient.speechHint() + ' · click to retry', !HubClient.isElectron());
+      liveOn = false; stopVoice(); syncLiveBtn(); setStatus('paused');
+      return;
+    }
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+      setHint('mic blocked — check permission');
+      liveOn = false; stopVoice(); syncLiveBtn(); setStatus('paused');
+      return;
+    }
+    setHint('speech error: ' + e.error, true);
+  };
+  rec.onend = () => {
+    if (busy || !liveOn || !rec || document.visibilityState === 'hidden') return;
+    if (HubClient.embedded && !HubClient.isActive()) return;
+    try { rec.start(); } catch (e) {}
+  };
+  try { rec.start(); } catch (e) {}
+  setHint('');
+  if (!busy) setStatus('listening');
+}
+
+function syncLiveBtn() {
+  const b = $('liveBtn');
+  b.classList.toggle('primary', liveOn);
+  b.textContent = liveOn ? 'Live on' : 'Live off';
+}
+
+async function toggleLive() {
+  liveOn = !liveOn;
+  if (liveOn) {
+    try { speechSynthesis.cancel(); } catch (e) {}
+    busy = false;
+    await startVoice();
+    startTickLoop();
+  } else {
+    stopTickLoop();
+    stopVoice();
+    try { speechSynthesis.cancel(); } catch (e) {}
+    setStatus('paused');
+  }
+  syncLiveBtn();
+}
+
+$('liveBtn').onclick = toggleLive;
+
+/* ---- board mini (embedded board.html?embed=1) ---- */
+const boardMini = $('boardMini');
+const boardMiniToggle = $('boardMiniToggle');
+const boardBtn = $('boardBtn');
+let boardMiniOpen = true;
+let boardSpeechHeld = false;
+
+function setBoardMini(on) {
+  boardMiniOpen = !!on;
+  boardMini.classList.toggle('collapsed', !boardMiniOpen);
+  boardMiniToggle.textContent = boardMiniOpen ? 'Hide' : 'Board';
+  boardMiniToggle.title = boardMiniOpen ? 'hide board' : 'show board';
+  boardBtn.classList.toggle('primary', boardMiniOpen);
+}
+boardMiniToggle.onclick = () => setBoardMini(!boardMiniOpen);
+boardBtn.onclick = () => setBoardMini(!boardMiniOpen);
+
+addEventListener('message', (e) => {
+  if (e.origin !== location.origin || !e.data || e.data.type !== 'board-speech') return;
+  if (e.data.on) {
+    boardSpeechHeld = true;
+    pauseRec('board');
+    log('board took speech', 'info');
+  } else if (boardSpeechHeld) {
+    boardSpeechHeld = false;
+    log('board released speech', 'ok');
+    if (liveOn && !busy && hubIsActive() && document.visibilityState !== 'hidden') startVoice();
+  }
+});
+
+$('chat').onsubmit = (e) => {
+  e.preventDefault();
+  const inp = $('chatIn');
+  const text = String(inp.value || '').trim();
+  if (!text || busy) return;
+  inp.value = '';
+  lastUserSpeechAt = Date.now();
+  addCap('you', text, false);
+  askAi(text);
+};
+$('chatIn').addEventListener('keydown', (e) => {
+  // don't let hub 1–9 / 0 steal keystrokes while typing
+  e.stopPropagation();
+});
+$('logClear').onclick = () => { logEl.innerHTML = ''; log('console cleared', 'ok'); };
+$('resetBtn').onclick = async () => {
+  try { speechSynthesis.cancel(); } catch (e) {}
+  busy = false;
+  clearInterim();
+  await fetch('/api/live', { method: 'DELETE' });
+  caps.innerHTML = '';
+  aiEl = null;
+  log('session reset', 'warn');
+  setHint('session cleared');
+};
+hintEl.onclick = () => {
+  if (!hintEl.classList.contains('retry')) return;
+  liveOn = true; syncLiveBtn(); startVoice(); startTickLoop();
+};
+
+addEventListener('keydown', (e) => {
+  const mod = e.metaKey || e.ctrlKey;
+  if (mod && e.key.toLowerCase() === 'j') {
+    e.preventDefault();
+    toggleTray();
+    return;
+  }
+  if (e.key === 'Escape' && trayOpen) { e.preventDefault(); setTray(false); }
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    stopTickLoop();
+    pauseRec('tab hidden');
+    HubClient.releaseSpeech(SPEECH_ID);
+    log('tab hidden — speech released', 'info');
+  } else if (liveOn && !busy && hubIsActive()) {
+    if (!rec) startVoice();
+    startTickLoop();
+  }
+});
+
+HubClient.onActive((on) => {
+  if (!on) {
+    stopTickLoop();
+    pauseRec('hub inactive');
+    HubClient.releaseSpeech(SPEECH_ID);
+    try { speechSynthesis.cancel(); } catch (e) {}
+    if (liveOn) setStatus('paused');
+    log('hub inactive — paused', 'info');
+  } else if (liveOn && !busy) {
+    log('hub active — resuming', 'ok');
+    startVoice();
+    startTickLoop();
+  }
+});
+
+(async () => {
+  log('live boot', 'ok');
+  ensureTtsVoice();
+  try { await initCam(); log('camera ready', 'ok'); }
+  catch (err) { log('camera failed: ' + err.message, 'err'); alert('Camera/mic needed for Live.\n' + err.message); }
+  try {
+    const r = await fetch('/api/live');
+    const j = await r.json();
+    renderHistory(j.messages || []);
+  } catch (e) { log('history load failed: ' + (e.message || e), 'warn'); }
+  syncLiveBtn();
+  if (SR && !HubClient.isElectron()) {
+    if (!HubClient.embedded || HubClient.isActive()) {
+      await startVoice();
+      startTickLoop();
+    } else setStatus('paused');
+  } else {
+    liveOn = false;
+    syncLiveBtn();
+    setStatus('paused');
+    setHint(HubClient.isElectron() ? HubClient.speechHint() : 'no speech recognition — use Chrome');
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<title>Rehearse — teleprompter + self-view</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root { --accent: #7dd3fc; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #05060a;
+    font-family: Lato, sans-serif; color: #e2e8f0; }
+  #self { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover;
+    transform: scaleX(-1); background: #05060a; }      /* mirrored self-view */
+  .scrim { position: fixed; inset: 0; background:
+    rgba(5,6,10,.42);
+    pointer-events: none; }
+
+  /* teleprompter band — current line rides the vertical center of the screen */
+  #prompter { position: fixed; top: 0; bottom: 120px; left: 50%; transform: translateX(-50%);
+    width: min(1100px, 88vw); overflow: hidden; text-align: center; }
+  #scroll { font-weight: 650; line-height: 1.42; letter-spacing: -0.01em; will-change: transform;
+    color: #f8fafc; text-shadow: 0 2px 18px rgba(0,0,0,.9), 0 0 4px rgba(0,0,0,.7); }
+  #scroll .cue { color: var(--accent); }
+
+  /* lens line — glance target to keep eyes up */
+  #lensline { position: fixed; top: 30px; left: 50%; transform: translateX(-50%);
+    color: var(--accent); font: 600 11px Lato, sans-serif; letter-spacing: .18em; opacity: .7; }
+
+  /* timer + exit target */
+  #timer { position: fixed; top: 44px; right: 34px; text-align: right; font-variant-numeric: tabular-nums; }
+  #elapsed { font: 700 46px/1 Lato, sans-serif; }
+  #target { font: 600 13px Lato, sans-serif; color: #94a3b8; margin-top: 4px; }
+  #timer.over #elapsed { color: #f87171; }
+  #timer.hit  #elapsed { color: #34d399; }
+
+  /* controls */
+  #bar { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+    background: rgba(8,10,18,.7); backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,.08); border-radius: 999px; z-index: 5; }
+  .btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 15px; border-radius: 999px;
+    border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.05); color: #e2e8f0;
+    font: 600 13px Lato, sans-serif; cursor: pointer; white-space: nowrap; transition: .12s; }
+  .btn:hover { background: rgba(255,255,255,.12); }
+  .btn.primary { background: var(--accent); color: #05060a; border-color: transparent; }
+  .btn.rec { background: #ef4444; color: #fff; border-color: transparent; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: #ef4444; }
+  .btn.rec .dot { background: #fff; animation: blink 1s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: .2; } }
+  input[type=number] { background: rgba(255,255,255,.06); color: #e2e8f0;
+    border: 1px solid rgba(255,255,255,.12); border-radius: 8px; padding: 8px 10px; font: 600 13px Lato, sans-serif; }
+  .sep { width: 1px; height: 24px; background: rgba(255,255,255,.12); }
+  #speed { display: flex; align-items: center; gap: 6px; font: 600 12px Lato, sans-serif; color: #94a3b8; }
+  #speed input { width: 90px; accent-color: var(--accent); }
+
+  /* script stepper — prev/next + title that opens a jump list */
+  #scriptNav { position: relative; display: flex; align-items: center; gap: 2px; }
+  #scriptNav .step { width: 32px; height: 34px; padding: 0; justify-content: center;
+    border-radius: 999px; font-size: 16px; line-height: 1; color: #94a3b8; }
+  #scriptNav .step:hover { color: #e2e8f0; }
+  #scriptTitle { min-width: 120px; max-width: 180px; justify-content: center;
+    overflow: hidden; text-overflow: ellipsis; }
+  #scriptMenu { position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%);
+    min-width: 200px; max-height: 50vh; overflow-y: auto; padding: 6px;
+    background: rgba(8,10,18,.92); backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,.1); border-radius: 14px; display: none; z-index: 6; }
+  #scriptMenu.open { display: block; }
+  #scriptMenu button { display: block; width: 100%; text-align: left; padding: 8px 12px;
+    border: 0; border-radius: 8px; background: transparent; color: #cbd5e1;
+    font: 600 13px Lato, sans-serif; cursor: pointer; white-space: nowrap; }
+  #scriptMenu button:hover { background: rgba(255,255,255,.08); color: #f8fafc; }
+  #scriptMenu button.active { color: var(--accent); background: rgba(125,211,252,.1); }
+  #scriptMenu .group { margin: 6px 8px 4px; font: 600 10px Lato, sans-serif;
+    letter-spacing: .12em; text-transform: uppercase; color: #64748b; }
+
+  /* editor + review overlays */
+  .panel { position: fixed; inset: 0; z-index: 20; display: none; flex-direction: column;
+    align-items: center; justify-content: center; gap: 16px; background: rgba(5,6,10,.9); backdrop-filter: blur(8px); }
+  .panel.show { display: flex; }
+  .panel h2 { font-size: 20px; font-weight: 700; }
+  #editTitle { width: min(760px, 90vw); background: #0b1020; color: #e2e8f0;
+    border: 1px solid rgba(255,255,255,.14); border-radius: 12px; padding: 12px 18px; font: 600 16px Lato, sans-serif; display: none; }
+  #editTitle.show { display: block; }
+  #editText { width: min(760px, 90vw); height: 46vh; background: #0b1020; color: #e2e8f0;
+    border: 1px solid rgba(255,255,255,.14); border-radius: 12px; padding: 18px; font: 500 16px/1.5 Lato, sans-serif; resize: none; }
+  #editHint { color: #64748b; font-size: 13px; }
+  .btn:disabled { opacity: .35; cursor: not-allowed; }
+  #review video { width: min(760px, 90vw); max-height: 62vh; border-radius: 12px; background:#000; }
+  #reviewMeta { color: #94a3b8; font: 13px Lato; }
+  .row { display: flex; gap: 10px; }
+  .kbd { font: 11px Lato; color:#64748b; }
+
+  /* voice-follow word states */
+  #scroll { position: relative; }
+  #scroll .w { transition: color .12s, opacity .12s; }
+  #scroll .w.done { color: #64748b; opacity: .5; }
+  #scroll .w.cur { color: var(--accent); text-shadow: 0 0 20px rgba(125,211,252,.55); }
+  #heard { position: fixed; bottom: 84px; left: 50%; transform: translateX(-50%);
+    font: 600 12px Lato, sans-serif; color: #64748b; z-index: 5; opacity: .85;
+    max-width: 70vw; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  #heard.retry { color: #fbbf24; cursor: pointer; text-decoration: underline; opacity: 1; }
+</style>
+</head>
+<body>
+  <video id="self" autoplay playsinline muted></video>
+  <div class="scrim"></div>
+
+  <div id="lensline">▲ EYES HERE — LENS</div>
+  <div id="prompter"><div id="scroll"></div></div>
+
+  <div id="timer"><div id="elapsed">0.0</div><div id="target">target 30s</div></div>
+  <div id="heard"></div>
+
+  <div id="bar">
+    <button class="btn rec-toggle" id="recBtn"><span class="dot"></span><span id="recLbl">Record</span></button>
+    <button class="btn" id="voiceBtn">🎙 Voice</button>
+    <button class="btn primary" id="rollBtn">▶ Roll</button>
+    <button class="btn" id="resetBtn">Reset</button>
+    <div class="sep"></div>
+    <div id="scriptNav">
+      <button class="btn step" id="prevScript" title="Previous script" aria-label="Previous script">‹</button>
+      <button class="btn" id="scriptTitle" title="Jump to script" aria-haspopup="listbox" aria-expanded="false"></button>
+      <button class="btn step" id="nextScript" title="Next script" aria-label="Next script">›</button>
+      <div id="scriptMenu" role="listbox"></div>
+    </div>
+    <button class="btn" id="editBtn">Edit</button>
+    <button class="btn" id="newBtn">New</button>
+    <button class="btn" id="delBtn" disabled>Delete</button>
+    <button class="btn" id="exportBtn" title="Download all scripts as a JSON backup">Export</button>
+    <button class="btn" id="importBtn" title="Load scripts from a JSON file — stays in this browser">Import</button>
+    <input type="file" id="importFile" accept="application/json,.json" style="display:none">
+    <div class="sep"></div>
+    <div id="speed"><span>scroll</span><input type="range" id="speedR" min="0" max="60" step="1" value="16"></div>
+    <input type="number" id="targetIn" min="5" max="600" step="5" value="30" title="target seconds" style="width:72px">
+  </div>
+
+  <!-- edit -->
+  <div class="panel" id="editor">
+    <h2>Edit script — <span id="editWhich"></span></h2>
+    <input id="editTitle" type="text" placeholder="Script title" autocomplete="off" />
+    <textarea id="editText" spellcheck="false" placeholder="Paste your script. Blank lines add breathing room. Start a line with > to mark a cue."></textarea>
+    <div id="editHint">Saved locally in this browser · nothing is uploaded · <span class="kbd">Esc</span> to close</div>
+    <div class="row"><button class="btn primary" id="saveScript">Save</button><button class="btn" id="cancelEdit">Cancel</button></div>
+  </div>
+
+  <!-- review -->
+  <div class="panel" id="review">
+    <h2>Review take</h2>
+    <video id="reviewVid" controls playsinline></video>
+    <div id="reviewMeta"></div>
+    <div class="row">
+      <a class="btn primary" id="dlBtn" download="rehearsal.webm">Download</a>
+      <button class="btn" id="retakeBtn">Retake</button>
+      <button class="btn" id="closeReview">Close</button>
+    </div>
+  </div>
+
+<script src="hub-client.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const self = $('self'), scrollEl = $('scroll'), prompter = $('prompter');
+// embedded in the hub: 1–9 switch hub views; recording + voice-follow reuse the hub's
+// shared camera+mic (opened once at hub start — no second device prompt)
+HubClient.forwardNavKeys();
+
+// ---------- scripts (persisted locally) ----------
+const DEFAULTS = {
+  welcome: `> Welcome to Rehearse\nSpeak, and the words light up as you say them.\n\n> How\nPick a script from the menu, or add your own with the plus button. Your scripts stay in this browser.\n\n> Now\nRead this line aloud to watch the follow keep pace with your voice.`,
+  gitanjali: `> Gitanjali 35\n> Rabindranath Tagore\n\nWhere the mind is without fear and the head is held high;\nWhere knowledge is free;\nWhere the world has not been broken up into fragments by narrow domestic walls;\nWhere words come out from the depth of truth;\nWhere tireless striving stretches its arms towards perfection;\nWhere the clear stream of reason has not lost its way into the dreary desert sand of dead habit;\nWhere the mind is led forward by thee into ever-widening thought and action —\nInto that heaven of freedom, my Father, let my country awake.`,
+  ulysses: `> Ulysses\n> Alfred, Lord Tennyson\n\nIt little profits that an idle king,\nBy this still hearth, among these barren crags,\nMatch'd with an aged wife, I mete and dole\nUnequal laws unto a savage race,\nThat hoard, and sleep, and feed, and know not me.\nI cannot rest from travel: I will drink\nLife to the lees: All times I have enjoy'd\nGreatly, have suffer'd greatly, both with those\nThat loved me, and alone, on shore, and when\nThro' scudding drifts the rainy Hyades\nVext the dim sea: I am become a name;\nFor always roaming with a hungry heart\nMuch have I seen and known; cities of men\nAnd manners, climates, councils, governments,\nMyself not least, but honour'd of them all;\nAnd drunk delight of battle with my peers,\nFar on the ringing plains of windy Troy.\nI am a part of all that I have met;\nYet all experience is an arch wherethro'\nGleams that untravell'd world whose margin fades\nFor ever and forever when I move.\nHow dull it is to pause, to make an end,\nTo rust unburnish'd, not to shine in use!\nAs tho' to breathe were life! Life piled on life\nWere all too little, and of one to me\nLittle remains: but every hour is saved\nFrom that eternal silence, something more,\nA bringer of new things; and vile it were\nFor some three suns to store and hoard myself,\nAnd this gray spirit yearning in desire\nTo follow knowledge like a sinking star,\nBeyond the utmost bound of human thought.\n\nThis is my son, mine own Telemachus,\nTo whom I leave the sceptre and the isle, —\nWell-loved of me, discerning to fulfil\nThis labour, by slow prudence to make mild\nA rugged people, and thro' soft degrees\nSubdue them to the useful and the good.\nMost blameless is he, centred in the sphere\nOf common duties, decent not to fail\nIn offices of tenderness, and pay\nMeet adoration to my household gods,\nWhen I am gone. He works his work, I mine.\n\nThere lies the port; the vessel puffs her sail:\nThere gloom the dark, broad seas. My mariners,\nSouls that have toil'd, and wrought, and thought with me —\nThat ever with a frolic welcome took\nThe thunder and the sunshine, and opposed\nFree hearts, free foreheads — you and I are old;\nOld age hath yet his honour and his toil;\nDeath closes all: but something ere the end,\nSome work of noble note, may yet be done,\nNot unbecoming men that strove with Gods.\nThe lights begin to twinkle from the rocks:\nThe long day wanes: the slow moon climbs: the deep\nMoans round with many voices. Come, my friends,\n'T is not too late to seek a newer world.\nPush off, and sitting well in order smite\nThe sounding furrows; for my purpose holds\nTo sail beyond the sunset, and the baths\nOf all the western stars, until I die.\nIt may be that the gulfs will wash us down:\nIt may be we shall touch the Happy Isles,\nAnd see the great Achilles, whom we knew.\nTho' much is taken, much abides; and tho'\nWe are not now that strength which in old days\nMoved earth and heaven, that which we are, we are;\nOne equal temper of heroic hearts,\nMade weak by time and fate, but strong in will\nTo strive, to seek, to find, and not to yield.`,
+  machines: `> The Secret of the Machines\n> Rudyard Kipling\n\nWe were taken from the ore-bed and the mine,\nWe were melted in the furnace and the pit —\nWe were cast and wrought and hammered to design,\nWe were cut and filed and tooled and gauged to fit.\nSome water, coal, and oil is all we ask,\nAnd a thousandth of an inch to give us play:\nAnd now, if you will set us to our task,\nWe will serve you four and twenty hours a day!\n\nWe can pull and haul and push and lift and drive,\nWe can print and plough and weave and heat and light,\nWe can run and race and swim and fly and dive,\nWe can see and hear and count and read and write!\n\nWould you call a friend from half across the world?\nIf you'll let us have his name and town and state,\nYou shall see and hear your crackling question hurled\nAcross the arch of heaven while you wait.\nHas he answered? Does he need you at his side?\nYou can start this very evening if you choose,\nAnd take the Western Ocean in the stride\nOf seventy thousand horses and some screws!\n\nThe boat-express is waiting your command!\nYou will find the Mauretania at the quay,\nTill her captain turns the lever 'neath his hand,\nAnd the monstrous nine-decked city goes to sea.\n\nDo you wish to make the mountains bare their head\nAnd lay their new-cut forests at your feet?\nDo you want to turn a river in its bed,\nOr plant a barren wilderness with wheat?\nShall we pipe aloft and bring you water down\nFrom the never-failing cisterns of the snows,\nTo work the mills and tramways in your town,\nAnd irrigate your orchards as it flows?\n\nIt is easy! Give us dynamite and drills!\nWatch the iron-shouldered rocks lie down and quake\nAs the thirsty desert-level floods and fills,\nAnd the valley we have dammed becomes a lake.\n\nBut remember, please, the Law by which we live,\nWe are not built to comprehend a lie,\nWe can neither love nor pity nor forgive.\nIf you make a slip in handling us you die!\nWe are greater than the Peoples or the Kings —\nBe humble, as you crawl beneath our rods! —\nOur touch can alter all created things,\nWe are everything on earth — except The Gods!\n\nThough our smoke may hide the Heavens from your eyes,\nIt will vanish and the stars will shine again,\nBecause, for all our power and weight and size,\nWe are nothing more than children of your brain!`,
+  blank: ``,
+};
+const BUILTINS = [
+  { id: 'welcome', title: 'Welcome' },
+  { id: 'gitanjali', title: 'Gitanjali 35' },
+  { id: 'ulysses', title: 'Ulysses' },
+  { id: 'machines', title: 'Secret of the Machines' },
+  { id: 'blank', title: 'Blank' },
+];
+const BUILTIN_IDS = new Set(BUILTINS.map(b => b.id));
+const store = {
+  get(k) {
+    const v = localStorage.getItem('rehearse:' + k);
+    if (v !== null) return v;
+    return BUILTIN_IDS.has(k) ? (DEFAULTS[k] ?? '') : '';
+  },
+  set(k, v) { localStorage.setItem('rehearse:' + k, v); },
+  del(k) { localStorage.removeItem('rehearse:' + k); },
+};
+function loadCatalog() {
+  try {
+    const raw = localStorage.getItem('rehearse:catalog');
+    const list = raw ? JSON.parse(raw) : [];
+    return Array.isArray(list) ? list.filter(e => e && e.id && e.title && !BUILTIN_IDS.has(e.id)) : [];
+  } catch { return []; }
+}
+function saveCatalog(list) { localStorage.setItem('rehearse:catalog', JSON.stringify(list)); }
+function isCustom(id) { return !BUILTIN_IDS.has(id); }
+function scriptTitle(id) {
+  const b = BUILTINS.find(x => x.id === id);
+  if (b) return b.title;
+  const c = loadCatalog().find(x => x.id === id);
+  return c ? c.title : id;
+}
+function allScripts() {
+  return [...BUILTINS, ...loadCatalog()];
+}
+function syncScriptNav(selectId) {
+  const keep = selectId || current;
+  const list = allScripts();
+  const valid = list.some(s => s.id === keep);
+  current = valid ? keep : 'intro';
+  $('scriptTitle').textContent = scriptTitle(current);
+  $('delBtn').disabled = !isCustom(current);
+  store.set('current', current);
+  // keep menu selection in sync if it's open
+  if ($('scriptMenu').classList.contains('open')) fillScriptMenu();
+}
+function fillScriptMenu() {
+  const menu = $('scriptMenu');
+  menu.innerHTML = '';
+  const add = (id, title) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.role = 'option';
+    b.textContent = title;
+    b.classList.toggle('active', id === current);
+    b.onclick = () => { selectScript(id); closeScriptMenu(); };
+    menu.appendChild(b);
+  };
+  BUILTINS.forEach(b => add(b.id, b.title));
+  const customs = loadCatalog();
+  if (customs.length) {
+    const g = document.createElement('div');
+    g.className = 'group';
+    g.textContent = 'Custom';
+    menu.appendChild(g);
+    customs.forEach(c => add(c.id, c.title));
+  }
+}
+function openScriptMenu() {
+  fillScriptMenu();
+  $('scriptMenu').classList.add('open');
+  $('scriptTitle').setAttribute('aria-expanded', 'true');
+}
+function closeScriptMenu() {
+  $('scriptMenu').classList.remove('open');
+  $('scriptTitle').setAttribute('aria-expanded', 'false');
+}
+function stepScript(dir) {
+  const list = allScripts();
+  const i = list.findIndex(s => s.id === current);
+  const next = list[(i < 0 ? 0 : i + dir + list.length) % list.length];
+  selectScript(next.id);
+}
+let current = localStorage.getItem('rehearse:current') || 'welcome';
+let scriptWords = [];       // [{ norm, el }]
+let matchedIndex = 0;       // how many words have been spoken
+
+const normWord = (s) => s.toLowerCase().replace(/[^a-z0-9']/g, '');
+const normWords = (s) => s.toLowerCase().split(/\s+/).map(normWord).filter(Boolean);
+
+function renderScript() {
+  const raw = store.get(current);
+  scrollEl.innerHTML = '';
+  scriptWords = [];
+  raw.split('\n').forEach(line => {
+    const div = document.createElement('div');
+    const trimmed = line.trim();
+    if (trimmed.startsWith('>')) {
+      div.className = 'cue';
+      div.style.cssText = 'font-size:.62em;opacity:.85;margin:.5em 0 .1em';
+      div.textContent = trimmed.slice(1).trim();
+    } else if (!trimmed) {
+      div.innerHTML = '&nbsp;';
+    } else {
+      line.split(/(\s+)/).forEach(tok => {
+        if (/^\s+$/.test(tok)) { div.appendChild(document.createTextNode(tok)); return; }
+        const norm = normWord(tok);
+        const span = document.createElement('span');
+        span.className = 'w'; span.textContent = tok;
+        div.appendChild(span);
+        if (norm) scriptWords.push({ norm, el: span });
+      });
+    }
+    scrollEl.appendChild(div);
+  });
+  fitFont();
+  matchedIndex = 0; utterAnchor = 0;
+  updateWordStyles();
+  resetScroll();
+}
+function updateWordStyles() {
+  scriptWords.forEach((w, i) => {
+    w.el.classList.toggle('done', i < matchedIndex);
+    w.el.classList.toggle('cur', i === matchedIndex);
+  });
+}
+const ANCHOR = 0.45;   // fraction of prompter height where the current line sits (~screen center)
+function fitFont() {
+  const w = prompter.clientWidth;
+  scrollEl.style.fontSize = Math.max(20, Math.min(46, w / 24)) + 'px';
+  // pad so the first line starts at the anchor and the last line can scroll up to it
+  const h = prompter.clientHeight;
+  scrollEl.style.paddingTop = Math.round(h * ANCHOR) + 'px';
+  scrollEl.style.paddingBottom = Math.round(h * (1 - ANCHOR)) + 'px';
+}
+addEventListener('resize', fitFont);
+
+// ---------- scrolling (target-based smooth; driven by time OR by voice) ----------
+let scrollY = 0, scrollTargetY = 0, scrolling = false, lastTs = 0;
+function resetScroll() { scrollY = 0; scrollTargetY = 0; scrollEl.style.transform = 'translateY(0px)'; }
+function scrollToWord(i) {
+  const w = scriptWords[i]; if (!w) return;
+  const wr = w.el.getBoundingClientRect(), pr = prompter.getBoundingClientRect();
+  const offset = (wr.top - pr.top) + scrollY;                 // untransformed offset of the word
+  scrollTargetY = Math.max(0, offset - prompter.clientHeight * ANCHOR);
+}
+function tickScroll(ts) {
+  const dt = lastTs ? (ts - lastTs) / 1000 : 0; lastTs = ts;
+  if (scrolling && !voiceOn) {                                 // timed roll (fallback)
+    scrollTargetY += (+$('speedR').value * 3) * dt;
+    const max = Math.max(0, scrollEl.scrollHeight - prompter.clientHeight * 0.5);
+    if (scrollTargetY > max) { scrollTargetY = max; scrolling = false; setRoll(false); }
+  }
+  scrollY += (scrollTargetY - scrollY) * Math.min(1, dt * 6);
+  scrollEl.style.transform = `translateY(${-scrollY}px)`;
+  requestAnimationFrame(tickScroll);
+}
+requestAnimationFrame(tickScroll);
+function setRoll(on) { scrolling = on; $('rollBtn').textContent = on ? '❚❚ Pause' : '▶ Roll'; }
+
+// ---------- voice follow: advance only as the words are actually spoken ----------
+let voiceOn = false, rec = null;
+let utterAnchor = 0;        // matchedIndex committed by finalized speech results
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const SPEECH_ID = 'rehearse';
+// hold ONE persistent mic stream — Chrome then stops re-prompting; when embedded,
+// reuse the hub's shared mic (same contract as board/hud dictation)
+let micStream = null;
+let stream = null;   // camera(+mic) for self-view / recording; set in initCam
+async function ensureMic() {
+  if (micStream && micStream.active) return true;
+  if (HubClient.embedded) {
+    const m = HubClient.mic();
+    if (m && m.active) { micStream = m; return true; }
+    if (HubClient.micError()) {
+      $('heard').textContent = 'hub mic unavailable: ' + HubClient.micError();
+      return false;
+    }
+  }
+  // standalone: reuse the cam+mic stream from initCam when it already has audio
+  if (stream && stream.active && stream.getAudioTracks().length) {
+    micStream = stream; return true;
+  }
+  try { micStream = await navigator.mediaDevices.getUserMedia({ audio: true }); return true; }
+  catch (e) {
+    $('heard').textContent = '🎙 mic unavailable: ' + (e.name || e);
+    return false;
+  }
+}
+const WIN = 8;                                               // look-ahead window (tolerates skips/mishears)
+const fuzzy = (a, b) => !a || !b ? false :
+  (a === b || (a.length > 3 && b.length > 3 && (a.startsWith(b) || b.startsWith(a) || a.includes(b) || b.includes(a))));
+function setMatched(n) {
+  if (n <= matchedIndex) return;
+  matchedIndex = Math.min(n, scriptWords.length);
+  updateWordStyles(); scrollToWord(Math.min(matchedIndex, scriptWords.length - 1));
+}
+function resetMatch() { matchedIndex = 0; utterAnchor = 0; updateWordStyles(); }
+// walk heard words forward through the script, tolerating skips/mishears.
+// a match right at the pointer advances freely; a match further ahead only
+// counts if the NEXT heard word confirms it — one mishear can't jump lines.
+function advanceFrom(from, words) {
+  let p = from;
+  for (let wi = 0; wi < words.length; wi++) {
+    const h = words[wi];
+    const end = Math.min(scriptWords.length, p + WIN);
+    let hit = -1;
+    for (let i = p; i < end; i++) if (fuzzy(scriptWords[i].norm, h)) { hit = i; break; }
+    if (hit < 0) continue;
+    if (hit - p > 2) {
+      const nxt = words[wi + 1];
+      const confirmed = nxt && ((scriptWords[hit + 1] && fuzzy(scriptWords[hit + 1].norm, nxt)) ||
+                                (scriptWords[hit + 2] && fuzzy(scriptWords[hit + 2].norm, nxt)));
+      if (!confirmed) continue;                                // lone far match = likely mishear, stay put
+    }
+    p = hit + 1;
+  }
+  return p;
+}
+function onSpeech(e) {
+  let finals = '', interim = '';
+  for (let i = e.resultIndex; i < e.results.length; i++) {
+    const r = e.results[i];
+    if (r.isFinal) finals += r[0].transcript + ' '; else interim += r[0].transcript + ' ';
+  }
+  const fw = normWords(finals), iw = normWords(interim);
+  if (!fw.length && !iw.length) return;
+  setHeard('🎙 ' + fw.concat(iw).slice(-7).join(' '));
+  if (fw.length) utterAnchor = advanceFrom(utterAnchor, fw);   // finals commit the anchor
+  const p = iw.length ? advanceFrom(utterAnchor, iw) : utterAnchor;  // interims re-align from it
+  setMatched(Math.max(utterAnchor, p));
+}
+function setHeard(msg, retry) {
+  const el = $('heard');
+  el.textContent = msg || '';
+  el.classList.toggle('retry', !!retry);
+}
+function killVoice(msg) {
+  // fatal speech errors: break the onend→start loop (network hammers Chrome's cloud STT
+  // if we keep restarting). mic stream stays — this isn't a mic failure. Voice-follow
+  // needs real-time interim transcripts, which only Chrome's own cloud STT provides —
+  // there's no record+transcribe substitute for that — so fall back to the timed scroll
+  // instead of leaving the prompter stuck with nothing moving.
+  voiceOn = false;
+  stopVoice();
+  syncVoiceBtn();
+  const canRetry = !HubClient.isElectron();
+  if (msg) setHeard(msg + (canRetry ? ' · click to retry — using timed scroll meanwhile' : ' — using timed scroll'), canRetry);
+  setRoll(true);
+}
+async function startVoice() {
+  if (!SR) { setHeard('no speech recognition — use Chrome'); voiceOn = false; syncVoiceBtn(); return; }
+  // Electron Chromium has no Google STT keys → perpetual 'network'. Don't pretend.
+  if (HubClient.isElectron()) {
+    voiceOn = false; syncVoiceBtn();
+    setHeard(HubClient.speechHint());
+    return;
+  }
+  // embedded: never start until this iframe is the active hub view
+  if (HubClient.embedded && !HubClient.isActive()) return;
+  if (document.visibilityState === 'hidden') return;
+  stopVoice();                                              // drop any stale session before restart
+  if (!await ensureMic()) { voiceOn = false; syncVoiceBtn(); return; }
+  if (!voiceOn) return;                                     // deactivated while awaiting mic
+  if (HubClient.embedded && !HubClient.isActive()) return;
+  HubClient.claimSpeech(SPEECH_ID, () => { stopVoice(); });
+  rec = new SR(); rec.continuous = true; rec.interimResults = true; rec.lang = 'en-US';
+  rec.onresult = onSpeech;
+  rec.onerror = (e) => {
+    if (e.error === 'no-speech' || e.error === 'aborted') return;   // benign, onend restarts
+    if (e.error === 'network') {
+      killVoice(HubClient.speechHint());
+      return;
+    }
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+      killVoice('mic blocked — check permission');
+      return;
+    }
+    killVoice('speech error: ' + e.error);
+  };
+  // keep-alive on pause, but never while hidden / inactive / after killVoice
+  rec.onend = () => {
+    if (!voiceOn || !rec || document.visibilityState === 'hidden') return;
+    if (HubClient.embedded && !HubClient.isActive()) return;
+    try { rec.start(); } catch (e) {}
+  };
+  try { rec.start(); } catch (e) {}
+  setHeard('🎙 listening…');
+}
+function stopVoice() {
+  HubClient.releaseSpeech(SPEECH_ID);
+  if (rec) {
+    try { rec.onend = null; rec.onerror = null; rec.onresult = null; rec.stop(); } catch (e) {}
+    rec = null;
+  }
+  setHeard('');
+}
+// browser tab hidden → release SpeechRecognition (keeps voiceOn so we resume)
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    if (rec) { try { rec.onend = null; rec.onerror = null; rec.onresult = null; rec.stop(); } catch (e) {} rec = null; }
+    HubClient.releaseSpeech(SPEECH_ID);
+  } else if (voiceOn && !rec && (!HubClient.embedded || HubClient.isActive())) {
+    startVoice();
+  }
+});
+$('heard').onclick = () => {
+  if (!$('heard').classList.contains('retry')) return;
+  voiceOn = true; setRoll(false); syncVoiceBtn(); startVoice();
+};
+
+function syncVoiceBtn() {
+  const b = $('voiceBtn');
+  b.classList.toggle('primary', voiceOn);
+  b.textContent = voiceOn ? '🎙 Voice on' : '🎙 Voice';
+  $('rollBtn').style.display = voiceOn ? 'none' : '';
+  $('speed').style.display = voiceOn ? 'none' : '';
+}
+async function toggleVoice() {
+  voiceOn = !voiceOn;
+  if (voiceOn) { setRoll(false); resetMatch(); resetScroll(); await startVoice(); }
+  else stopVoice();
+  syncVoiceBtn();
+}
+
+// ---------- timer ----------
+let t0 = 0, timerRAF = null, running = false;
+const timerEl = $('timer'), elapsedEl = $('elapsed'), targetEl = $('target');
+let target = 30;
+function fmt(s) { return s.toFixed(1); }
+function timerLoop() {
+  const s = (performance.now() - t0) / 1000;
+  elapsedEl.textContent = fmt(s);
+  timerEl.classList.toggle('over', s > target + 0.5);
+  timerEl.classList.toggle('hit', s >= target - 1.5 && s <= target + 0.5);
+  timerRAF = requestAnimationFrame(timerLoop);
+}
+function startTimer() { t0 = performance.now(); running = true; timerLoop(); }
+function stopTimer() { running = false; cancelAnimationFrame(timerRAF); }
+function resetTimer() { stopTimer(); elapsedEl.textContent = '0.0'; timerEl.classList.remove('over','hit'); }
+
+// ---------- recording ----------
+let recorder, chunks = [], recording = false, recStart = 0;
+async function initCam() {
+  // embedded in the hub: compose a stream from its shared camera+mic — no second
+  // device open, no extra prompts (hub cam is 640x480; standalone gets 720p)
+  const hubCam = HubClient.embedded && HubClient.camera(), hubMic = HubClient.embedded && HubClient.mic();
+  if (hubCam && hubCam.active) {
+    stream = new MediaStream([...hubCam.getVideoTracks(), ...(hubMic && hubMic.active ? hubMic.getAudioTracks() : [])]);
+  } else {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { width: 1280, height: 720, facingMode: 'user' }, audio: true });
+  }
+  self.srcObject = stream; await self.play();
+}
+function startRec() {
+  chunks = [];
+  const mime = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm';
+  recorder = new MediaRecorder(stream, { mimeType: mime });
+  recorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+  recorder.onstop = showReview;
+  recorder.start();
+  recording = true; recStart = performance.now();
+  $('recBtn').classList.add('rec'); $('recLbl').textContent = 'Stop';
+  // starting a take resets the timer + prompter from zero
+  resetTimer(); startTimer(); resetScroll();
+  resetMatch();
+  if (voiceOn) { if (!rec) startVoice(); }   // voice drives the scroll
+  else setRoll(true);                        // otherwise timed roll
+}
+function stopRec() {
+  if (recorder && recorder.state !== 'inactive') recorder.stop();
+  recording = false; $('recBtn').classList.remove('rec'); $('recLbl').textContent = 'Record';
+  stopTimer(); setRoll(false);
+}
+// hidden view = release SpeechRecognition so switching tabs can't leave a mic hanging
+HubClient.onActive(on => {
+  if (!on) {
+    if (recording) stopRec();
+    // hard stop recognizer; keep voiceOn so returning to this tab resumes
+    if (rec) { try { rec.onend = null; rec.onerror = null; rec.onresult = null; rec.stop(); } catch (e) {} rec = null; }
+    HubClient.releaseSpeech(SPEECH_ID);
+  } else if (voiceOn) {
+    startVoice();
+  }
+});
+function showReview() {
+  const blob = new Blob(chunks, { type: 'video/webm' });
+  const url = URL.createObjectURL(blob);
+  const v = $('reviewVid'); v.src = url;
+  $('dlBtn').href = url;
+  const secs = ((performance.now() - recStart) / 1000);
+  $('reviewMeta').textContent = `${secs.toFixed(1)}s take · target ${target}s · ${secs <= target + 0.5 ? 'within target ✓' : 'over by ' + (secs - target).toFixed(1) + 's'}`;
+  $('review').classList.add('show');
+}
+
+// ---------- wiring ----------
+$('recBtn').onclick = () => recording ? stopRec() : startRec();
+$('rollBtn').onclick = () => setRoll(!scrolling);
+$('voiceBtn').onclick = toggleVoice;
+$('resetBtn').onclick = () => { resetTimer(); resetScroll(); setRoll(false); resetMatch(); };
+function openEditor() {
+  const custom = isCustom(current);
+  $('editWhich').textContent = scriptTitle(current);
+  $('editTitle').value = custom ? scriptTitle(current) : '';
+  $('editTitle').classList.toggle('show', custom);
+  $('editText').value = store.get(current);
+  $('editor').classList.add('show');
+  (custom ? $('editTitle') : $('editText')).focus();
+}
+function selectScript(id) {
+  syncScriptNav(id);
+  renderScript();
+}
+
+$('prevScript').onclick = () => stepScript(-1);
+$('nextScript').onclick = () => stepScript(1);
+$('scriptTitle').onclick = (e) => {
+  e.stopPropagation();
+  $('scriptMenu').classList.contains('open') ? closeScriptMenu() : openScriptMenu();
+};
+addEventListener('click', (e) => {
+  if (!$('scriptNav').contains(e.target)) closeScriptMenu();
+});
+$('speedR').oninput = () => {};
+$('targetIn').onchange = e => { target = Math.max(5, +e.target.value || 30); targetEl.textContent = 'target ' + target + 's'; };
+
+$('editBtn').onclick = openEditor;
+$('newBtn').onclick = () => {
+  const title = (prompt('Name for the new script:', 'Untitled') || '').trim();
+  if (!title) return;
+  const id = 'custom-' + Date.now().toString(36);
+  const catalog = loadCatalog();
+  catalog.push({ id, title });
+  saveCatalog(catalog);
+  store.set(id, '');
+  selectScript(id);
+  openEditor();
+};
+$('delBtn').onclick = () => {
+  if (!isCustom(current)) return;
+  const title = scriptTitle(current);
+  if (!confirm(`Delete “${title}”? This can’t be undone.`)) return;
+  const catalog = loadCatalog();
+  const idx = catalog.findIndex(c => c.id === current);
+  const next = catalog.filter(c => c.id !== current);
+  saveCatalog(next);
+  store.del(current);
+  const fallback = (idx > 0 ? next[idx - 1] : next[0])?.id || 'welcome';
+  selectScript(fallback);
+};
+$('exportBtn').onclick = () => {
+  const data = allScripts().map(s => ({ id: s.id, title: scriptTitle(s.id), body: store.get(s.id) }));
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'rehearse-scripts.json';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 0);
+};
+$('importBtn').onclick = () => $('importFile').click();
+$('importFile').onchange = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    const list = JSON.parse(await file.text());
+    if (!Array.isArray(list)) throw new Error('expected a JSON array of scripts');
+    const catalog = loadCatalog();
+    let n = 0;
+    for (const s of list) {
+      if (!s || !s.id || typeof s.body !== 'string') continue;
+      store.set(s.id, s.body);
+      if (!BUILTIN_IDS.has(s.id) && !catalog.some(c => c.id === s.id)) {
+        catalog.push({ id: String(s.id), title: String(s.title || s.id) });
+      }
+      n++;
+    }
+    saveCatalog(catalog);
+    syncScriptNav(current);
+    renderScript();
+    const h = $('heard'); if (h) h.textContent = `✓ imported ${n} script${n === 1 ? '' : 's'}`;
+  } catch (err) {
+    alert('Import failed: ' + err.message);
+  } finally {
+    e.target.value = '';
+  }
+};
+$('saveScript').onclick = () => {
+  store.set(current, $('editText').value);
+  if (isCustom(current)) {
+    const title = ($('editTitle').value || '').trim() || 'Untitled';
+    const catalog = loadCatalog().map(c => c.id === current ? { ...c, title } : c);
+    saveCatalog(catalog);
+    syncScriptNav(current);
+  }
+  $('editor').classList.remove('show');
+  renderScript();
+};
+$('cancelEdit').onclick = () => $('editor').classList.remove('show');
+$('retakeBtn').onclick = () => { $('review').classList.remove('show'); startRec(); };
+$('closeReview').onclick = () => $('review').classList.remove('show');
+
+addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if ($('scriptMenu').classList.contains('open')) { closeScriptMenu(); return; }
+    $('editor').classList.remove('show'); $('review').classList.remove('show');
+  }
+  if ($('editor').classList.contains('show')) return;
+  if (e.code === 'Space') { e.preventDefault(); recording ? stopRec() : startRec(); }   // space = start/stop take
+  if (e.key.toLowerCase() === 'v') toggleVoice();
+  if (e.key.toLowerCase() === 'r' && !voiceOn) setRoll(!scrolling);
+  if (e.key.toLowerCase() === 'f') document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+  if ((e.key === '[' || e.key === ']') && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    e.preventDefault();
+    stepScript(e.key === '[' ? -1 : 1);
+  }
+});
+
+// ---------- boot ----------
+(async () => {
+  try { await initCam(); } catch (err) { alert('Camera/mic needed to rehearse.\n' + err.message); }
+  syncScriptNav(current);
+  renderScript();
+  // prefer voice-follow, but NEVER start SpeechRecognition until this view is active
+  // (embedded boot races the hub's first active post — starting early caused 'network')
+  if (SR && !HubClient.isElectron()) {
+    voiceOn = true;
+    if (!HubClient.embedded || HubClient.isActive()) await startVoice();
+  } else {
+    // no usable speech backend at boot — fall back to the timed scroll so the
+    // teleprompter still works (voice-follow has no substitute for real-time STT)
+    voiceOn = false;
+    setHeard(HubClient.isElectron() ? HubClient.speechHint() : 'no speech recognition — using timed scroll (▶ Roll)');
+    setRoll(true);
+  }
+  syncVoiceBtn();
+})();
+</script>
+</body>
+</html>

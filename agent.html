@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<title>Agent — usage</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; background: #05060a; overflow: hidden;
+    font-family: Lato, sans-serif; color: #e2e8f0; }
+  button { font-family: inherit; }
+
+  #app { position: fixed; inset: 0; padding-top: 44px; display: flex; flex-direction: column; }
+
+  #head { flex: none; padding: 12px 28px; border-bottom: 1px solid rgba(255,255,255,.08);
+    background: #070910; z-index: 3; }
+  #headTop { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  #title { font: 700 12px Lato, sans-serif; letter-spacing: .14em; color: #c084fc; }
+  #pulse { width: 8px; height: 8px; border-radius: 50%; background: #475569; }
+  #pulse.on { background: #4ade80; box-shadow: 0 0 0 3px rgba(74,222,128,.18); }
+  #pulse.off { background: #f87171; }
+  #statusLine { font-size: 12.5px; color: #94a3b8; flex: 1; min-width: 180px; }
+  #statusLine b { color: #e2e8f0; font-weight: 700; }
+  #controls { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; }
+  .chip { padding: 6px 12px; font: 700 11px Lato, sans-serif; letter-spacing: .04em; color: #64748b;
+    background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 999px; cursor: pointer; }
+  .chip:hover { color: #cbd5e1; }
+  .chip.on { color: #c084fc; background: rgba(192,132,252,.14); border-color: #c084fc; }
+  #refresh { width: 32px; height: 32px; border-radius: 9px; border: 1px solid rgba(255,255,255,.1);
+    background: rgba(255,255,255,.04); color: #94a3b8; font-size: 14px; cursor: pointer; }
+  #refresh:hover { color: #e2e8f0; }
+  #refresh.spin { color: #c084fc; }
+
+  #scroll { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+  #topStack {
+    flex: 0 0 auto; height: var(--top-h, 300px); min-height: 50px; overflow-y: auto; overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+  #splitH {
+    flex: none; height: 10px; cursor: row-resize; position: relative; z-index: 8;
+    background: rgba(255,255,255,.04); border-top: 1px solid rgba(255,255,255,.08);
+    touch-action: none;
+  }
+  #splitH::after {
+    content: ''; position: absolute; left: 50%; top: 50%;
+    width: 36px; height: 3px; margin: -1.5px 0 0 -18px; border-radius: 2px;
+    background: rgba(192,132,252,.45);
+  }
+  #splitH:hover, body.resizing-v #splitH { background: rgba(192,132,252,.22); }
+
+  #strip {
+    padding: 14px 28px 6px;
+    border-bottom: 1px solid rgba(255,255,255,.06);
+    background: linear-gradient(180deg, #070910 0%, #05060a 100%);
+  }
+  #stripHead { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+  .lbl { font: 700 10px Lato, sans-serif; letter-spacing: .1em; color: #475569; text-transform: uppercase; margin-bottom: 7px; }
+  #stripLive { font-size: 10.5px; color: #475569; letter-spacing: .06em; }
+  #stripLive.on { color: #4ade80; }
+  #stripGrid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  @media (max-width: 900px) { #stripGrid { grid-template-columns: 1fr; } }
+  .hwCard { min-width: 0; padding: 10px 12px 8px; border-radius: 10px;
+    background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06); }
+  .hwLbl { font: 700 10px Lato, sans-serif; letter-spacing: .1em; color: #475569; text-transform: uppercase; }
+  .hwVal { font: 700 22px Lato, sans-serif; color: #f1f5f9; font-variant-numeric: tabular-nums;
+    margin-top: 4px; line-height: 1.15; }
+  .hwVal span { font-size: 12px; font-weight: 600; color: #64748b; margin-left: 4px; }
+  .hwSub { font-size: 11px; color: #64748b; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .hwCanvas { display: block; width: 100%; height: 48px; margin-top: 8px; }
+
+  #swipeWrap { padding: 12px 0 4px; }
+  #swipeHint { display: flex; align-items: center; justify-content: space-between; padding: 0 28px 8px; }
+  #swipeHint .lbl { margin-bottom: 0; }
+  #swipeDots { display: flex; gap: 6px; align-items: center; }
+  #swipeDots button { width: 7px; height: 7px; border-radius: 50%; border: 0;
+    background: #334155; cursor: pointer; padding: 0; }
+  #swipeDots button.on { background: #c084fc; }
+  #swipe {
+    display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+    padding: 0 28px 10px; scroll-padding: 0 28px;
+  }
+  #swipe::-webkit-scrollbar { display: none; }
+  #swipe .slide {
+    flex: 0 0 min(420px, calc(100% - 40px));
+    scroll-snap-align: start;
+    min-height: 168px; max-height: 200px; overflow: hidden;
+    padding: 12px 14px; border-radius: 10px;
+    background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06);
+  }
+  #swipe .slide .body { max-height: 150px; overflow-y: auto; }
+  .bars { display: flex; flex-direction: column; gap: 5px; }
+  .barRow { display: grid; grid-template-columns: 110px 1fr 56px; gap: 8px; align-items: center; font-size: 11.5px; }
+  .barName { color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .barTrack { height: 6px; border-radius: 999px; background: rgba(255,255,255,.06); overflow: hidden; }
+  .barFill { height: 100%; border-radius: 999px; background: #c084fc; }
+  .barFill.surface-agent { background: #c084fc; }
+  .barFill.surface-live { background: #38bdf8; }
+  .barFill.surface-draft { background: #34d399; }
+  .barFill.surface-transcribe { background: #fbbf24; }
+  .barFill.surface-cursor { background: #f472b6; }
+  .barVal { color: #64748b; text-align: right; font-variant-numeric: tabular-nums; }
+
+  #body { flex: 1 1 auto; min-height: 50px; min-width: 0; display: grid;
+    grid-template-columns: var(--side-w, 320px) 1fr; overflow: hidden;
+    border-top: 1px solid rgba(255,255,255,.08); }
+  @media (max-width: 900px) { #body { grid-template-columns: 1fr; } #side { display: none; } }
+  #feedWrap { padding: 14px 28px 80px; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  #side {
+    position: relative; border-right: 1px solid rgba(255,255,255,.08);
+    padding: 14px 16px 16px; background: #070910; min-width: 0;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  #traceFeed { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  #split {
+    position: absolute; top: 0; right: 0; width: 10px; height: 100%;
+    cursor: col-resize; z-index: 8; touch-action: none;
+  }
+  #split:hover, body.resizing-h #split { background: rgba(192,132,252,.28); }
+  body.resizing-h { cursor: col-resize; user-select: none; }
+  body.resizing-v { cursor: row-resize; user-select: none; }
+
+  .dayHead { position: sticky; top: 0; z-index: 2; padding: 8px 0 6px; font: 700 10.5px Lato, sans-serif;
+    letter-spacing: .1em; color: #64748b; text-transform: uppercase; background: linear-gradient(#05060a 70%, transparent); }
+  .evt { display: grid; grid-template-columns: 54px 10px 1fr; gap: 10px; padding: 7px 0; align-items: start; }
+  .evtTime { font: 600 11px ui-monospace, SFMono-Regular, Menlo, monospace; color: #475569;
+    text-align: right; padding-top: 2px; font-variant-numeric: tabular-nums; }
+  .evtDot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; background: #334155; justify-self: center; }
+  .evtDot.agent { background: #c084fc; }
+  .evtDot.live { background: #38bdf8; }
+  .evtDot.draft { background: #34d399; }
+  .evtDot.transcribe { background: #fbbf24; }
+  .evtDot.cursor { background: #f472b6; }
+  .evtDot.err { background: #f87171; }
+  .evtBody { min-width: 0; }
+  .evtTitle { font-size: 13px; color: #e2e8f0; font-weight: 600; }
+  .evtMeta { font-size: 11px; color: #64748b; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .empty { color: #475569; font-size: 12px; padding: 28px 8px; text-align: center; line-height: 1.6; }
+
+  /* live tool-loop trace (board turns) */
+  .turn { border-left: 3px solid #38bdf8; background: rgba(23,29,44,.72); border-radius: 0 10px 10px 0;
+    padding: 10px 12px 12px; margin-bottom: 10px; font-family: ui-monospace, Menlo, monospace; }
+  .turn.err { border-left-color: #ef4444; }
+  .turn .meta { display: flex; gap: 10px; align-items: baseline; margin-bottom: 8px; font-size: 11px; color: #64748b; }
+  .turn .meta .id { color: #94a3b8; }
+  .turn .transcript { font: 600 13px/1.4 Lato, system-ui, sans-serif; color: #f8fafc; margin-bottom: 10px; }
+  .step { position: relative; padding: 7px 8px 7px 14px; margin: 4px 0; border-radius: 6px;
+    background: rgba(8,10,18,.45); font-size: 11.5px; line-height: 1.45; }
+  .step::before { content: ''; position: absolute; left: 4px; top: 10px; bottom: 10px; width: 2px;
+    background: var(--rail, #475569); border-radius: 1px; }
+  .step.model { --rail: #c084fc; }
+  .step.tool { --rail: #38bdf8; }
+  .step.card { --rail: #34d399; }
+  .step.error { --rail: #ef4444; color: #fca5a5; }
+  .step .kind { font-weight: 700; text-transform: uppercase; letter-spacing: .06em; font-size: 10px;
+    color: var(--rail); margin-right: 8px; }
+  .step .lat { float: right; color: #64748b; font-size: 10px; }
+  .step .detail { color: #94a3b8; margin-top: 3px; white-space: pre-wrap; word-break: break-word; max-height: 100px; overflow: auto; }
+  .step .tokens { color: #64748b; margin-top: 2px; }
+</style>
+</head>
+<body>
+  <div id="app">
+    <div id="head">
+      <div id="headTop">
+        <div id="pulse"></div>
+        <div id="title">AGENT</div>
+        <div id="statusLine">connecting…</div>
+        <div id="controls">
+          <button class="chip on" data-hours="2">2h</button>
+          <button class="chip" data-hours="8">8h</button>
+          <button class="chip" data-hours="24">24h</button>
+          <button class="chip on" data-filter="all">all</button>
+          <button class="chip" data-filter="agent">board</button>
+          <button class="chip" data-filter="live">live</button>
+          <button class="chip" data-filter="draft">draft</button>
+          <button class="chip" data-filter="transcribe">stt</button>
+          <button class="chip" data-filter="cursor">cursor</button>
+          <button id="refresh" title="Refresh">↻</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="scroll">
+      <div id="topStack">
+        <div id="strip">
+          <div id="stripHead">
+            <div class="lbl" style="margin:0">Usage</div>
+            <div id="stripLive">—</div>
+          </div>
+          <div id="stripGrid">
+            <div class="hwCard">
+              <div class="hwLbl">Tokens</div>
+              <div class="hwVal" id="valTokens">0</div>
+              <div class="hwSub" id="subTokens">in 0 · out 0</div>
+              <canvas class="hwCanvas" id="sparkTokens"></canvas>
+            </div>
+            <div class="hwCard">
+              <div class="hwLbl">Calls</div>
+              <div class="hwVal" id="valCalls">0</div>
+              <div class="hwSub" id="subCalls">avg —</div>
+              <canvas class="hwCanvas" id="sparkCalls"></canvas>
+            </div>
+            <div class="hwCard">
+              <div class="hwLbl">Cost</div>
+              <div class="hwVal" id="valCost">—</div>
+              <div class="hwSub" id="subCost">OpenRouter · if reported</div>
+              <canvas class="hwCanvas" id="sparkCost"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div id="swipeWrap">
+          <div id="swipeHint">
+            <div class="lbl">Breakdown</div>
+            <div id="swipeDots"></div>
+          </div>
+          <div id="swipe">
+            <div class="slide" data-slide="0">
+              <div class="lbl">By surface</div>
+              <div class="body bars" id="bySurface"></div>
+            </div>
+            <div class="slide" data-slide="1">
+              <div class="lbl">By model</div>
+              <div class="body bars" id="byModel"></div>
+            </div>
+            <div class="slide" data-slide="2">
+              <div class="lbl">Recent calls</div>
+              <div class="body" id="recentMini"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="splitH" title="Drag to resize top panels"></div>
+
+      <div id="body">
+        <aside id="side">
+          <div id="split" title="Drag to resize"></div>
+          <div class="lbl">Live board trace</div>
+          <div id="traceFeed"><div class="empty">Board agent turns stream here.</div></div>
+        </aside>
+        <div id="feedWrap">
+          <div class="lbl">Call feed</div>
+          <div id="callFeed"><div class="empty" id="emptyCalls">No OpenRouter calls in this window yet.<br>Board · LIVE · messages · STT · activity cursor all land here.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script src="hub-client.js"></script>
+<script src="layout-splits.js"></script>
+<script>
+if (location.protocol === 'file:') location.replace('http://localhost:4777/agent.html');
+HubClient.forwardNavKeys();
+
+const $ = (id) => document.getElementById(id);
+let hours = 2;
+let filter = 'all';
+let snap = null;
+let usageEs = null;
+let active = true;
+
+function fmtTokens(n) {
+  n = Number(n) || 0;
+  if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'k';
+  return String(Math.round(n));
+}
+function fmtCost(c) {
+  if (c == null || !Number.isFinite(c)) return '—';
+  if (c < 0.01) return '$' + c.toFixed(4);
+  return '$' + c.toFixed(3);
+}
+function fmtTime(t) {
+  try { return new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }); }
+  catch { return ''; }
+}
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function shortModel(m) {
+  const s = String(m || '');
+  const i = s.lastIndexOf('/');
+  return i >= 0 ? s.slice(i + 1) : s || '—';
+}
+
+function drawSpark(canvas, series, color, key) {
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth || 200;
+  const h = canvas.clientHeight || 48;
+  canvas.width = Math.floor(w * dpr);
+  canvas.height = Math.floor(h * dpr);
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  const vals = (series || []).map((p) => Number(p[key]) || 0);
+  if (!vals.length) return;
+  const max = Math.max(...vals, 1);
+  ctx.beginPath();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  vals.forEach((v, i) => {
+    const x = (i / Math.max(vals.length - 1, 1)) * (w - 2) + 1;
+    const y = h - 2 - (v / max) * (h - 8);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+}
+
+function renderBars(el, rows, colorClass) {
+  if (!el) return;
+  if (!rows || !rows.length) {
+    el.innerHTML = '<div class="empty" style="padding:12px 0">nothing yet</div>';
+    return;
+  }
+  const max = Math.max(...rows.map((r) => r.tokens || r.calls || 1), 1);
+  el.innerHTML = rows.slice(0, 8).map((r) => {
+    const pct = Math.max(2, Math.round(((r.tokens || r.calls) / max) * 100));
+    const cls = colorClass ? `barFill surface-${esc(r.name)}` : 'barFill';
+    return `<div class="barRow">
+      <div class="barName" title="${esc(r.name)}">${esc(shortModel(r.name))}</div>
+      <div class="barTrack"><div class="${cls}" style="width:${pct}%"></div></div>
+      <div class="barVal">${fmtTokens(r.tokens)}</div>
+    </div>`;
+  }).join('');
+}
+
+function filteredRecent() {
+  const rows = snap?.recent || [];
+  if (filter === 'all') return rows;
+  return rows.filter((r) => r.surface === filter);
+}
+
+function renderStrip() {
+  const t = snap?.totals || {};
+  $('valTokens').textContent = fmtTokens(t.total_tokens);
+  $('subTokens').textContent = `in ${fmtTokens(t.prompt_tokens)} · out ${fmtTokens(t.completion_tokens)}`;
+  $('valCalls').textContent = String(t.calls || 0);
+  $('subCalls').textContent = t.latencyMs != null
+    ? `avg ${t.latencyMs}ms` + (t.errors ? ` · ${t.errors} err` : '')
+    : (t.errors ? `${t.errors} errors` : 'avg —');
+  $('valCost').textContent = fmtCost(t.cost);
+  drawSpark($('sparkTokens'), snap?.series, '#c084fc', 'tokens');
+  drawSpark($('sparkCalls'), snap?.series, '#38bdf8', 'calls');
+  drawSpark($('sparkCost'), snap?.series, '#34d399', 'cost');
+}
+
+function renderPanels() {
+  renderBars($('bySurface'), snap?.bySurface, true);
+  renderBars($('byModel'), snap?.byModel, false);
+  const mini = $('recentMini');
+  const rows = filteredRecent().slice(0, 6);
+  if (!rows.length) {
+    mini.innerHTML = '<div class="empty" style="padding:12px 0">no calls</div>';
+  } else {
+    mini.innerHTML = rows.map((r) =>
+      `<div class="evtMeta" style="padding:3px 0;color:#94a3b8">
+        <b style="color:#e2e8f0">${esc(r.surface)}</b> · ${esc(shortModel(r.model))} · ${fmtTokens(r.total_tokens)} tok
+        ${r.latencyMs != null ? ' · ' + r.latencyMs + 'ms' : ''}
+      </div>`).join('');
+  }
+}
+
+function renderCallFeed() {
+  const feed = $('callFeed');
+  const rows = filteredRecent();
+  if (!rows.length) {
+    feed.innerHTML = '<div class="empty">No OpenRouter calls in this window yet.<br>Board · LIVE · messages · STT · activity cursor all land here.</div>';
+    return;
+  }
+  let html = '';
+  let lastDay = '';
+  for (const r of rows) {
+    const day = new Date(r.t).toLocaleDateString();
+    if (day !== lastDay) {
+      lastDay = day;
+      html += `<div class="dayHead">${esc(day)}</div>`;
+    }
+    const err = r.ok === false;
+    html += `<div class="evt">
+      <div class="evtTime">${fmtTime(r.t)}</div>
+      <div class="evtDot ${err ? 'err' : esc(r.surface)}"></div>
+      <div class="evtBody">
+        <div class="evtTitle">${esc(r.surface)}${r.label ? ' · ' + esc(r.label) : ''}${err ? ' · failed' : ''}</div>
+        <div class="evtMeta">${esc(shortModel(r.model))} · ${fmtTokens(r.total_tokens)} tok
+          (${fmtTokens(r.prompt_tokens)}/${fmtTokens(r.completion_tokens)})
+          ${r.cost != null ? ' · ' + fmtCost(r.cost) : ''}
+          ${r.latencyMs != null ? ' · ' + r.latencyMs + 'ms' : ''}
+        </div>
+      </div>
+    </div>`;
+  }
+  feed.innerHTML = html;
+}
+
+function renderStatus() {
+  const t = snap?.totals || {};
+  const n = t.calls || 0;
+  $('statusLine').innerHTML = n
+    ? `<b>${n}</b> calls · <b>${fmtTokens(t.total_tokens)}</b> tokens · ${fmtCost(t.cost)} · last ${hours}h`
+    : `no calls in last ${hours}h`;
+  $('stripLive').textContent = snap?.at
+    ? 'updated ' + new Date(snap.at).toLocaleTimeString()
+    : '—';
+  $('stripLive').classList.toggle('on', !!snap);
+}
+
+function applySnapshot(s) {
+  snap = s;
+  renderStrip();
+  renderPanels();
+  renderCallFeed();
+  renderStatus();
+}
+
+function connectUsage() {
+  if (usageEs) { try { usageEs.close(); } catch {} usageEs = null; }
+  $('pulse').className = '';
+  $('stripLive').textContent = 'connecting…';
+  $('stripLive').classList.remove('on');
+  usageEs = new EventSource(`/api/agent/usage/stream?hours=${hours}`);
+  usageEs.onopen = () => { $('pulse').className = 'on'; };
+  usageEs.onmessage = (e) => {
+    try { applySnapshot(JSON.parse(e.data)); } catch {}
+  };
+  usageEs.onerror = () => {
+    $('pulse').className = 'off';
+    try { usageEs.close(); } catch {}
+    usageEs = null;
+    if (active) setTimeout(connectUsage, 2000);
+  };
+}
+
+async function load() {
+  $('refresh').classList.add('spin');
+  try {
+    const res = await fetch(`/api/agent/usage?hours=${hours}`);
+    applySnapshot(await res.json());
+  } catch {}
+  $('refresh').classList.remove('spin');
+}
+
+// ---- controls ----
+document.querySelectorAll('[data-hours]').forEach((btn) => {
+  btn.onclick = () => {
+    hours = Number(btn.dataset.hours) || 2;
+    document.querySelectorAll('[data-hours]').forEach((b) => b.classList.toggle('on', b === btn));
+    connectUsage();
+    load();
+  };
+});
+document.querySelectorAll('[data-filter]').forEach((btn) => {
+  btn.onclick = () => {
+    filter = btn.dataset.filter || 'all';
+    document.querySelectorAll('[data-filter]').forEach((b) => b.classList.toggle('on', b === btn));
+    renderPanels();
+    renderCallFeed();
+  };
+});
+$('refresh').onclick = () => load();
+
+// swipe dots
+(() => {
+  const swipe = $('swipe');
+  const dots = $('swipeDots');
+  const slides = [...swipe.querySelectorAll('.slide')];
+  dots.innerHTML = slides.map((_, i) => `<button data-i="${i}"></button>`).join('');
+  const sync = () => {
+    const i = Math.round(swipe.scrollLeft / Math.max(slides[0]?.offsetWidth || 1, 1));
+    dots.querySelectorAll('button').forEach((b, j) => b.classList.toggle('on', j === i));
+  };
+  dots.querySelectorAll('button').forEach((b) => {
+    b.onclick = () => slides[Number(b.dataset.i)]?.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' });
+  });
+  swipe.addEventListener('scroll', () => requestAnimationFrame(sync), { passive: true });
+  sync();
+})();
+
+LayoutSplits.init({
+  side: { container: 'body', handle: 'split', storageKey: 'agent-side-w', default: 320 },
+  top: {
+    stack: 'topStack', scroll: 'scroll', handle: 'splitH',
+    storageKey: 'agent-top-h', default: 300,
+  },
+  onResize() {
+    if (!snap) return;
+    drawSpark($('sparkTokens'), snap.series, '#c084fc', 'tokens');
+    drawSpark($('sparkCalls'), snap.series, '#38bdf8', 'calls');
+    drawSpark($('sparkCost'), snap.series, '#34d399', 'cost');
+  },
+});
+
+// ---- board trace (existing SSE) ----
+const turns = new Map();
+const traceFeed = $('traceFeed');
+
+function ensureTurn(evt) {
+  const id = evt.turnId || 'unknown';
+  if (turns.has(id)) return turns.get(id);
+  if (traceFeed.querySelector('.empty')) traceFeed.innerHTML = '';
+  const el = document.createElement('div');
+  el.className = 'turn';
+  el.innerHTML = `<div class="meta"><span class="id">${esc(id)}</span><span class="when"></span></div>
+    <div class="transcript"></div><div class="steps"></div>`;
+  traceFeed.prepend(el);
+  const rec = { el, stepsEl: el.querySelector('.steps'), transcriptEl: el.querySelector('.transcript'), whenEl: el.querySelector('.when') };
+  turns.set(id, rec);
+  while (traceFeed.children.length > 20) {
+    const last = traceFeed.lastElementChild;
+    const tid = [...turns.entries()].find(([, v]) => v.el === last)?.[0];
+    if (tid) turns.delete(tid);
+    last.remove();
+  }
+  return rec;
+}
+
+function addStep(rec, cls, html) {
+  const s = document.createElement('div');
+  s.className = 'step ' + cls;
+  s.innerHTML = html;
+  rec.stepsEl.appendChild(s);
+}
+
+function onTrace(evt) {
+  if (!evt || !evt.type) return;
+  const rec = ensureTurn(evt);
+  if (evt.t) rec.whenEl.textContent = fmtTime(evt.t);
+  if (evt.type === 'turn.start') {
+    rec.transcriptEl.textContent = evt.transcript || '(empty)';
+  } else if (evt.type === 'model.request') {
+    addStep(rec, 'model', `<span class="kind">model</span> request · ${esc(shortModel(evt.model))} · round ${evt.round ?? 0}`);
+  } else if (evt.type === 'model.response') {
+    const u = evt.usage || {};
+    addStep(rec, 'model',
+      `<span class="lat">${evt.latencyMs ?? '?'}ms</span>` +
+      `<span class="kind">model</span> ${esc(shortModel(evt.model))}` +
+      `<div class="tokens">in ${u.prompt_tokens ?? 0} / out ${u.completion_tokens ?? 0}` +
+      (evt.cost != null ? ` · ${fmtCost(evt.cost)}` : '') +
+      (evt.toolCalls?.length ? ` · tools: ${esc(evt.toolCalls.join(', '))}` : '') + `</div>` +
+      (evt.content ? `<div class="detail">${esc(evt.content)}</div>` : ''));
+  } else if (evt.type === 'tool.start') {
+    addStep(rec, 'tool', `<span class="kind">tool</span> ${esc(evt.name)}`);
+  } else if (evt.type === 'tool.end') {
+    addStep(rec, 'tool',
+      `<span class="lat">${evt.latencyMs ?? '?'}ms</span>` +
+      `<span class="kind">tool</span> ${esc(evt.name)} done` +
+      `<div class="detail">${esc(evt.resultPreview || '').slice(0, 400)}</div>`);
+  } else if (evt.type === 'card') {
+    if (evt.card) addStep(rec, 'card', `<span class="kind">card</span> ${esc(evt.card.kind)} · ${esc(evt.card.text || evt.card.id)}`);
+    else if (evt.remove) addStep(rec, 'card', `<span class="kind">card</span> remove`);
+  } else if (evt.type === 'error') {
+    rec.el.classList.add('err');
+    addStep(rec, 'error', `<span class="kind">error</span> ${esc(evt.message || 'error')}`);
+  } else if (evt.type === 'turn.end') {
+    if (!evt.ok) rec.el.classList.add('err');
+    addStep(rec, evt.ok ? 'card' : 'error', `<span class="kind">end</span> ${evt.ok ? 'ok' : 'failed'}`);
+  }
+}
+
+function connectTrace() {
+  const es = new EventSource('/api/agent/trace');
+  es.onmessage = (e) => { try { onTrace(JSON.parse(e.data)); } catch {} };
+  es.onerror = () => { es.close(); setTimeout(connectTrace, 1500); };
+}
+connectTrace();
+
+if (typeof HubClient !== 'undefined' && HubClient.onActive) {
+  HubClient.onActive((on) => {
+    active = on;
+    if (on && !usageEs) connectUsage();
+    else if (!on && usageEs) { try { usageEs.close(); } catch {} usageEs = null; }
+  });
+}
+
+connectUsage();
+load();
+</script>
+</body>
+</html>

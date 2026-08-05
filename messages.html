@@ -1,0 +1,1314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<title>Messages</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; background: #05060a; overflow: hidden;
+    font-family: Lato, sans-serif; color: #e2e8f0; }
+  button { font-family: inherit; }
+  textarea, input { font-family: inherit; }
+
+  #app { position: fixed; inset: 0; padding-top: 44px; display: flex; }
+
+  /* ---- sidebar: picker ---- */
+  #side { width: 300px; flex: none; border-right: 1px solid rgba(255,255,255,.08);
+    display: flex; flex-direction: column; background: #070910; }
+  #sideTabs { display: flex; gap: 6px; padding: 14px 14px 0; }
+  .sideTab { flex: 1; padding: 7px 0; text-align: center; font: 700 11px Lato, sans-serif; letter-spacing: .05em;
+    color: #64748b; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08);
+    border-radius: 999px; cursor: pointer; }
+  .sideTab.on { color: #7dd3fc; background: rgba(125,211,252,.14); border-color: #7dd3fc; }
+  #search { margin: 12px 14px; padding: 9px 13px; font: 400 13px Lato, sans-serif; color: #e2e8f0;
+    background: #14161f; border: 1px solid rgba(255,255,255,.1); border-radius: 999px; outline: none; }
+  #search:focus { border-color: rgba(125,211,252,.5); }
+  #search::placeholder { color: #4b5566; }
+  #list { flex: 1; overflow-y: auto; padding: 0 8px 10px; }
+  .pRow { padding: 9px 10px; border-radius: 9px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; }
+  .pRow:hover { background: rgba(255,255,255,.05); }
+  .pRow.on { background: rgba(125,211,252,.12); }
+  .pRow .pName { font-size: 13px; font-weight: 700; color: #e2e8f0; }
+  .pRow .pMeta { font-size: 11px; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #freeformRow { margin: 6px 14px 14px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.08); }
+  #freeformRow input { width: 100%; padding: 8px 12px; font-size: 12.5px; color: #e2e8f0;
+    background: #14161f; border: 1px solid rgba(255,255,255,.1); border-radius: 8px; outline: none; }
+  #freeformRow input:focus { border-color: rgba(125,211,252,.5); }
+  #freeformRow .hint { font-size: 10.5px; color: #475569; margin-top: 6px; }
+
+  /* events list (sidebar, alt mode) */
+  .evCard { padding: 10px; border-radius: 9px; margin-bottom: 6px; background: rgba(255,255,255,.03);
+    border: 1px solid rgba(255,255,255,.07); cursor: pointer; }
+  .evCard:hover { border-color: rgba(125,211,252,.3); }
+  .evCard .evName { font-size: 12.5px; font-weight: 700; color: #e2e8f0; }
+  .evCard .evMeta { font-size: 10.5px; color: #64748b; margin-top: 2px; }
+  .evAttendees { display: none; flex-direction: column; gap: 2px; margin-top: 8px; padding-top: 8px;
+    border-top: 1px solid rgba(255,255,255,.07); }
+  .evCard.open .evAttendees { display: flex; }
+  .evAttendee { font-size: 11.5px; color: #94a3b8; padding: 4px 6px; border-radius: 6px; cursor: pointer; }
+  .evAttendee:hover { background: rgba(125,211,252,.1); color: #7dd3fc; }
+
+  /* graph mode: sidebar becomes a legend; canvas fills main */
+  #graphLegend { display: none; flex: 1; overflow-y: auto; padding: 10px 14px 18px; flex-direction: column; gap: 8px; }
+  #graphLegend.show { display: flex; }
+  #graphLegend .gHint { font-size: 11.5px; color: #64748b; line-height: 1.5; }
+  #graphLegend .gStat { font-size: 11px; color: #94a3b8; }
+  .gEvChip { font: 600 11px Lato, sans-serif; padding: 7px 11px; border-radius: 9px; cursor: pointer;
+    color: #94a3b8; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); text-align: left; }
+  .gEvChip:hover { color: #e2e8f0; }
+  .gEvChip.on { color: #7dd3fc; background: rgba(125,211,252,.12); border-color: rgba(125,211,252,.45); }
+  #graphView { display: none; position: absolute; inset: 0; background: #05060a; }
+  #graphView.show { display: block; }
+  #graphView canvas { width: 100%; height: 100%; display: block; cursor: grab; }
+  #graphView canvas.dragging { cursor: grabbing; }
+  #graphTip { position: absolute; left: 18px; bottom: 16px; font-size: 11.5px; color: #475569;
+    pointer-events: none; max-width: 360px; }
+
+  /* ---- main panel ---- */
+  #main { flex: 1; overflow-y: auto; position: relative; }
+  #panel { display: none; max-width: 720px; margin: 0 auto; padding: 28px 32px 100px; flex-direction: column; gap: 18px; }
+  #panel.show { display: flex; }
+
+  /* ---- intent-first start screen: the ask begins with what you need, not who ---- */
+  #start { max-width: 720px; margin: 0 auto; padding: 44px 32px 100px; display: flex; flex-direction: column; gap: 13px; }
+  #start.hide { display: none; }
+  .startHead h1 { font-size: 26px; font-weight: 700; color: #f1f5f9; letter-spacing: -.015em; }
+  .startHead p { font-size: 13px; color: #64748b; margin-top: 6px; line-height: 1.55; }
+  textarea.field.tall { min-height: 92px; font-size: 15px; }
+  textarea.field.small { min-height: 54px; font-size: 13px; }
+  .startActions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .startHint { font-size: 11.5px; color: #475569; }
+  .errBox { display: none; padding: 9px 14px; border-radius: 9px; background: rgba(248,113,113,.1);
+    border: 1px solid rgba(248,113,113,.3); color: #fca5a5; font-size: 12px; }
+
+  /* ---- shortlist: the AI's answer to "who do I ask?" ---- */
+  #shortlistWrap { display: none; flex-direction: column; gap: 9px; margin-top: 10px; }
+  #shortlistWrap.show { display: flex; }
+  .slHead { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  #slMeta { font-size: 11.5px; color: #64748b; }
+  #shortlist { display: flex; flex-direction: column; gap: 8px; }
+  .slCard { display: flex; gap: 11px; padding: 12px 14px; border-radius: 11px; cursor: pointer;
+    background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08); }
+  .slCard:hover { border-color: rgba(125,211,252,.35); }
+  .slCard.on { background: rgba(125,211,252,.09); border-color: rgba(125,211,252,.55); }
+  .slCard input[type=checkbox] { margin-top: 3px; accent-color: #7dd3fc; cursor: pointer; flex: none; }
+  .slBody { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .slTop { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
+  .slName { font-size: 14.5px; font-weight: 700; color: #f1f5f9; }
+  .slMetaLine { font-size: 11.5px; color: #64748b; }
+  .slWhy { font-size: 12.5px; color: #b9c2d0; line-height: 1.5; margin-top: 3px; }
+  .warm { font: 700 10px Lato, sans-serif; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+  .warm.hot { color: #4ade80; background: rgba(74,222,128,.12); }
+  .warm.mid { color: #7dd3fc; background: rgba(125,211,252,.12); }
+  .warm.cold { color: #fbbf24; background: rgba(251,191,36,.12); }
+  .warm.dead { color: #64748b; background: rgba(255,255,255,.05); }
+  #slGap { display: none; font-size: 12px; color: #fde68a; line-height: 1.5; padding: 9px 12px;
+    border-radius: 9px; background: rgba(251,191,36,.07); border: 1px solid rgba(251,191,36,.2); }
+  #slFooter { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+  #draftToBtn:disabled { opacity: .4; cursor: default; }
+  #reSuggestBtn { font: 600 11px Lato, sans-serif; color: #64748b; background: transparent;
+    border: 1px solid rgba(255,255,255,.1); border-radius: 999px; padding: 8px 14px; cursor: pointer; }
+  #reSuggestBtn:hover { color: #e2e8f0; }
+
+  /* ---- fan-out: one intent, several recipients ---- */
+  #queueBar { display: none; align-items: center; gap: 10px; flex-wrap: wrap; padding: 9px 12px;
+    border-radius: 10px; background: rgba(125,211,252,.06); border: 1px solid rgba(125,211,252,.2); }
+  #queueBar.show { display: flex; }
+  #queuePos { font: 700 10.5px Lato, sans-serif; letter-spacing: .06em; color: #7dd3fc; text-transform: uppercase; }
+  #queueChips { display: flex; gap: 5px; flex-wrap: wrap; }
+  .qChip { font: 600 11px Lato, sans-serif; padding: 4px 10px; border-radius: 999px; cursor: pointer;
+    color: #94a3b8; background: rgba(255,255,255,.05); }
+  .qChip:hover { color: #e2e8f0; }
+  .qChip.on { color: #05060a; background: #7dd3fc; }
+  .qChip.done { color: #4ade80; background: rgba(74,222,128,.12); }
+  #newAskBtn { font: 600 10.5px Lato, sans-serif; color: #64748b; background: transparent;
+    border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 6px 12px; cursor: pointer; white-space: nowrap; }
+  #newAskBtn:hover { color: #e2e8f0; }
+  #nextPersonBtn { display: none; padding: 9px 16px; font: 700 12px Lato, sans-serif; color: #05060a;
+    background: #fbbf24; border: none; border-radius: 999px; cursor: pointer; }
+  #nextPersonBtn:hover { background: #fcd34d; }
+
+  .pHeader { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  .pHeader h1 { font-size: 22px; font-weight: 700; color: #f1f5f9; }
+  .pHeader .facts { font-size: 12.5px; color: #94a3b8; margin-top: 2px; }
+  .badge { font: 700 10.5px Lato, sans-serif; letter-spacing: .04em; padding: 4px 10px; border-radius: 999px;
+    background: rgba(255,255,255,.06); color: #94a3b8; white-space: nowrap; }
+  .badge.stale { color: #fbbf24; background: rgba(251,191,36,.12); }
+  .badge.none { color: #475569; background: rgba(255,255,255,.03); }
+  .tagRow { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tagChip { font: 600 10.5px Lato, sans-serif; padding: 3px 9px; border-radius: 999px;
+    color: #7dd3fc; background: rgba(125,211,252,.1); }
+
+  #resumeBanner { display: none; padding: 10px 14px; border-radius: 10px; background: rgba(251,191,36,.08);
+    border: 1px solid rgba(251,191,36,.3); font-size: 12.5px; color: #fde68a; align-items: center;
+    justify-content: space-between; gap: 10px; }
+  #resumeBanner button { font: 700 11px Lato, sans-serif; padding: 5px 11px; border-radius: 7px; cursor: pointer;
+    border: 1px solid rgba(255,255,255,.15); background: rgba(255,255,255,.06); color: #e2e8f0; }
+  #resumeBanner button:hover { background: rgba(255,255,255,.14); }
+
+  .section { display: flex; flex-direction: column; gap: 8px; }
+  .section > label.lbl { font-size: 10.5px; font-weight: 700; letter-spacing: .09em; color: #64748b; text-transform: uppercase; }
+
+  .ctxRow { display: flex; align-items: flex-start; gap: 9px; padding: 8px 10px; border-radius: 8px;
+    background: rgba(255,255,255,.025); font-size: 12.5px; color: #b9c2d0; line-height: 1.5; }
+  .ctxRow input[type=checkbox] { margin-top: 2px; accent-color: #7dd3fc; cursor: pointer; }
+  .ctxRow .ck { flex: none; }
+  .ctxRow .ctxLabel { color: #64748b; font-weight: 700; margin-right: 5px; }
+  .ctxRow.off { opacity: .35; }
+  .bubbles { display: flex; flex-direction: column; gap: 5px; margin-top: 2px; }
+  .bubble { font-size: 12.5px; line-height: 1.5; padding: 6px 11px; border-radius: 0 8px 8px 0;
+    max-width: 92%; white-space: pre-wrap; }
+  .bubble.them { color: #b9c2d0; background: rgba(255,255,255,.04); border-left: 2px solid rgba(148,163,184,.4); }
+  .bubble.me { color: #cbe8fb; background: rgba(125,211,252,.06); border-left: 2px solid rgba(125,211,252,.5);
+    align-self: flex-end; border-radius: 8px 0 0 8px; text-align: right; }
+
+  textarea.field { width: 100%; min-height: 64px; padding: 11px 13px; font-size: 13.5px; line-height: 1.45;
+    color: #e2e8f0; background: #12141d; border: 1px solid rgba(255,255,255,.1); border-radius: 10px;
+    outline: none; resize: vertical; }
+  textarea.field:focus { border-color: rgba(125,211,252,.45); }
+  textarea.field::placeholder { color: #475569; }
+  .fieldRow { position: relative; }
+  .dictBtn { position: absolute; right: 8px; bottom: 8px; width: 28px; height: 28px; border-radius: 50%;
+    border: 1px solid rgba(255,255,255,.14); background: rgba(8,10,18,.8); color: #94a3b8; cursor: pointer;
+    font-size: 13px; display: flex; align-items: center; justify-content: center; }
+  .dictBtn:hover { color: #f472b6; border-color: rgba(244,114,182,.4); }
+  .dictBtn.busy { color: #f472b6; border-color: #f472b6; }
+
+  .presetRow { display: flex; flex-wrap: wrap; gap: 7px; }
+  .presetChip { font: 700 11px Lato, sans-serif; padding: 7px 13px; border-radius: 999px; cursor: pointer;
+    color: #94a3b8; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); }
+  .presetChip:hover { color: #cbd5e1; }
+  .presetChip.on { color: #7dd3fc; background: rgba(125,211,252,.14); border-color: #7dd3fc; }
+
+  #draftBtn, .primaryBtn { padding: 11px 20px; font: 700 13px Lato, sans-serif; color: #05060a;
+    background: #7dd3fc; border: none; border-radius: 999px; cursor: pointer; align-self: flex-start; }
+  #draftBtn:disabled { opacity: .4; cursor: default; }
+  #draftBtn:hover:not(:disabled), .primaryBtn:hover { background: #a5e3fd; }
+
+  #draftArea { display: none; flex-direction: column; gap: 12px; }
+  #draftArea.show { display: flex; }
+  #draftBox { padding: 16px 18px; background: #12141d; border: 1px solid rgba(125,211,252,.25); border-radius: 12px;
+    font-size: 14.5px; line-height: 1.55; color: #f1f5f9; white-space: pre-wrap; min-height: 30px; }
+  #draftBox.streaming::after { content: '▍'; color: #7dd3fc; animation: blink 1s step-start infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .draftActions { display: flex; gap: 8px; align-items: center; }
+  #copyBtn { padding: 9px 18px; font: 700 12px Lato, sans-serif; color: #05060a; background: #4ade80;
+    border: none; border-radius: 999px; cursor: pointer; }
+  #copyBtn:hover { background: #6ee7a0; }
+  #copyBtn:disabled { opacity: .4; cursor: default; }
+  #copiedNote { font-size: 12px; color: #4ade80; display: none; }
+  #newMsgBtn { font: 700 11px Lato, sans-serif; color: #94a3b8; background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.1); border-radius: 999px; padding: 8px 14px; cursor: pointer; }
+  #newMsgBtn:hover { color: #e2e8f0; background: rgba(255,255,255,.1); }
+
+  .chipRow { display: flex; flex-wrap: wrap; gap: 7px; }
+.refineChip { font: 600 11.5px Lato, sans-serif; padding: 6px 12px; border-radius: 999px; cursor: pointer;
+           color: #b9c2d0; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); }
+         .refineChip:hover { color: #fff; background: rgba(255,255,255,.12); }
+         .refineChip.disabled { opacity: .35; pointer-events: none; }
+         .refineFree { display: flex; gap: 8px; }
+         .refineFree input { flex: 1; padding: 9px 13px; font-size: 12.5px; color: #e2e8f0; background: #12141d;
+           border: 1px solid rgba(255,255,255,.1); border-radius: 999px; outline: none; }
+         .refineFree input:focus { border-color: rgba(125,211,252,.4); }
+         .refineFree input:disabled, .refineFree button:disabled { opacity: .4; cursor: default; }
+         .refineFree button { padding: 9px 16px; font: 700 11.5px Lato, sans-serif; color: #05060a; background: #7dd3fc;
+           border: none; border-radius: 999px; cursor: pointer; }
+
+  #footer { position: fixed; bottom: 14px; right: 18px; display: flex; align-items: center; gap: 10px; z-index: 5; }
+  #footer button { font: 600 10.5px Lato, sans-serif; color: #64748b; background: rgba(8,10,18,.8);
+    border: 1px solid rgba(255,255,255,.1); border-radius: 999px; padding: 7px 13px; cursor: pointer; }
+  #footer button:hover { color: #e2e8f0; }
+  #profileStatus { font-size: 10.5px; color: #4b5566; max-width: 320px; text-align: right; }
+  #errBanner { display: none; padding: 9px 14px; border-radius: 9px; background: rgba(248,113,113,.1);
+    border: 1px solid rgba(248,113,113,.3); color: #fca5a5; font-size: 12px; }
+</style>
+</head>
+<body>
+  <div id="app">
+    <div id="side">
+      <div id="sideTabs">
+        <div class="sideTab on" id="tabPeople">PEOPLE</div>
+        <div class="sideTab" id="tabEvents">EVENTS</div>
+        <div class="sideTab" id="tabGraph">GRAPH</div>
+      </div>
+      <input id="search" placeholder="search name, company, tag…" />
+      <div id="list"></div>
+      <div id="freeformRow">
+        <input id="freeformInput" placeholder="not in your network? type a name…" />
+        <div class="hint">Enter to draft to someone outside the CRM</div>
+      </div>
+      <div id="graphLegend">
+        <div class="gHint">People linked by shared events. Drag to pan · scroll to zoom · click a person to draft.</div>
+        <div class="gStat" id="graphStat"></div>
+        <div class="gHint" style="margin-top:6px">Filter by event</div>
+        <div id="graphEventFilters"></div>
+      </div>
+    </div>
+
+    <div id="main">
+      <div id="graphView">
+        <canvas id="graphCanvas"></canvas>
+        <div id="graphTip">co-attendance graph</div>
+      </div>
+      <div id="start">
+        <div class="startHead">
+          <h1>What do you need to say?</h1>
+          <p>Dump the raw thought — I'll work out who in your network is worth asking, then draft it for each of them.</p>
+        </div>
+        <div class="fieldRow">
+          <textarea class="field tall" id="askIntentField" placeholder="e.g. need honest feedback on my project from a few people who have actually shipped consumer products"></textarea>
+          <button class="dictBtn" data-target="askIntentField" title="dictate">🎤</button>
+        </div>
+        <div class="fieldRow">
+          <textarea class="field small" id="askExtraField" placeholder="optional — background that applies to everyone you ask (what JBA is, what you're deciding)"></textarea>
+          <button class="dictBtn" data-target="askExtraField" title="dictate">🎤</button>
+        </div>
+        <div class="startActions">
+          <button class="primaryBtn" id="suggestBtn">Find who to ask</button>
+          <span class="startHint">⌘↵ &nbsp;·&nbsp; or pick someone on the left if you already know who</span>
+        </div>
+        <div class="errBox" id="suggestErr"></div>
+
+        <div id="shortlistWrap">
+          <div class="slHead">
+            <label class="lbl">Who to ask</label>
+            <span id="slMeta"></span>
+          </div>
+          <div id="shortlist"></div>
+          <div id="slGap"></div>
+          <div id="slFooter">
+            <button class="primaryBtn" id="draftToBtn">Draft to 0</button>
+            <button id="reSuggestBtn">try again</button>
+          </div>
+        </div>
+      </div>
+      <div id="panel">
+        <div class="pHeader">
+          <div>
+            <h1 id="pName">—</h1>
+            <div class="facts" id="pFacts"></div>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <span class="badge" id="pRecency"></span>
+            <button id="newAskBtn" title="start over with a new ask">← new ask</button>
+          </div>
+        </div>
+        <div class="tagRow" id="pTags"></div>
+
+        <div id="queueBar">
+          <span id="queuePos"></span>
+          <div id="queueChips"></div>
+        </div>
+
+        <div id="resumeBanner">
+          <span id="resumeText"></span>
+          <div style="display:flex; gap:6px;">
+            <button id="resumeYes">Resume</button>
+            <button id="resumeNo">Start fresh</button>
+          </div>
+        </div>
+
+        <div class="section" id="ctxSection">
+          <label class="lbl">Context (auto-pulled — toggle off anything stale)</label>
+          <div id="ctxRows"></div>
+        </div>
+
+        <div class="section">
+          <label class="lbl">Anything else to add</label>
+          <div class="fieldRow">
+            <textarea class="field" id="extraCtx" placeholder="optional — anything the app wouldn't know"></textarea>
+            <button class="dictBtn" data-target="extraCtx" title="dictate">🎤</button>
+          </div>
+        </div>
+
+        <div class="section">
+          <label class="lbl">What you want to say</label>
+          <div class="fieldRow">
+            <textarea class="field" id="intent" placeholder="raw, unedited — dictate it if you can. e.g. 'haven't talked in forever, want to see if he's free to grab coffee in the next couple weeks'"></textarea>
+            <button class="dictBtn" data-target="intent" title="dictate">🎤</button>
+          </div>
+          <div class="presetRow" id="presetRow"></div>
+        </div>
+
+        <button id="draftBtn">Draft it</button>
+        <div id="errBanner"></div>
+
+        <div id="draftArea">
+          <div class="section">
+            <label class="lbl">Draft</label>
+            <div id="draftBox"></div>
+            <div class="draftActions">
+              <button id="copyBtn">Copy</button>
+              <span id="copiedNote">Copied ✓</span>
+              <button id="nextPersonBtn"></button>
+              <button id="newMsgBtn">New message</button>
+            </div>
+          </div>
+          <div class="section" id="reactSection" style="display:none;">
+            <label class="lbl">React — it'll re-draft</label>
+            <div class="chipRow" id="chipRow"></div>
+            <div class="refineFree">
+              <input id="refineInput" placeholder="or say it in your own words…" />
+              <button id="refineSend">Send</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="footer">
+    <span id="profileStatus"></span>
+    <button id="refreshProfileBtn" title="Distill recent accepted drafts + sent messages into a style profile">refresh voice profile</button>
+  </div>
+
+<script src="hub-client.js"></script>
+<script>
+if (location.protocol === 'file:') location.replace('http://localhost:4777/messages.html');
+// Text fields dominate this page — never let bare 1-9 get hijacked into hub tab switches.
+
+const $ = (id) => document.getElementById(id);
+const REFINEMENTS = [
+  { key: 'shorter', label: 'shorter', instruction: 'Make it shorter.' },
+  { key: 'warmer', label: 'warmer', instruction: 'Make it warmer and more personal.' },
+  { key: 'more direct', label: 'more direct', instruction: 'Make it more direct — lead with the point.' },
+  { key: 'less formal', label: 'less formal', instruction: 'Make it less formal, more casual.' },
+  { key: 'add a specific ask', label: 'add a specific ask', instruction: 'Add a specific, concrete ask or question at the end.' },
+  { key: 'drop the greeting', label: 'drop the greeting', instruction: "Drop the greeting/opener, get straight to it." },
+];
+const PRESETS = ['Quick Ping', 'Warm Catch-up', 'Direct Request', 'Polite Follow-up'];
+
+let roster = [];
+let events = [];
+let mode = 'people'; // 'people' | 'events' | 'graph'
+let selected = null;    // { id, name } — id is null for freeform contacts
+let context = null;     // context bundle for selected (or {name} for freeform)
+let omit = new Set();
+let session = null;     // current draft session record
+let allDrafts = [];     // full drafts.json, loaded once
+let currentDraftText = '';
+let streaming = false;  // true while a draft/refinement request is in flight
+let uid = () => 'd' + Math.random().toString(36).slice(2, 10);
+let graphEventFilter = null; // null = all events, else event id
+let graphState = null;       // live sim state when graph mode is on
+let graphRaf = 0;
+
+// ---- intent-first state: one ask, possibly several recipients ----
+let askIntent = '';        // the raw thought, shared by every recipient in this ask
+let askExtra = '';         // background that applies to everyone (what JBA is, etc)
+let shortlist = [];        // last /api/suggest result
+let picked = new Set();    // contact ids checked in the shortlist
+let queue = [];            // [{ id, name }] — the fan-out, in shortlist order
+let queueIndex = -1;       // position in queue; -1 = not in a fan-out
+let queueDone = new Set(); // contact ids whose draft has been copied
+let askId = null;          // shared id across every draft in one fan-out
+
+// ---- data load ----
+async function loadRoster() {
+  roster = await (await fetch('/api/roster')).json();
+  renderList();
+}
+async function loadEvents() {
+  if (events.length) return;
+  events = await (await fetch('/api/events')).json();
+}
+async function loadDrafts() {
+  try { allDrafts = await (await fetch('/api/drafts')).json(); } catch { allDrafts = []; }
+  if (!Array.isArray(allDrafts)) allDrafts = [];
+}
+let saveT = null;
+function persistDrafts() {
+  clearTimeout(saveT);
+  saveT = setTimeout(() => {
+    fetch('/api/drafts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(allDrafts) });
+  }, 300);
+}
+function upsertSession() {
+  if (!session) return;
+  const i = allDrafts.findIndex((s) => s.id === session.id);
+  session.updatedAt = Date.now();
+  if (i >= 0) allDrafts[i] = session; else allDrafts.push(session);
+  persistDrafts();
+}
+
+// ---- sidebar: people ----
+function renderList() {
+  const q = $('search').value.trim().toLowerCase();
+  const list = $('list');
+  list.innerHTML = '';
+  const filtered = !q ? roster : roster.filter((p) => {
+    const hay = [p.name, p.company, p.role, p.school, ...(p.tags || [])].join(' ').toLowerCase();
+    return hay.includes(q);
+  });
+  for (const p of filtered.slice(0, 500)) {
+    const row = document.createElement('div');
+    row.className = 'pRow' + (selected && selected.id === p.id ? ' on' : '');
+    const meta = [p.company, p.role].filter(Boolean).join(' — ') || (p.tags || []).join(', ');
+    row.innerHTML = `<div class="pName">${esc(p.name)}</div><div class="pMeta">${esc(meta)}</div>`;
+    row.onclick = () => selectContact(p.id, p.name);
+    list.appendChild(row);
+  }
+}
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
+
+// ---- sidebar: events ----
+async function renderEvents() {
+  await loadEvents();
+  const list = $('list');
+  list.innerHTML = '';
+  if (!events.length) { list.innerHTML = '<div style="padding:14px;color:#4b5566;font-size:12px;">No events in your network yet.</div>'; return; }
+  for (const ev of events) {
+    const card = document.createElement('div');
+    card.className = 'evCard';
+    const when = [ev.start_date, ev.end_date].filter(Boolean).join(' → ');
+    card.innerHTML = `
+      <div class="evName">${esc(ev.name)}</div>
+      <div class="evMeta">${esc([when, ev.location].filter(Boolean).join(' · '))} · ${ev.attendees.length} people</div>
+      <div class="evAttendees"></div>`;
+    const attWrap = card.querySelector('.evAttendees');
+    for (const a of ev.attendees) {
+      const row = document.createElement('div');
+      row.className = 'evAttendee';
+      row.textContent = a.name + (a.role ? ' · ' + a.role : '');
+      row.onclick = (e) => {
+        e.stopPropagation();
+        selectContact(a.id, a.name);
+        $('extraCtx').value = `Reaching out ahead of ${ev.name}${when ? ' (' + when + ')' : ''}${ev.location ? ' in ' + ev.location : ''}.`;
+      };
+      attWrap.appendChild(row);
+    }
+    card.onclick = () => card.classList.toggle('open');
+    list.appendChild(card);
+  }
+}
+
+$('tabPeople').onclick = () => setMode('people');
+$('tabEvents').onclick = () => setMode('events');
+$('tabGraph').onclick = () => setMode('graph');
+$('search').oninput = () => renderList();
+$('freeformInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && $('freeformInput').value.trim()) selectContact(null, $('freeformInput').value.trim());
+});
+
+function setMode(next) {
+  mode = next;
+  for (const [id, m] of [['tabPeople', 'people'], ['tabEvents', 'events'], ['tabGraph', 'graph']]) {
+    $(id).classList.toggle('on', m === next);
+  }
+  const peopleish = next === 'people';
+  const eventsish = next === 'events';
+  const graphish = next === 'graph';
+  $('search').style.display = peopleish ? '' : 'none';
+  $('freeformRow').style.display = peopleish ? '' : 'none';
+  $('list').style.display = graphish ? 'none' : '';
+  $('graphLegend').classList.toggle('show', graphish);
+  $('graphView').classList.toggle('show', graphish);
+  if (graphish) {
+    $('start').classList.add('hide');
+    $('panel').classList.remove('show');
+    startGraph();
+  } else {
+    stopGraph();
+    if (!selected) {
+      $('start').classList.remove('hide');
+      $('panel').classList.remove('show');
+    } else {
+      $('start').classList.add('hide');
+      $('panel').classList.add('show');
+    }
+    if (peopleish) renderList();
+    else renderEvents();
+  }
+}
+
+// ---- sidebar: graph (people × shared events) ----
+function buildGraphData(filterId) {
+  const nodes = new Map();
+  const edgeMap = new Map();
+  const evs = filterId == null ? events : events.filter((e) => e.id === filterId);
+  for (const ev of evs) {
+    const atts = ev.attendees || [];
+    for (const a of atts) {
+      if (!nodes.has(a.id)) nodes.set(a.id, { id: a.id, name: a.name, degree: 0, events: 0 });
+      nodes.get(a.id).events += 1;
+    }
+    for (let i = 0; i < atts.length; i++) {
+      for (let j = i + 1; j < atts.length; j++) {
+        const a = atts[i].id;
+        const b = atts[j].id;
+        const key = a < b ? `${a}:${b}` : `${b}:${a}`;
+        const cur = edgeMap.get(key) || { a: Math.min(a, b), b: Math.max(a, b), w: 0 };
+        cur.w += 1;
+        edgeMap.set(key, cur);
+      }
+    }
+  }
+  for (const e of edgeMap.values()) {
+    if (nodes.has(e.a)) nodes.get(e.a).degree += 1;
+    if (nodes.has(e.b)) nodes.get(e.b).degree += 1;
+  }
+  return { nodes: [...nodes.values()], edges: [...edgeMap.values()] };
+}
+
+function renderGraphLegend() {
+  const wrap = $('graphEventFilters');
+  wrap.innerHTML = '';
+  const all = document.createElement('button');
+  all.type = 'button';
+  all.className = 'gEvChip' + (graphEventFilter == null ? ' on' : '');
+  all.textContent = `All events (${events.length})`;
+  all.onclick = () => { graphEventFilter = null; renderGraphLegend(); restartGraphSim(); };
+  wrap.appendChild(all);
+  for (const ev of events) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'gEvChip' + (graphEventFilter === ev.id ? ' on' : '');
+    btn.textContent = `${ev.name} · ${ev.attendees.length}`;
+    btn.onclick = () => { graphEventFilter = ev.id; renderGraphLegend(); restartGraphSim(); };
+    wrap.appendChild(btn);
+  }
+}
+
+function stopGraph() {
+  if (graphRaf) cancelAnimationFrame(graphRaf);
+  graphRaf = 0;
+  graphState = null;
+}
+
+function restartGraphSim() {
+  if (mode !== 'graph') return;
+  stopGraph();
+  startGraph();
+}
+
+function startGraph() {
+  loadEvents().then(() => {
+    if (mode !== 'graph') return;
+    renderGraphLegend();
+    const canvas = $('graphCanvas');
+    const tip = $('graphTip');
+    const data = buildGraphData(graphEventFilter);
+    $('graphStat').textContent = `${data.nodes.length} people · ${data.edges.length} links`;
+    if (!data.nodes.length) {
+      tip.textContent = 'No event attendees to graph yet.';
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+      canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, rect.width, rect.height);
+      return;
+    }
+
+    const W = () => canvas.parentElement.clientWidth || 800;
+    const H = () => canvas.parentElement.clientHeight || 600;
+    const cx = W() / 2;
+    const cy = H() / 2;
+    const nodes = data.nodes.map((n, i) => {
+      const ang = (i / data.nodes.length) * Math.PI * 2;
+      const r = 80 + (n.degree || 1) * 8;
+      return {
+        ...n,
+        x: cx + Math.cos(ang) * r + (Math.random() - 0.5) * 40,
+        y: cy + Math.sin(ang) * r + (Math.random() - 0.5) * 40,
+        vx: 0,
+        vy: 0,
+      };
+    });
+    const byId = new Map(nodes.map((n) => [n.id, n]));
+    const edges = data.edges
+      .map((e) => ({ a: byId.get(e.a), b: byId.get(e.b), w: e.w }))
+      .filter((e) => e.a && e.b);
+
+    graphState = {
+      nodes,
+      edges,
+      panX: 0,
+      panY: 0,
+      scale: 1,
+      hover: null,
+      dragNode: null,
+      panning: false,
+      lastX: 0,
+      lastY: 0,
+      downX: 0,
+      downY: 0,
+      moved: false,
+      alpha: 1,
+    };
+
+    const hit = (mx, my) => {
+      const s = graphState;
+      const x = (mx - s.panX) / s.scale;
+      const y = (my - s.panY) / s.scale;
+      let best = null;
+      let bestD = 18 / s.scale;
+      for (const n of s.nodes) {
+        const d = Math.hypot(n.x - x, n.y - y);
+        if (d < bestD) { bestD = d; best = n; }
+      }
+      return best;
+    };
+
+    const resize = () => {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+      canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+    };
+    resize();
+
+    canvas.onpointerdown = (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      const n = hit(mx, my);
+      graphState.lastX = mx;
+      graphState.lastY = my;
+      graphState.downX = mx;
+      graphState.downY = my;
+      graphState.moved = false;
+      if (n) {
+        graphState.dragNode = n;
+        n.vx = 0; n.vy = 0;
+      } else {
+        graphState.panning = true;
+        canvas.classList.add('dragging');
+      }
+      canvas.setPointerCapture(e.pointerId);
+    };
+    canvas.onpointermove = (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      const s = graphState;
+      if (Math.hypot(mx - s.downX, my - s.downY) > 4) s.moved = true;
+      if (s.dragNode) {
+        s.dragNode.x = (mx - s.panX) / s.scale;
+        s.dragNode.y = (my - s.panY) / s.scale;
+        s.dragNode.vx = 0; s.dragNode.vy = 0;
+        s.alpha = Math.max(s.alpha, 0.25);
+      } else if (s.panning) {
+        s.panX += mx - s.lastX;
+        s.panY += my - s.lastY;
+      } else {
+        s.hover = hit(mx, my);
+        tip.textContent = s.hover
+          ? `${s.hover.name} · ${s.hover.degree} links · ${s.hover.events} event${s.hover.events === 1 ? '' : 's'}`
+          : 'co-attendance graph · click a person to draft';
+      }
+      s.lastX = mx;
+      s.lastY = my;
+    };
+    canvas.onpointerup = () => {
+      const s = graphState;
+      const node = s.dragNode;
+      const clicked = node && !s.moved;
+      s.dragNode = null;
+      s.panning = false;
+      canvas.classList.remove('dragging');
+      if (clicked) {
+        selectContact(node.id, node.name);
+        setMode('people');
+      }
+    };
+    canvas.onpointerleave = () => {
+      if (graphState) graphState.hover = null;
+    };
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const s = graphState;
+      if (!s) return;
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      const before = 1 / s.scale;
+      const next = Math.min(3.5, Math.max(0.35, s.scale * (e.deltaY < 0 ? 1.08 : 0.92)));
+      // zoom toward cursor
+      const wx = (mx - s.panX) * before;
+      const wy = (my - s.panY) * before;
+      s.scale = next;
+      s.panX = mx - wx * s.scale;
+      s.panY = my - wy * s.scale;
+    }, { passive: false });
+
+    const tick = () => {
+      if (mode !== 'graph' || !graphState) return;
+      const s = graphState;
+      const { nodes: ns, edges: es } = s;
+      const alpha = s.alpha;
+      if (alpha > 0.01) {
+        // repulsion
+        for (let i = 0; i < ns.length; i++) {
+          for (let j = i + 1; j < ns.length; j++) {
+            let dx = ns[j].x - ns[i].x;
+            let dy = ns[j].y - ns[i].y;
+            let dist = Math.hypot(dx, dy) || 0.01;
+            const force = (2200 / (dist * dist)) * alpha;
+            dx = (dx / dist) * force;
+            dy = (dy / dist) * force;
+            if (ns[i] !== s.dragNode) { ns[i].vx -= dx; ns[i].vy -= dy; }
+            if (ns[j] !== s.dragNode) { ns[j].vx += dx; ns[j].vy += dy; }
+          }
+        }
+        // springs
+        for (const e of es) {
+          let dx = e.b.x - e.a.x;
+          let dy = e.b.y - e.a.y;
+          const dist = Math.hypot(dx, dy) || 0.01;
+          const ideal = 90 + 20 / e.w;
+          const force = (dist - ideal) * 0.04 * e.w * alpha;
+          dx = (dx / dist) * force;
+          dy = (dy / dist) * force;
+          if (e.a !== s.dragNode) { e.a.vx += dx; e.a.vy += dy; }
+          if (e.b !== s.dragNode) { e.b.vx -= dx; e.b.vy -= dy; }
+        }
+        // center gravity
+        const w = W(), h = H();
+        for (const n of ns) {
+          if (n === s.dragNode) continue;
+          n.vx += (w / 2 - n.x) * 0.008 * alpha;
+          n.vy += (h / 2 - n.y) * 0.008 * alpha;
+          n.vx *= 0.85;
+          n.vy *= 0.85;
+          n.x += n.vx;
+          n.y += n.vy;
+        }
+        s.alpha *= 0.985;
+      }
+
+      resize();
+      const dpr = window.devicePixelRatio || 1;
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width / dpr;
+      const h = canvas.height / dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+      ctx.save();
+      ctx.translate(s.panX, s.panY);
+      ctx.scale(s.scale, s.scale);
+
+      for (const e of es) {
+        ctx.beginPath();
+        ctx.moveTo(e.a.x, e.a.y);
+        ctx.lineTo(e.b.x, e.b.y);
+        ctx.strokeStyle = e.w > 1 ? 'rgba(125,211,252,0.35)' : 'rgba(148,163,184,0.18)';
+        ctx.lineWidth = (0.8 + e.w * 0.6) / s.scale;
+        ctx.stroke();
+      }
+
+      for (const n of ns) {
+        const hot = s.hover === n || (selected && selected.id === n.id);
+        const r = 5 + Math.min(8, Math.sqrt(n.degree || 1) * 2.2);
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+        ctx.fillStyle = hot ? '#7dd3fc' : '#94a3b8';
+        ctx.fill();
+        if (hot) {
+          ctx.strokeStyle = 'rgba(125,211,252,0.7)';
+          ctx.lineWidth = 2 / s.scale;
+          ctx.stroke();
+        }
+        ctx.font = `${700} ${11 / s.scale}px Lato, sans-serif`;
+        ctx.fillStyle = hot ? '#e2e8f0' : '#64748b';
+        ctx.textAlign = 'center';
+        ctx.fillText(n.name, n.x, n.y + r + 12 / s.scale);
+      }
+      ctx.restore();
+
+      graphRaf = requestAnimationFrame(tick);
+    };
+    tip.textContent = 'co-attendance graph · click a person to draft';
+    graphRaf = requestAnimationFrame(tick);
+  });
+}
+
+// ---- step 1+2: raw intent in, ranked shortlist of who to ask out ----
+function warmthBadge(p) {
+  if (!p.hasPhone) return { cls: 'dead', text: 'no phone' };
+  if (p.daysSince == null) return { cls: 'dead', text: 'never texted' };
+  if (p.daysSince <= 30) return { cls: 'hot', text: `texted ${p.daysSince}d ago` };
+  if (p.daysSince <= 180) return { cls: 'mid', text: `${p.daysSince}d quiet` };
+  return { cls: 'cold', text: `${Math.round(p.daysSince / 30)}mo quiet` };
+}
+
+async function runSuggest() {
+  const intent = $('askIntentField').value.trim();
+  if (!intent) { $('askIntentField').focus(); return; }
+  $('suggestErr').style.display = 'none';
+  $('suggestBtn').disabled = true;
+  $('suggestBtn').textContent = 'reading your network…';
+  try {
+    const res = await fetch('/api/suggest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ intent }),
+    });
+    const j = await res.json();
+    if (!res.ok) throw new Error(j.error || 'suggest failed');
+    shortlist = j.picks || [];
+    // pre-checked: unchecking someone you don't want is less work than checking four you do
+    picked = new Set(shortlist.map((p) => p.id));
+    renderShortlist(j.gap);
+  } catch (e) {
+    $('suggestErr').textContent = String(e.message || e);
+    $('suggestErr').style.display = 'block';
+  }
+  $('suggestBtn').disabled = false;
+  $('suggestBtn').textContent = 'Find who to ask';
+}
+
+function renderShortlist(gap) {
+  const wrap = $('shortlist');
+  wrap.innerHTML = '';
+  for (const p of shortlist) {
+    const w = warmthBadge(p);
+    const card = document.createElement('div');
+    card.className = 'slCard' + (picked.has(p.id) ? ' on' : '');
+    const meta = [p.company, p.role].filter(Boolean).join(' — ') || (p.tags || []).slice(0, 3).join(', ');
+    card.innerHTML = `
+      <input type="checkbox" ${picked.has(p.id) ? 'checked' : ''} />
+      <div class="slBody">
+        <div class="slTop"><span class="slName">${esc(p.name)}</span><span class="warm ${w.cls}">${esc(w.text)}</span></div>
+        <div class="slMetaLine">${esc(meta)}</div>
+        ${p.reason ? `<div class="slWhy">${esc(p.reason)}</div>` : ''}
+      </div>`;
+    const cb = card.querySelector('input');
+    const apply = (on) => {
+      if (on) picked.add(p.id); else picked.delete(p.id);
+      card.classList.toggle('on', on);
+      updateDraftToBtn();
+    };
+    cb.onclick = (e) => { e.stopPropagation(); apply(cb.checked); };
+    card.onclick = () => { cb.checked = !cb.checked; apply(cb.checked); };
+    wrap.appendChild(card);
+  }
+  $('slGap').textContent = gap || '';
+  $('slGap').style.display = gap ? 'block' : 'none';
+  $('slMeta').textContent = `${shortlist.length} of ${roster.length} people`;
+  $('shortlistWrap').classList.add('show');
+  updateDraftToBtn();
+}
+
+function updateDraftToBtn() {
+  const n = picked.size;
+  $('draftToBtn').disabled = n === 0;
+  $('draftToBtn').textContent = n === 1 ? 'Draft to 1 person' : `Draft to ${n} people`;
+}
+
+$('suggestBtn').onclick = runSuggest;
+$('reSuggestBtn').onclick = runSuggest;
+// plain Enter has to stay a newline here — this field is for dumping a raw, messy thought
+$('askIntentField').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); runSuggest(); }
+});
+
+// ---- step 3: fan out the one intent across everyone picked ----
+$('draftToBtn').onclick = () => {
+  const chosen = shortlist.filter((p) => picked.has(p.id));
+  if (!chosen.length) return;
+  askIntent = $('askIntentField').value.trim();
+  askExtra = $('askExtraField').value.trim();
+  askId = uid();
+  queue = chosen.map((p) => ({ id: p.id, name: p.name }));
+  queueDone = new Set();
+  gotoQueueIndex(0);
+};
+
+async function gotoQueueIndex(i) {
+  if (i < 0 || i >= queue.length) return;
+  queueIndex = i;
+  const p = queue[i];
+  await selectContact(p.id, p.name, { fanout: true });
+  // the whole point of the fan-out: the intent is typed once, not once per person
+  $('intent').value = askIntent;
+  $('extraCtx').value = askExtra;
+  renderQueueBar();
+  if (askIntent) $('draftBtn').click();
+}
+
+function renderQueueBar() {
+  const bar = $('queueBar');
+  if (queueIndex < 0 || queue.length < 2) { bar.classList.remove('show'); updateNextBtn(); return; }
+  bar.classList.add('show');
+  $('queuePos').textContent = `person ${queueIndex + 1} of ${queue.length}`;
+  const chips = $('queueChips');
+  chips.innerHTML = '';
+  queue.forEach((p, idx) => {
+    const el = document.createElement('div');
+    const done = queueDone.has(p.id) && idx !== queueIndex;
+    el.className = 'qChip' + (idx === queueIndex ? ' on' : (done ? ' done' : ''));
+    el.textContent = (done ? '✓ ' : '') + p.name.split(' ')[0];
+    el.title = p.name;
+    el.onclick = () => gotoQueueIndex(idx);
+    chips.appendChild(el);
+  });
+  updateNextBtn();
+}
+
+function updateNextBtn() {
+  const btn = $('nextPersonBtn');
+  const next = queueIndex >= 0 && queueIndex + 1 < queue.length ? queue[queueIndex + 1] : null;
+  if (!next) { btn.style.display = 'none'; return; }
+  btn.style.display = 'inline-block';
+  btn.textContent = `Next: ${next.name.split(' ')[0]} →`;
+  btn.onclick = () => gotoQueueIndex(queueIndex + 1);
+}
+
+function backToStart() {
+  queue = []; queueIndex = -1; queueDone = new Set(); askId = null;
+  selected = null;
+  renderQueueBar();
+  renderList();
+  $('panel').classList.remove('show');
+  $('start').classList.remove('hide');
+  $('askIntentField').focus();
+}
+$('newAskBtn').onclick = backToStart;
+
+// ---- selecting a contact ----
+async function selectContact(id, name, opts = {}) {
+  // picking someone by hand is a different ask than the current fan-out — drop the queue
+  if (!opts.fanout) { queue = []; queueIndex = -1; queueDone = new Set(); askId = null; renderQueueBar(); }
+  selected = { id, name };
+  $('start').classList.add('hide');
+  $('panel').classList.add('show');
+  $('freeformInput').value = '';
+  renderList();
+  resetDraftUI();
+  $('pName').textContent = name;
+  $('pFacts').textContent = 'loading…';
+  $('pRecency').textContent = '';
+  $('pTags').innerHTML = '';
+  $('ctxRows').innerHTML = '';
+  omit = new Set();
+
+  if (id == null) {
+    context = { name, noCrm: true };
+    renderHeader();
+    renderContextRows();
+    if (!opts.fanout) checkResumable();
+    return;
+  }
+  try {
+    context = await (await fetch('/api/context?id=' + id)).json();
+  } catch { context = { name }; }
+  renderHeader();
+  renderContextRows();
+  // mid-fan-out we're about to draft this person fresh — an old-draft prompt is just noise
+  if (!opts.fanout) checkResumable(); else $('resumeBanner').style.display = 'none';
+  // opportunistically reconcile past copied-but-unresolved drafts against chat.db —
+  // closes the loop between what was drafted and what was actually sent
+  fetch('/api/reconcile?id=' + id).catch(() => {});
+}
+
+function renderHeader() {
+  const c = context || {};
+  $('pName').textContent = c.name || (selected && selected.name) || '—';
+  $('pFacts').textContent = c.noCrm
+    ? 'not in your network yet'
+    : c.fromContacts
+      ? 'iMessage contact — not in your CRM yet'
+      : [c.company && c.role ? c.company + ' — ' + c.role : c.company, c.school].filter(Boolean).join(' · ') || '';
+  if (c.daysSince != null) {
+    $('pRecency').textContent = `silent ${c.daysSince}d · ${c.msgCount} msgs`;
+    $('pRecency').className = 'badge' + (c.daysSince > 180 ? ' stale' : '');
+  } else if (c.chatUnavailable) {
+    $('pRecency').textContent = 'iMessage history unavailable';
+    $('pRecency').className = 'badge none';
+  } else if (c.hasPhone === false) {
+    $('pRecency').textContent = 'no phone on file';
+    $('pRecency').className = 'badge none';
+  } else {
+    $('pRecency').textContent = '';
+  }
+  $('pTags').innerHTML = (c.tags || []).map((t) => `<span class="tagChip">${esc(t)}</span>`).join('');
+}
+
+function renderContextRows() {
+  const c = context || {};
+  const rows = [];
+  if (c.company || c.role) rows.push(['company', 'Work', [c.company, c.role].filter(Boolean).join(' — ')]);
+  if (c.school) rows.push(['school', 'School', c.school]);
+  if (c.tags && c.tags.length) rows.push(['tags', 'Tags', c.tags.join(', ')]);
+  if (c.oneLiner) rows.push(['oneLiner', 'Note', c.oneLiner]);
+  if (c.notes) rows.push(['notes', 'Notes', c.notes]);
+  if (c.daysSince != null) rows.push(['recency', 'Recency', `last exchanged ${c.daysSince} day(s) ago (${c.msgCount} messages total)`]);
+
+  const wrap = $('ctxRows');
+  wrap.innerHTML = '';
+  for (const [key, label, val] of rows) {
+    const row = document.createElement('label');
+    row.className = 'ctxRow';
+    row.innerHTML = `<input type="checkbox" class="ck" checked><span><span class="ctxLabel">${esc(label)}:</span>${esc(val)}</span>`;
+    const cb = row.querySelector('input');
+    cb.onchange = () => { row.classList.toggle('off', !cb.checked); if (cb.checked) omit.delete(key); else omit.add(key); };
+    wrap.appendChild(row);
+  }
+  if (c.thread && c.thread.length) {
+    const row = document.createElement('div');
+    row.className = 'ctxRow';
+    const bubbles = c.thread.map((m) => `<div class="bubble ${m.fromMe ? 'me' : 'them'}">${esc(m.text)}</div>`).join('');
+    row.innerHTML = `<input type="checkbox" class="ck" checked style="margin-top:4px;">
+      <span style="flex:1;"><span class="ctxLabel">Recent thread:</span><div class="bubbles">${bubbles}</div></span>`;
+    const cb = row.querySelector('input');
+    cb.onchange = () => { row.classList.toggle('off', !cb.checked); if (cb.checked) omit.delete('thread'); else omit.add('thread'); };
+    wrap.appendChild(row);
+  }
+  if (!rows.length && !(c.thread && c.thread.length)) {
+    wrap.innerHTML = '<div style="font-size:12px;color:#475569;padding:6px 4px;">Nothing on file yet — just use the fields below.</div>';
+  }
+}
+
+// ---- resume an interrupted draft ----
+function findResumable() {
+  if (!selected) return null;
+  const candidates = allDrafts.filter((s) => s.contactId === selected.id && !s.copiedAt && s.turns && s.turns.length && (Date.now() - s.updatedAt) < 1000 * 60 * 60 * 72);
+  candidates.sort((a, b) => b.updatedAt - a.updatedAt);
+  return candidates[0] || null;
+}
+function checkResumable() {
+  const found = findResumable();
+  const banner = $('resumeBanner');
+  if (!found) { banner.style.display = 'none'; return; }
+  const mins = Math.round((Date.now() - found.updatedAt) / 60000);
+  const when = mins < 60 ? mins + 'm ago' : Math.round(mins / 60) + 'h ago';
+  $('resumeText').textContent = `Unfinished draft from ${when} — pick up where you left off?`;
+  banner.style.display = 'flex';
+  $('resumeYes').onclick = () => { resumeSession(found); banner.style.display = 'none'; };
+  $('resumeNo').onclick = () => { banner.style.display = 'none'; };
+}
+function resumeSession(found) {
+  session = found;
+  $('intent').value = found.intent || '';
+  $('extraCtx').value = found.extraContext || '';
+  if (found.preset) setPreset(found.preset);
+  const last = [...found.turns].reverse().find((t) => t.role === 'assistant');
+  if (last) {
+    currentDraftText = last.content;
+    $('draftBox').textContent = currentDraftText;
+    $('draftArea').classList.add('show');
+    $('copyBtn').disabled = false;
+    setReactSectionVisible(true);
+  }
+}
+
+// ---- reset UI for a fresh session ----
+let preset = null;
+function renderPresets() {
+  $('presetRow').innerHTML = PRESETS.map((p) => `<div class="presetChip" data-p="${esc(p)}">${esc(p)}</div>`).join('');
+  $('presetRow').querySelectorAll('.presetChip').forEach((el) => {
+    el.onclick = () => setPreset(el.dataset.p === preset ? null : el.dataset.p);
+  });
+}
+function setPreset(p) {
+  preset = p;
+  $('presetRow').querySelectorAll('.presetChip').forEach((el) => el.classList.toggle('on', el.dataset.p === p));
+}
+function setReactSectionVisible(visible) {
+  $('reactSection').style.display = visible ? '' : 'none';
+}
+function setReactSectionEnabled(enabled) {
+  $('chipRow').querySelectorAll('.refineChip').forEach((el) => el.classList.toggle('disabled', !enabled));
+  $('refineInput').disabled = !enabled;
+  $('refineSend').disabled = !enabled;
+}
+function resetDraftUI() {
+  $('intent').value = '';
+  $('extraCtx').value = '';
+  setPreset(null);
+  currentDraftText = '';
+  $('draftBox').textContent = '';
+  $('draftArea').classList.remove('show');
+  $('copyBtn').disabled = true;
+  $('copiedNote').style.display = 'none';
+  $('errBanner').style.display = 'none';
+  setReactSectionVisible(false);
+  session = null;
+}
+$('newMsgBtn').onclick = () => {
+  resetDraftUI();
+  // mid-fan-out the shared intent shouldn't have to be retyped just to redo one person
+  if (queueIndex >= 0) { $('intent').value = askIntent; $('extraCtx').value = askExtra; }
+  else checkResumable();
+};
+
+// ---- dictate: trigger Wispr Flow's activation key while a field is focused ----
+document.querySelectorAll('.dictBtn').forEach((btn) => {
+  btn.onclick = async () => {
+    const target = $(btn.dataset.target);
+    target.focus();
+    btn.classList.add('busy');
+    try { await fetch('/api/dictate', { method: 'POST' }); } catch {}
+    setTimeout(() => btn.classList.remove('busy'), 2500);
+  };
+});
+
+// ---- drafting ----
+function renderChips() {
+  $('chipRow').innerHTML = REFINEMENTS.map((r) => `<div class="refineChip" data-k="${esc(r.key)}">${esc(r.label)}</div>`).join('');
+  $('chipRow').querySelectorAll('.refineChip').forEach((el) => {
+    el.onclick = () => { const r = REFINEMENTS.find((x) => x.key === el.dataset.k); doRefine(r.instruction, r.key); };
+  });
+}
+
+async function streamDraft(turns) {
+  streaming = true;
+  const previousDraftText = currentDraftText; // restored on failure so a bad refinement doesn't erase a good draft
+  $('errBanner').style.display = 'none';
+  $('draftArea').classList.add('show');
+  $('draftBox').textContent = '';
+  $('draftBox').classList.add('streaming');
+  $('copyBtn').disabled = true;
+  $('copiedNote').style.display = 'none';
+  $('draftBtn').disabled = true;
+  setReactSectionEnabled(false); // no re-drafting off of a draft that's still in flight
+
+  const body = {
+    contactId: selected ? selected.id : null,
+    contactName: selected ? selected.name : null,
+    omit: [...omit],
+    extraContext: $('extraCtx').value,
+    preset,
+    turns,
+  };
+
+  let full = '';
+  try {
+    const res = await fetch('/api/draft', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for (const line of lines) {
+        const t = line.trim();
+        if (!t.startsWith('data:')) continue;
+        const payload = t.slice(5).trim();
+        if (!payload) continue;
+        let evt; try { evt = JSON.parse(payload); } catch { continue; }
+        if (evt.type === 'delta') { full += evt.text; $('draftBox').textContent = full; }
+        else if (evt.type === 'done') { full = evt.text; $('draftBox').textContent = full; }
+        else if (evt.type === 'error') { showError(evt.message); }
+      }
+    }
+  } catch (e) {
+    showError(String(e.message || e));
+  }
+  $('draftBox').classList.remove('streaming');
+  $('draftBtn').disabled = false;
+  streaming = false;
+  if (full) {
+    currentDraftText = full;
+    $('copyBtn').disabled = false;
+    setReactSectionVisible(true);
+    setReactSectionEnabled(true);
+    turns.push({ role: 'assistant', content: full });
+    if (session) { session.turns = turns; upsertSession(); }
+  } else {
+    // draft failed (network error, missing key, etc) — the error banner above already
+    // explains why. Restore whatever draft was there before so a bad refinement doesn't
+    // wipe out a good one, and only surface React controls if there's something to react to.
+    currentDraftText = previousDraftText;
+    $('draftBox').textContent = previousDraftText;
+    $('copyBtn').disabled = !previousDraftText;
+    setReactSectionVisible(!!previousDraftText);
+    setReactSectionEnabled(true);
+  }
+}
+
+function showError(msg) {
+  const el = $('errBanner');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+$('draftBtn').onclick = () => {
+  if (streaming) return;
+  const intent = $('intent').value.trim();
+  if (!intent) return;
+  session = {
+    id: uid(),
+    askId, // groups every draft from one fan-out, so "the JBA ask" is reconstructable later
+    contactId: selected ? selected.id : null,
+    contactName: selected ? selected.name : null,
+    preset,
+    intent,
+    extraContext: $('extraCtx').value,
+    omit: [...omit],
+    turns: [],
+    refinements: [],
+    startedAt: Date.now(),
+    updatedAt: Date.now(),
+    copiedAt: null,
+    copiedText: null,
+    actualSentText: null,
+    actualSentAt: null,
+  };
+  const turns = [{ role: 'user', content: intent }];
+  streamDraft(turns);
+};
+
+function doRefine(instruction, chipKey) {
+  if (streaming) return; // a draft is already in flight — the controls should be disabled, but don't double-fire
+  if (!session || !currentDraftText) { showError('Draft something first before reacting to it.'); return; }
+  const turns = [...session.turns, { role: 'user', content: instruction }];
+  if (chipKey) session.refinements.push(chipKey);
+  streamDraft(turns);
+}
+$('refineSend').onclick = () => {
+  const v = $('refineInput').value.trim();
+  if (!v) return;
+  doRefine(v, null);
+  $('refineInput').value = '';
+};
+$('refineInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('refineSend').click(); });
+
+$('copyBtn').onclick = async () => {
+  if (!currentDraftText) return;
+  try { await navigator.clipboard.writeText(currentDraftText); } catch {}
+  $('copiedNote').style.display = 'inline';
+  if (session) {
+    session.copiedAt = Date.now();
+    session.copiedText = currentDraftText;
+    upsertSession();
+  }
+  if (queueIndex >= 0 && selected) { queueDone.add(selected.id); renderQueueBar(); }
+};
+
+// ---- Enter-to-draft on the intent field (Shift+Enter for newline) ----
+$('intent').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('draftBtn').click(); }
+});
+
+// ---- Phase 2: distill accepted drafts + sent messages into a style profile ----
+$('refreshProfileBtn').onclick = async () => {
+  $('profileStatus').textContent = 'thinking…';
+  try {
+    const res = await fetch('/api/profile/refresh', { method: 'POST' });
+    const j = await res.json();
+    if (!res.ok) throw new Error(j.error || 'failed');
+    $('profileStatus').textContent = 'updated ' + new Date(j.updatedAt).toLocaleTimeString() + ' · ' + j.corpusSize + ' messages';
+  } catch (e) {
+    $('profileStatus').textContent = String(e.message || e);
+  }
+};
+
+// ---- boot ----
+renderPresets();
+renderChips();
+updateDraftToBtn();
+loadRoster();
+loadDrafts();
+$('askIntentField').focus();
+</script>
+</body>
+</html>

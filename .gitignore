@@ -1,0 +1,31 @@
+node_modules/
+.DS_Store
+*.webm
+.env
+handviz-watchdog.log
+.tmp-activity-cursor.png
+.tmp-activity-cursor.jpg
+
+# editor / local tooling
+.vscode/
+.cursor/
+
+# Loopkeeper (bundled FastAPI)
+loopkeeper/venv/
+loopkeeper/__pycache__/
+loopkeeper/**/__pycache__/
+loopkeeper/.env
+loopkeeper/*.db
+loopkeeper/design_runs/
+loopkeeper/design_runs/**
+
+# personal message content / contact enrichment — never commit
+drafts.json
+crm.json
+message-profile.json
+live-session.jsonl
+agent-usage.jsonl
+
+# personal writing — keep the folder, not the letters
+letters/*
+!letters/.gitkeep

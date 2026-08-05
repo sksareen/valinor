@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<title>Conversations</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%; height: 100%;
+    background: #d4d0c8 url("data:image/svg+xml,%3Csvg width='4' height='4' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='1' height='1' fill='%23c8c4bc'/%3E%3C/svg%3E");
+    font-family: Tahoma, Verdana, Arial, sans-serif; font-size: 13px; color: #222;
+  }
+  body { overflow-y: auto; }
+
+  #top {
+    position: sticky; top: 0; z-index: 5; padding: 68px 40px 12px;
+    background: linear-gradient(180deg, #4a6fa5 0%, #3d5f8a 55%, #355278 100%);
+    border-bottom: 2px solid #1f3347;
+    box-shadow: 0 2px 4px rgba(0,0,0,.25);
+  }
+  #ttitle {
+    font-size: 15px; font-weight: 700; letter-spacing: .06em; color: #fff;
+    text-shadow: 1px 1px 0 #1a2f44; margin-bottom: 10px;
+  }
+  #controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; max-width: 1100px; margin: 0 auto; }
+  #search {
+    flex: 1; min-width: 220px; padding: 6px 10px;
+    font: 13px Tahoma, Verdana, Arial, sans-serif; color: #111;
+    background: #fff; border: 1px solid #666; border-radius: 2px; outline: none;
+    box-shadow: inset 1px 1px 2px rgba(0,0,0,.12);
+  }
+  #search:focus { border-color: #003366; }
+  #search::placeholder { color: #666; }
+  .chip {
+    padding: 4px 10px; font: 700 11px Tahoma, Verdana, Arial, sans-serif;
+    color: #222; background: linear-gradient(180deg, #f5f5f5 0%, #dcdcdc 100%);
+    border: 1px solid #888; border-radius: 2px; cursor: pointer; white-space: nowrap;
+    box-shadow: inset 0 1px 0 #fff;
+  }
+  .chip:hover { background: linear-gradient(180deg, #fff 0%, #e8e8e8 100%); color: #000; }
+  .chip.on {
+    color: #fff; background: linear-gradient(180deg, #5a7fad 0%, #3d5f8a 100%);
+    border-color: #1f3347; box-shadow: inset 0 1px 2px rgba(0,0,0,.25);
+  }
+  .project-tags-block { display: flex; align-items: flex-start; gap: 8px; flex: 1 1 100%; min-width: 0; }
+  .project-tags-wrap { display: flex; flex-wrap: wrap; gap: 6px; overflow: hidden; flex: 1; min-width: 0; }
+  .project-tags-wrap.is-collapsed { overflow: hidden; }
+  .tags-more {
+    flex: 0 0 auto; margin-top: 1px; padding: 4px 10px;
+    font: 700 11px Tahoma, Verdana, Arial, sans-serif; color: #003366;
+    background: #eef2f7; border: 1px solid #888; border-radius: 2px; cursor: pointer; white-space: nowrap;
+  }
+  .tags-more:hover { background: #fff; color: #001a33; }
+  #filters {
+    margin-top: 8px; display: flex; flex-direction: column; gap: 8px; max-width: 1100px;
+    margin-left: auto; margin-right: auto;
+    background: rgba(255,255,255,.12); border: 1px solid rgba(0,0,0,.18);
+    padding: 8px 10px; border-radius: 2px;
+  }
+  .outcome-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  #refresh {
+    width: 30px; height: 30px; border-radius: 2px; border: 1px solid #666;
+    background: linear-gradient(180deg, #f0f0f0 0%, #ccc 100%);
+    color: #222; font-size: 14px; cursor: pointer; flex: 0 0 auto;
+    box-shadow: inset 0 1px 0 #fff;
+  }
+  #refresh:hover { background: linear-gradient(180deg, #fff 0%, #ddd 100%); }
+  #status { max-width: 1100px; margin: 8px auto 0; font-size: 11px; color: #dce6f2; font-weight: 700; }
+
+  #list { max-width: 1100px; margin: 0 auto; padding: 14px 40px 80px; display: flex; flex-direction: column; gap: 8px; }
+  #empty { text-align: center; color: #444; font-size: 13px; padding: 60px 0; font-weight: 700; }
+
+  .card {
+    background: #fff; border: 1px solid #999; border-radius: 2px;
+    padding: 0; cursor: pointer;
+    box-shadow: 1px 1px 0 rgba(255,255,255,.6);
+  }
+  .card:hover { border-color: #4a6fa5; }
+  .card.open { border-color: #355278; cursor: default; box-shadow: 0 0 0 1px #355278; }
+  .row1 {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px;
+    background: linear-gradient(180deg, #eef2f7 0%, #e2e8ef 100%);
+    border-bottom: 1px solid #bbb;
+  }
+  .card.open .row1 { background: linear-gradient(180deg, #dce6f2 0%, #cfd9e6 100%); }
+  .dot { width: 10px; height: 10px; border-radius: 1px; flex: 0 0 auto; border: 1px solid rgba(0,0,0,.25); }
+  .dot.success { background: #2d7a2d; }
+  .dot.failure { background: #a02020; }
+  .dot.partial { background: #996600; }
+  .title {
+    flex: 1; font-size: 14px; font-weight: 700; color: #003366; line-height: 1.35;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .card:hover .title { text-decoration: underline; }
+  .card.open .title { white-space: normal; text-decoration: none; color: #001a33; }
+  .when { font-size: 11px; color: #555; flex: 0 0 auto; font-weight: 700; }
+  .row2 {
+    display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 12px 10px;
+    background: #fafafa; border-bottom: 1px solid #ddd;
+  }
+  .card.open .row2 { border-bottom: none; }
+  .tag {
+    font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 1px;
+    color: #333; background: #e8e8e8; border: 1px solid #aaa;
+  }
+  .tag.src { color: #003366; background: #dde8f4; border-color: #7a9cbc; }
+  .tag.score { color: #444; background: #eee; border-color: #999; }
+
+  .detail {
+    margin: 0; padding: 12px 14px 14px;
+    border-top: 1px solid #bbb; background: #fff;
+    display: flex; flex-direction: column; gap: 12px; cursor: default;
+  }
+  .sec label {
+    display: block; font-size: 11px; font-weight: 700; color: #355278;
+    text-transform: uppercase; margin-bottom: 6px; letter-spacing: .04em;
+    border-bottom: 1px solid #ccc; padding-bottom: 3px;
+  }
+  .bubbles { display: flex; flex-direction: column; gap: 6px; }
+  .bubble {
+    font-size: 13px; line-height: 1.55; color: #222;
+    background: #ffffee; border: 1px solid #ccc; border-left: 4px solid #996633;
+    padding: 8px 10px; border-radius: 0; white-space: pre-wrap;
+  }
+  .final { font-size: 13px; line-height: 1.6; color: #111; white-space: pre-wrap; }
+  .files { display: flex; flex-wrap: wrap; gap: 6px; }
+  .file {
+    font-size: 11px; font-family: "Courier New", Courier, monospace; color: #003366;
+    background: #f0f0f0; border: 1px solid #aaa; padding: 2px 6px; border-radius: 1px;
+  }
+  .fail {
+    font-size: 13px; line-height: 1.55; color: #660000;
+    background: #fff0f0; border: 1px solid #cc9999; border-left: 4px solid #a02020;
+    padding: 8px 10px; border-radius: 0; white-space: pre-wrap;
+  }
+  .actions { display: flex; gap: 8px; padding-top: 4px; }
+  .actions button {
+    font: 700 11px Tahoma, Verdana, Arial, sans-serif; color: #222;
+    background: linear-gradient(180deg, #f5f5f5 0%, #dcdcdc 100%);
+    border: 1px solid #888; border-radius: 2px; padding: 5px 12px; cursor: pointer;
+    box-shadow: inset 0 1px 0 #fff;
+  }
+  .actions button:hover { background: linear-gradient(180deg, #fff 0%, #e8e8e8 100%); }
+  .actions button.copied { color: #2d7a2d; border-color: #2d7a2d; background: #eef7ee; }
+
+  @media (max-width: 640px) {
+    #top { padding: 52px 16px 10px; }
+    #ttitle { font-size: 13px; margin-bottom: 8px; }
+    #controls { gap: 6px; }
+    #search { min-width: 0; flex: 1 1 calc(100% - 40px); font-size: 16px; padding: 7px 10px; }
+    #refresh { width: 34px; height: 34px; }
+    #filters { gap: 6px; padding: 6px 8px; }
+    .outcome-row {
+      flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
+      scrollbar-width: none; padding-bottom: 2px; margin: 0 -8px; padding-left: 8px; padding-right: 8px;
+    }
+    .outcome-row::-webkit-scrollbar { display: none; }
+    .chip { padding: 4px 9px; font-size: 10px; flex: 0 0 auto; }
+    .project-tags-block { flex-direction: column; gap: 6px; }
+    .tags-more { margin-top: 0; align-self: flex-start; }
+    #status { font-size: 10px; }
+    #list { padding: 10px 16px 72px; gap: 6px; }
+    .row1 {
+      display: grid; grid-template-columns: 10px minmax(0, 1fr) auto;
+      gap: 4px 8px; align-items: start; padding: 9px 10px;
+    }
+    .dot { margin-top: 3px; }
+    .title { font-size: 13px; white-space: normal; grid-column: 2; grid-row: 1; align-self: center; }
+    .when { grid-column: 3; grid-row: 1; font-size: 10px; padding-top: 1px; white-space: nowrap; }
+    .row2 { padding: 7px 10px 9px; gap: 5px; }
+    .tag { font-size: 9px; padding: 2px 6px; }
+    .bubble, .final, .fail { font-size: 12.5px; }
+    .file { font-size: 10px; word-break: break-all; }
+  }
+</style>
+</head>
+<body>
+  <div id="top">
+    <div id="ttitle">CONVERSATIONS</div>
+    <div id="controls">
+      <input id="search" type="text" placeholder="Search past sessions (semantic)…" />
+      <button class="chip" id="refresh" title="reload">⟳</button>
+    </div>
+    <div id="filters">
+      <div class="outcome-row">
+        <span class="chip on" data-k="outcome" data-v="">ALL</span>
+        <span class="chip" data-k="outcome" data-v="success">SUCCESS</span>
+        <span class="chip" data-k="outcome" data-v="failure">FAILURE</span>
+        <span class="chip" data-k="outcome" data-v="partial">PARTIAL</span>
+      </div>
+      <div class="project-tags-block">
+        <div id="projectTagsWrap" class="project-tags-wrap"></div>
+        <button type="button" id="projectTagsMore" class="tags-more" hidden>more</button>
+      </div>
+    </div>
+    <div id="status"></div>
+  </div>
+  <div id="list"></div>
+  <div id="empty" style="display:none;">No conversations logged yet.</div>
+
+<script src="hub-client.js"></script>
+<script>
+if (location.protocol === 'file:') location.replace('http://localhost:4777/convos.html');
+HubClient.forwardNavKeys();
+
+const $ = (id) => document.getElementById(id);
+const list = $('list'), empty = $('empty'), status = $('status'), search = $('search');
+let records = [];
+let openId = null;
+let outcomeFilter = '';
+let projectFilter = '';
+let projectTagsExpanded = false;
+let searchT = null;
+
+function fmtWhen(s) {
+  if (!s) return '';
+  const d = new Date(s.replace(' ', 'T') + 'Z');
+  if (isNaN(d)) return s;
+  const diffMs = Date.now() - d.getTime();
+  const mins = Math.round(diffMs / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return mins + 'm ago';
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return hrs + 'h ago';
+  const days = Math.round(hrs / 24);
+  if (days < 30) return days + 'd ago';
+  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function splitIntent(intent) {
+  const idx = (intent || '').indexOf(': ');
+  if (idx === -1 || idx > 40) return { project: '', title: intent || '(untitled)' };
+  return { project: intent.slice(0, idx), title: intent.slice(idx + 2) };
+}
+
+function parseApproach(approach) {
+  const parts = (approach || '').split(' | ');
+  const out = { feedback: [], finalResponse: '', files: [] };
+  for (const p of parts) {
+    if (p.startsWith('User feedback: ')) {
+      out.feedback = p.slice('User feedback: '.length).split(' → ').map(s => s.trim()).filter(Boolean);
+    } else if (p.startsWith('Final response: ')) {
+      out.finalResponse = p.slice('Final response: '.length).trim();
+    } else if (p.startsWith('Files: ')) {
+      out.files = p.slice('Files: '.length).split(', ').map(s => s.trim()).filter(Boolean);
+    }
+  }
+  if (!out.feedback.length && !out.finalResponse) out.finalResponse = approach || '';
+  return out;
+}
+
+function projectOf(rec) {
+  const tags = rec.tags || [];
+  return tags[2] || splitIntent(rec.task_intent).project || 'unknown';
+}
+function sourceOf(rec) {
+  const tags = rec.tags || [];
+  return tags[1] || rec.source || '';
+}
+
+function updateProjectTagsCollapse() {
+  const wrap = $('projectTagsWrap');
+  const toggle = $('projectTagsMore');
+  wrap.style.maxHeight = '';
+  wrap.classList.remove('is-collapsed');
+
+  const chips = [...wrap.children];
+  if (!chips.length) {
+    toggle.hidden = true;
+    return;
+  }
+
+  const wrapTop = wrap.getBoundingClientRect().top;
+  const rowTops = [...new Set(chips.map((c) => Math.round(c.getBoundingClientRect().top - wrapTop)))].sort((a, b) => a - b);
+  if (rowTops.length <= 2 || projectTagsExpanded) {
+    toggle.hidden = rowTops.length <= 2;
+    if (rowTops.length > 2) toggle.textContent = 'less';
+    return;
+  }
+
+  const row2Top = rowTops[1];
+  const row2Chips = chips.filter((c) => Math.round(c.getBoundingClientRect().top - wrapTop) === row2Top);
+  const row2Bottom = Math.max(...row2Chips.map((c) => c.getBoundingClientRect().bottom - wrapTop));
+  const hidden = chips.filter((c) => Math.round(c.getBoundingClientRect().top - wrapTop) > row2Top).length;
+
+  wrap.style.maxHeight = Math.ceil(row2Bottom) + 'px';
+  wrap.classList.add('is-collapsed');
+  toggle.hidden = false;
+  toggle.textContent = `+${hidden} more`;
+}
+
+function renderProjectChips() {
+  const projects = [...new Set(records.map(projectOf))].sort();
+  const host = $('projectTagsWrap');
+  host.innerHTML = '';
+  for (const p of projects) {
+    const c = document.createElement('span');
+    c.className = 'chip' + (projectFilter === p ? ' on' : '');
+    c.textContent = p;
+    c.onclick = () => { projectFilter = projectFilter === p ? '' : p; render(); };
+    host.appendChild(c);
+  }
+  requestAnimationFrame(() => requestAnimationFrame(updateProjectTagsCollapse));
+}
+
+function render() {
+  const filtered = records.filter((r) =>
+    (!outcomeFilter || r.outcome === outcomeFilter) &&
+    (!projectFilter || projectOf(r) === projectFilter));
+  list.innerHTML = '';
+  empty.style.display = filtered.length ? 'none' : 'block';
+  for (const rec of filtered) {
+    const { project, title } = splitIntent(rec.task_intent);
+    const card = document.createElement('div');
+    card.className = 'card' + (openId === rec.id ? ' open' : '');
+    card.innerHTML = `
+      <div class="row1">
+        <span class="dot ${rec.outcome || ''}"></span>
+        <span class="title"></span>
+        <span class="when">${fmtWhen(rec.created_at)}</span>
+      </div>
+      <div class="row2">
+        ${project ? `<span class="tag">${project}</span>` : ''}
+        ${sourceOf(rec) ? `<span class="tag src">${sourceOf(rec)}</span>` : ''}
+        ${typeof rec.score === 'number' && rec.score > 0 ? `<span class="tag score">match ${(rec.score * 100).toFixed(0)}%</span>` : ''}
+      </div>`;
+    card.querySelector('.title').textContent = title.slice(0, 160);
+    card.onclick = () => { openId = openId === rec.id ? null : rec.id; render(); };
+    if (openId === rec.id) card.appendChild(renderDetail(rec));
+    list.appendChild(card);
+  }
+}
+
+function renderDetail(rec) {
+  const parsed = parseApproach(rec.approach);
+  const det = document.createElement('div');
+  det.className = 'detail';
+  det.onclick = (e) => e.stopPropagation();
+
+  if (parsed.feedback.length) {
+    const sec = document.createElement('div');
+    sec.className = 'sec';
+    sec.innerHTML = '<label>what you said</label>';
+    const wrap = document.createElement('div');
+    wrap.className = 'bubbles';
+    for (const b of parsed.feedback) {
+      const el = document.createElement('div');
+      el.className = 'bubble';
+      el.textContent = b;
+      wrap.appendChild(el);
+    }
+    sec.appendChild(wrap);
+    det.appendChild(sec);
+  }
+  if (parsed.finalResponse) {
+    const sec = document.createElement('div');
+    sec.className = 'sec';
+    sec.innerHTML = '<label>final response</label>';
+    const el = document.createElement('div');
+    el.className = 'final';
+    el.textContent = parsed.finalResponse;
+    sec.appendChild(el);
+    det.appendChild(sec);
+  }
+  if (parsed.files.length) {
+    const sec = document.createElement('div');
+    sec.className = 'sec';
+    sec.innerHTML = '<label>files touched</label>';
+    const wrap = document.createElement('div');
+    wrap.className = 'files';
+    for (const f of parsed.files) {
+      const el = document.createElement('span');
+      el.className = 'file';
+      el.textContent = f;
+      wrap.appendChild(el);
+    }
+    sec.appendChild(wrap);
+    det.appendChild(sec);
+  }
+  if (rec.tools_used && rec.tools_used.length) {
+    const sec = document.createElement('div');
+    sec.className = 'sec';
+    sec.innerHTML = '<label>tools used</label>';
+    const wrap = document.createElement('div');
+    wrap.className = 'files';
+    for (const t of rec.tools_used) {
+      const el = document.createElement('span');
+      el.className = 'file';
+      el.textContent = t;
+      wrap.appendChild(el);
+    }
+    sec.appendChild(wrap);
+    det.appendChild(sec);
+  }
+  if (rec.failure_points) {
+    const sec = document.createElement('div');
+    sec.className = 'sec';
+    sec.innerHTML = '<label>failure</label>';
+    const el = document.createElement('div');
+    el.className = 'fail';
+    el.textContent = rec.failure_points;
+    sec.appendChild(el);
+    det.appendChild(sec);
+  }
+  const actions = document.createElement('div');
+  actions.className = 'actions';
+  const copyBtn = document.createElement('button');
+  copyBtn.textContent = 'copy';
+  copyBtn.onclick = () => {
+    const text = `${rec.task_intent}\n\n${rec.approach}`;
+    navigator.clipboard.writeText(text).then(() => {
+      copyBtn.textContent = 'copied ✓';
+      copyBtn.classList.add('copied');
+      setTimeout(() => { copyBtn.textContent = 'copy'; copyBtn.classList.remove('copied'); }, 1400);
+    }).catch(() => {});
+  };
+  actions.appendChild(copyBtn);
+  det.appendChild(actions);
+  return det;
+}
+
+document.querySelectorAll('.chip[data-k="outcome"]').forEach((c) => {
+  c.onclick = () => {
+    outcomeFilter = c.dataset.v;
+    document.querySelectorAll('.chip[data-k="outcome"]').forEach((x) => x.classList.toggle('on', x === c));
+    render();
+  };
+});
+
+async function load(q) {
+  status.textContent = 'loading…';
+  try {
+    const url = q ? `/api/conversations?q=${encodeURIComponent(q)}&limit=60` : '/api/conversations?limit=150';
+    records = await (await fetch(url)).json();
+    if (!Array.isArray(records)) records = [];
+  } catch (e) {
+    records = [];
+    status.textContent = 'failed to load — is the hub server running?';
+    render();
+    return;
+  }
+  status.textContent = records.length ? `${records.length} session${records.length === 1 ? '' : 's'}` +
+    (q ? ` matching "${q}"` : '') : '';
+  renderProjectChips();
+  render();
+}
+
+search.addEventListener('input', () => {
+  clearTimeout(searchT);
+  searchT = setTimeout(() => load(search.value.trim()), 350);
+});
+$('refresh').onclick = () => load(search.value.trim());
+$('projectTagsMore').onclick = () => {
+  projectTagsExpanded = !projectTagsExpanded;
+  updateProjectTagsCollapse();
+};
+window.addEventListener('resize', () => {
+  projectTagsExpanded = false;
+  requestAnimationFrame(() => requestAnimationFrame(updateProjectTagsCollapse));
+});
+
+load('');
+</script>
+</body>
+</html>
