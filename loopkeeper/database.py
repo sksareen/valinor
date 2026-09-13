@@ -61,7 +61,7 @@ if "postgresql" in DATABASE_URL:
         connect_args={
             "ssl": None,  # Let asyncpg handle SSL negotiation
             "server_settings": {
-                "application_name": "savar-ai-chat"
+                "application_name": "valinor-loopkeeper"
             },
             "command_timeout": 60
         }

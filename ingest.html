@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<title>Ingest — captures &amp; plans</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root { --bg:#05060a; --panel:#0b1120; --card:#0f172a; --line:#1e293b; --ink:#e2e8f0; --dim:#94a3b8; --faint:#64748b; --accent:#7dd3fc; }
+  :root[data-theme="light"] { --bg:#f8fafc; --panel:#fff; --card:#fff; --line:#e2e8f0; --ink:#0f172a; --dim:#475569; --faint:#94a3b8; --accent:#0284c7; }
+  html,body { height:100%; background:var(--bg); color:var(--ink); font-family:Lato,system-ui,sans-serif; }
+  #app { display:grid; grid-template-columns:400px 1fr; height:100vh; }
+  #list { border-right:1px solid var(--line); overflow-y:auto; }
+  #head { position:sticky; top:0; background:var(--panel); border-bottom:1px solid var(--line); padding:14px 16px; z-index:1; }
+  #head h1 { font-size:14px; letter-spacing:.08em; color:var(--ink); font-weight:700; }
+  #head .dir { font-size:11px; color:var(--faint); margin-top:3px; word-break:break-all; }
+  .item { padding:12px 16px; border-bottom:1px solid var(--line); cursor:pointer; display:flex; gap:10px; align-items:flex-start; }
+  .item:hover { background:var(--card); }
+  .item.sel { background:var(--card); border-left:2px solid var(--accent); padding-left:14px; }
+  .item .thumb { flex:none; width:48px; height:36px; border-radius:5px; object-fit:cover; background:var(--card); border:1px solid var(--line); }
+  .item .body { flex:1; min-width:0; }
+  .item .t { font-size:13.5px; font-weight:650; color:var(--ink); margin-bottom:3px; }
+  .item .m { font-size:11px; color:var(--faint); display:flex; gap:8px; }
+  .item .p { font-size:12px; color:var(--dim); margin-top:5px; line-height:1.4;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .item-acts { flex:none; display:flex; flex-direction:column; gap:2px; }
+  .item-acts button { width:22px; height:22px; padding:0; display:grid; place-items:center;
+    background:none; border:none; border-radius:5px; color:var(--faint); cursor:pointer; }
+  .item-acts button:disabled { opacity:.45; cursor:default; }
+  .item-acts svg { width:14px; height:14px; display:block; }
+  .item-acts .enh:hover:not(:disabled) { color:var(--accent); background:color-mix(in srgb, var(--accent) 14%, transparent); }
+  .item-acts .del:hover:not(:disabled) { color:#f87171; background:rgba(248,113,113,.12); }
+  .item-acts .busy { opacity:.45; }
+  .item-out { margin-top:8px; padding:8px 9px; border:1px solid var(--line); border-radius:8px; background:var(--panel); }
+  .item-out .why { font-size:11px; color:var(--faint); line-height:1.4; margin:0 0 6px; }
+  .item-out textarea { width:100%; min-height:44px; resize:vertical; background:var(--card); color:var(--ink);
+    border:1px solid var(--line); border-radius:6px; padding:6px 8px; font:inherit; font-size:12px; line-height:1.4; }
+  .item-out .row { display:flex; align-items:center; gap:8px; margin-top:6px; }
+  .item-out .back { background:var(--accent); color:var(--bg); border:none; border-radius:5px;
+    font:inherit; font-size:10.5px; font-weight:650; padding:5px 9px; cursor:pointer; }
+  .item-out .back:disabled { opacity:.5; cursor:default; }
+  .item-out .msg { font-size:11px; color:var(--faint); }
+  .item-out .err { color:#f87171; }
+  #detail { overflow-y:auto; padding:32px 40px; }
+  #detail .md { max-width:680px; line-height:1.6; }
+  #detail .shot { max-width:680px; width:100%; border-radius:10px; border:1px solid var(--line); margin:0 0 18px; display:block; background:var(--card); }
+  #detail h1 { font-size:24px; margin:0 0 14px; }
+  #detail h2,#detail h3 { font-size:14px; color:var(--dim); margin:20px 0 8px; letter-spacing:.04em; }
+  #detail p { margin:0 0 12px; color:var(--ink); }
+  #detail ul { margin:0 0 12px 20px; color:var(--dim); }
+  #detail li { margin:4px 0; }
+  #detail blockquote { border-left:2px solid var(--line); padding-left:12px; color:var(--faint); font-style:italic; margin:0 0 12px; }
+  #detail hr { border:none; border-top:1px dashed var(--line); margin:18px 0; }
+  #detail strong { color:var(--accent); }
+  #detail img.md-img { max-width:100%; border-radius:10px; border:1px solid var(--line); margin:8px 0 14px; }
+  /* ---- iMessage chat view ---- */
+  #detail .chat { max-width:680px; display:flex; flex-direction:column; padding:6px 0 28px; }
+  #detail .chat-head { text-align:center; margin:2px 0 6px; }
+  #detail .chat-head .nm { font-size:17px; font-weight:700; }
+  #detail .chat-head .sub { font-size:11px; color:var(--faint); margin-top:3px; }
+  #detail .chat-day { align-self:center; font-size:11px; color:var(--faint); background:var(--card);
+    border:1px solid var(--line); border-radius:12px; padding:2px 12px; margin:14px 0 4px; }
+  #detail .bub { max-width:76%; padding:8px 12px; border-radius:18px; line-height:1.45;
+    font-size:14px; overflow-wrap:anywhere; margin-top:2px; }
+  #detail .bub.grp { margin-top:10px; }
+  #detail .bub.me { align-self:flex-end; background:#007aff; color:#fff; border-bottom-right-radius:6px; }
+  #detail .bub.them { align-self:flex-start; background:var(--card); border:1px solid var(--line);
+    color:var(--ink); border-bottom-left-radius:6px; }
+  #detail .bub .who { font-size:11px; font-weight:700; color:var(--accent); margin-bottom:2px; }
+  #detail .bub.me .who { display:none; }
+  #detail .bub .ts { display:block; font-size:10px; opacity:.6; margin-top:3px; text-align:right; }
+  #detail .bub img.cimg, #detail .bub video.cvid { max-width:260px; width:100%; border-radius:12px;
+    margin:5px 0; display:block; border:none; }
+  #detail .bub audio.caud { width:230px; margin-top:6px; }
+  #detail .bub .filepill { font-size:12px; opacity:.85; margin-top:4px; }
+  :root[data-theme="light"] #detail .bub.them { background:#e9e9eb; border-color:transparent; color:#111; }
+  :root[data-theme="light"] #detail .bub.them .who { color:#0284c7; }
+  #detailBar { display:flex; justify-content:flex-end; gap:8px; max-width:680px; margin:0 0 16px; }
+  #delBtn { background:transparent; color:#f87171; border:1px solid color-mix(in srgb, #f87171 45%, var(--line));
+    border-radius:7px; font-size:11px; padding:5px 10px; cursor:pointer; font-family:inherit; }
+  #delBtn:hover:not(:disabled) { background:rgba(248,113,113,.12); }
+  #delBtn:disabled { opacity:.5; cursor:default; }
+  #enhanceBtn { background:var(--card); color:var(--accent); border:1px solid var(--line);
+    border-radius:7px; font-size:11px; padding:5px 10px; cursor:pointer; font-family:inherit; }
+  #enhanceBtn:hover:not(:disabled) { border-color:var(--accent); }
+  #enhanceBtn:disabled { opacity:.5; cursor:default; }
+  #toWritingBtn { background:var(--accent); color:var(--bg); border:none;
+    border-radius:7px; font-size:11px; font-weight:650; padding:5px 10px; cursor:pointer; font-family:inherit; }
+  #toWritingBtn:hover:not(:disabled) { filter:brightness(1.08); }
+  #toWritingBtn:disabled { opacity:.5; cursor:default; }
+  #toExecBtn { background:var(--card); color:var(--ink); border:1px solid var(--line);
+    border-radius:7px; font-size:11px; padding:5px 10px; cursor:pointer; font-family:inherit; }
+  #toExecBtn:hover:not(:disabled) { border-color:var(--accent); }
+  #toExecBtn:disabled { opacity:.5; cursor:default; }
+  #routeMsg { font-size:11px; color:var(--accent); align-self:center; }
+  .item-acts .tow:hover:not(:disabled) { color:var(--accent); background:color-mix(in srgb, var(--accent) 14%, transparent); }
+  #outcome { max-width:680px; margin:22px 0 0; border:1px solid var(--line); border-radius:10px;
+    background:var(--panel); padding:16px 18px; }
+  #outcome h3 { font-size:13px; color:var(--accent); letter-spacing:.03em; margin:0 0 10px; }
+  #outcome .why { font-size:12px; color:var(--faint); margin:0 0 10px; line-height:1.5; }
+  #outcomeText { width:100%; min-height:64px; resize:vertical; background:var(--card); color:var(--ink);
+    border:1px solid var(--line); border-radius:8px; padding:9px 11px; font:inherit; font-size:13px; line-height:1.5; }
+  #outcomeRow { display:flex; align-items:center; gap:10px; margin-top:10px; }
+  #backlogBtn { background:var(--accent); color:var(--bg); border:none; border-radius:7px;
+    font-size:12px; font-weight:650; padding:7px 14px; cursor:pointer; font-family:inherit; }
+  #backlogBtn:disabled { opacity:.5; cursor:default; }
+  #outcomeMsg { font-size:12px; color:var(--faint); }
+  .empty { color:var(--faint); padding:40px; text-align:center; font-size:13px; }
+  #headRow { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  #syncMsg { color:var(--accent); }
+  #headBtns { display:flex; gap:6px; flex:none; align-items:center; }
+  .pull-btn { width:30px; height:30px; display:inline-flex; align-items:center; justify-content:center;
+    background:var(--card); color:var(--accent); border:1px solid var(--line); border-radius:8px;
+    font-size:15px; line-height:1; cursor:pointer; font-family:inherit; padding:0; }
+  .pull-btn:hover:not(:disabled) { border-color:var(--accent); transform:translateY(-1px); }
+  .pull-btn:disabled { opacity:.5; cursor:default; transform:none; }
+  .pull-btn.busy { animation:pullspin 1s linear infinite; }
+  @keyframes pullspin { to { transform:rotate(360deg); } }
+  #pullAllBtn { background:var(--text); border-color:var(--text); color:var(--bg); font-weight:700; }
+  #pullAllBtn:hover:not(:disabled) { border-color:var(--text); filter:brightness(1.15); transform:translateY(-1px); }
+  /* ---- photos picker modal ---- */
+  #pOverlay { position:fixed; inset:0; z-index:50; background:rgba(2,4,10,.72); display:none;
+    align-items:center; justify-content:center; padding:24px; }
+  #pOverlay.on { display:flex; }
+  #pModal { background:var(--panel); border:1px solid var(--line); border-radius:14px; width:min(920px,100%);
+    max-height:100%; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,.6); }
+  #pHead { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 18px; border-bottom:1px solid var(--line); }
+  #pHead h2 { font-size:14px; letter-spacing:.06em; color:var(--ink); font-weight:700; }
+  #pHead .sub { font-size:11.5px; color:var(--faint); margin-top:2px; }
+  #pTools { display:flex; align-items:center; gap:8px; }
+  #pTools select, #pTools button { font-family:inherit; font-size:11.5px; border-radius:7px; cursor:pointer; padding:5px 9px; }
+  #pTools select { background:var(--card); color:var(--ink); border:1px solid var(--line); }
+  #pTools .lnk { background:transparent; color:var(--dim); border:1px solid var(--line); }
+  #pTools .lnk:hover { border-color:var(--accent); color:var(--accent); }
+  #pGrid { overflow-y:auto; padding:14px 18px; display:grid; gap:12px;
+    grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); align-content:start; }
+  .pCard { position:relative; border:1px solid var(--line); border-radius:10px; overflow:hidden; cursor:pointer;
+    background:var(--card); aspect-ratio:3/4; }
+  .pCard img { width:100%; height:100%; object-fit:cover; display:block; opacity:.55; transition:opacity .12s; }
+  .pCard.sel img { opacity:1; }
+  .pCard .chk { position:absolute; top:7px; left:7px; width:20px; height:20px; border-radius:5px;
+    border:1.5px solid rgba(255,255,255,.7); background:rgba(2,4,10,.5); display:flex; align-items:center; justify-content:center;
+    color:#fff; font-size:13px; line-height:1; }
+  .pCard.sel .chk { background:var(--accent); border-color:var(--accent); color:var(--bg); }
+  .pCard .cap { position:absolute; left:0; right:0; bottom:0; padding:5px 7px; font-size:10.5px; color:#e2e8f0;
+    background:linear-gradient(transparent,rgba(2,4,10,.85)); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .pCard.done { outline:2px solid var(--accent); }
+  .pCard .done-badge { position:absolute; top:7px; right:7px; font-size:9px; color:var(--bg); background:var(--accent);
+    border-radius:4px; padding:1px 5px; font-weight:700; letter-spacing:.03em; }
+  #pFoot { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:13px 18px; border-top:1px solid var(--line); }
+  #pFootMsg { font-size:12px; color:var(--faint); }
+  #pFootBtns { display:flex; gap:8px; }
+  #pCancel { background:transparent; color:var(--dim); border:1px solid var(--line); border-radius:8px; font:inherit; font-size:12px; padding:8px 14px; cursor:pointer; }
+  #pIngest { background:var(--accent); color:var(--bg); border:none; border-radius:8px; font:inherit; font-size:12px; font-weight:650; padding:8px 16px; cursor:pointer; }
+  #pIngest:disabled { opacity:.5; cursor:default; }
+  #pGrid .empty { grid-column:1/-1; }
+  /* ---- list filter ---- */
+  #filterBar { display:flex; align-items:center; gap:8px; padding:8px 14px; border-top:1px solid var(--line); }
+  #filterQ { flex:1; min-width:0; background:var(--card); color:var(--ink); border:1px solid var(--line);
+    border-radius:7px; font:inherit; font-size:12px; padding:6px 10px; }
+  #filterQ:focus { outline:none; border-color:var(--accent); }
+  #srcChips { display:flex; gap:5px; flex-wrap:wrap; padding:8px 14px 4px; }
+  .schip { background:transparent; color:var(--dim); border:1px solid var(--line); border-radius:20px;
+    font:inherit; font-size:11px; padding:4px 10px; cursor:pointer; white-space:nowrap; }
+  .schip:hover { border-color:var(--accent); color:var(--accent); }
+  .schip.on { background:var(--accent); border-color:var(--accent); color:var(--bg); font-weight:650; }
+  #filterBar { flex-direction:column; align-items:stretch; }
+  .item.dragging { opacity:.4; }
+  #detailBar .drop-hi, #toWritingBtn.drop-hi, #toExecBtn.drop-hi { outline:2px dashed var(--accent); outline-offset:2px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="list">
+    <div id="head">
+      <div id="headRow">
+        <h1>INGEST</h1>
+        <div id="headBtns">
+          <button type="button" class="pull-btn" id="photosBtn" title="Pull from Apple Photos (pick first)" aria-label="Pull from Apple Photos">📷</button>
+          <button type="button" class="pull-btn" id="syncBtn" title="Pull from Apple Notes" aria-label="Pull from Apple Notes">📝</button>
+          <button type="button" class="pull-btn" id="emailBtn" title="Pull from Apple Mail" aria-label="Pull from email">✉️</button>
+          <button type="button" class="pull-btn" id="imsgBtn" title="Pull from iMessage" aria-label="Pull from iMessage">💬</button>
+          <button type="button" class="pull-btn" id="pullAllBtn" title="Pull from all — Notes, screenshots, email, iMessage (Photos stays pick-first)" aria-label="Pull from all">⏬</button>
+        </div>
+      </div>
+      <div class="dir" id="dir"></div>
+      <div class="dir" id="syncMsg"></div>
+    </div>
+    <div id="filterBar">
+      <input id="filterQ" type="search" placeholder="filter captures…" autocomplete="off" />
+      <div id="srcChips"></div>
+    </div>
+    <div id="items"><div class="empty">loading…</div></div>
+  </div>
+  <div id="detail"><div class="empty">Hold <b>`</b> to capture a thought, or ⌘U cursor to save a screenshot — both land here.</div></div>
+</div>
+
+<div id="pOverlay">
+  <div id="pModal">
+    <div id="pHead">
+      <div>
+        <h2>PULL FROM APPLE PHOTOS</h2>
+        <div class="sub" id="pSub">scanning…</div>
+      </div>
+      <div id="pTools">
+        <select id="pWindow" title="time window">
+          <option value="48">Last 48h</option>
+          <option value="72">Last 3 days</option>
+          <option value="168">Last 7 days</option>
+          <option value="336">Last 14 days</option>
+        </select>
+        <button type="button" class="lnk" id="pAll">All</button>
+        <button type="button" class="lnk" id="pNone">None</button>
+      </div>
+    </div>
+    <div id="pGrid"><div class="empty">scanning your photos…</div></div>
+    <div id="pFoot">
+      <div id="pFootMsg"></div>
+      <div id="pFootBtns">
+        <button type="button" id="pCancel">Cancel</button>
+        <button type="button" id="pIngest">Ingest selected</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="hub-client.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+if (window.HubClient) { HubClient.forwardNavKeys?.(); HubClient.onTheme?.((t) => document.documentElement.dataset.theme = t); }
+
+let items = [];
+let rows = [];            // captures, time-sorted (+ text filter)
+let currentId = null;
+let currentTitle = '';
+let filterQ = '';
+let srcFilter = 'all';
+let dragId = null;
+const ICO_ENHANCE = '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 1.4 9.05 5.7 13.4 6.8 9.05 7.9 8 12.2 6.95 7.9 2.6 6.8 6.95 5.7z"/><path fill="currentColor" d="M12.35 9.55 12.9 11.45 14.8 12 12.9 12.55 12.35 14.45 11.8 12.55 9.9 12 11.8 11.45z"/></svg>';
+const ICO_DELETE = '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" d="M3.4 4.4h9.2M6.2 4.4V3.1h3.6v1.3M5.15 4.4l.45 8.3h4.8l.45-8.3M7 7.1v3.4M9 7.1v3.4"/></svg>';
+function esc(s){ const d=document.createElement('div'); d.textContent=String(s==null?'':s); return d.innerHTML; }
+function fmtDate(iso){ if(!iso) return ''; try{ const d=new Date(iso); if(isNaN(d)) return ''; const now=new Date(); const sameYear=d.getFullYear()===now.getFullYear(); return d.toLocaleString([], sameYear?{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}:{year:'numeric',month:'short',day:'numeric'}); }catch(e){ return ''; } }
+
+// tiny markdown -> html (headings, lists, quotes, bold, hr, images)
+function mdToHtml(md, imageBaseId){
+  const lines = String(md).replace(/^---[\s\S]*?---\n/, '').split('\n'); // strip frontmatter
+  let html = '', inList = false;
+  const mediaUrl = (src) => {
+    const s = String(src || '').trim();
+    if (/^https?:\/\//i.test(s) || s.startsWith('/api/')) return s;
+    if (imageBaseId) return '/api/ingest/media?id=' + encodeURIComponent(imageBaseId);
+    return s;
+  };
+  const inline = (s) => esc(s)
+    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, src) => `<img class="md-img" alt="${esc(alt)}" src="${esc(mediaUrl(src))}" />`)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  for (let raw of lines) {
+    const l = raw.replace(/\s+$/,'');
+    const imgOnly = /^!\[([^\]]*)\]\(([^)]+)\)$/.exec(l);
+    if (imgOnly) {
+      if (inList) { html+='</ul>'; inList=false; }
+      // Prefer the dedicated shot above the markdown — skip inline duplicate.
+      if (imageBaseId) continue;
+      html += `<img class="md-img" alt="${esc(imgOnly[1])}" src="${esc(mediaUrl(imgOnly[2]))}" />`;
+      continue;
+    }
+    if (/^- /.test(l)) { if(!inList){ html+='<ul>'; inList=true; } html+=`<li>${inline(l.slice(2))}</li>`; continue; }
+    if (inList) { html+='</ul>'; inList=false; }
+    if (/^### /.test(l)) html += `<h3>${inline(l.slice(4))}</h3>`;
+    else if (/^## /.test(l)) html += `<h2>${inline(l.slice(3))}</h2>`;
+    else if (/^# /.test(l)) html += `<h1>${inline(l.slice(2))}</h1>`;
+    else if (/^> /.test(l)) html += `<blockquote>${inline(l.slice(2))}</blockquote>`;
+    else if (/^---$/.test(l)) html += '<hr>';
+    else if (l.trim()) html += `<p>${inline(l)}</p>`;
+  }
+  if (inList) html += '</ul>';
+  return html;
+}
+
+// iMessage digest -> chat bubbles (blue me / grey them, day dividers, inline media).
+// Transcript lines look like `[9/7, 09:36 AM] Name: text`, followed by media lines:
+// image `![](url)`, video `clapper + [label](url)`, audio `speaker + [label](url)`, file `clip + label`.
+function renderChat(md){
+  const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const body = String(md || '').replace(/^---[\s\S]*?---\n/, '');
+  let title = 'iMessage';
+  const msgs = [];
+  const mLine = /^\[(.+?)\]\s+(.*?):(.*)$/;
+  const mImg = /^!\[([^\]]*)\]\((\/api\/[^)]+)\)$/;
+  const mVid = new RegExp('^\\u{1F3AC} \\[(.+?)\\]\\((\\/api[^)]+)\\)$');
+  const mAud = new RegExp('^\\u{1F50A} \\[(.+?)\\]\\((\\/api[^)]+)\\)$');
+  const mFile = new RegExp('^\\u{1F4CE} (.+)$');
+  for (let raw of body.split('\n')) {
+    const l = raw.replace(/\s+$/, '');
+    const h = /^#\s+(.*)$/.exec(l);
+    if (h) { title = (h[1] || '').trim() || title; continue; }
+    let m = mLine.exec(l);
+    if (m) { msgs.push({ time: m[1].trim(), who: m[2].trim(), text: (m[3] || '').trim(), atts: [] }); continue; }
+    if (!msgs.length || !l) continue;
+    const last = msgs[msgs.length - 1];
+    let im = mImg.exec(l);
+    if (im) { last.atts.push({ t: 'img', url: im[2], label: im[1] }); continue; }
+    let v = mVid.exec(l);
+    if (v) { last.atts.push({ t: 'vid', url: v[2], label: v[1] }); continue; }
+    let a = mAud.exec(l);
+    if (a) { last.atts.push({ t: 'aud', url: a[2], label: a[1] }); continue; }
+    let f = mFile.exec(l);
+    if (f) { last.atts.push({ t: 'file', url: null, label: f[1] }); continue; }
+    last.text += (last.text ? '\n' : '') + l; // continuation line without timestamp
+  }
+  const shortTime = (t) => {
+    const m = /(\d{1,2}):(\d{2})\s*([AP]M)/i.exec(t || '');
+    if (!m) return t || '';
+    return `${Number(m[1])}:${m[2]} ${m[3].toUpperCase()}`;
+  };
+  const dayLabel = (t) => {
+    const m = /(\d{1,2})\/(\d{1,2})/.exec(t || '');
+    if (!m) return t || '';
+    return `${MON[Number(m[1]) - 1] || m[1]} ${Number(m[2])}`;
+  };
+  let html = `<div class="chat"><div class="chat-head"><div class="nm">${esc(title)}</div>` +
+    `<div class="sub">iMessage · ${msgs.length} message${msgs.length === 1 ? '' : 's'}</div></div>`;
+  let lastDay = null, lastWho = null;
+  for (const g of msgs) {
+    const day = (g.time || '').split(',')[0];
+    if (day && day !== lastDay) { html += `<div class="chat-day">${esc(dayLabel(g.time))}</div>`; lastDay = day; lastWho = null; }
+    const mine = /^me$/i.test(g.who);
+    const grouped = lastWho === (mine ? 'me' : g.who);
+    const cls = mine ? 'me' : 'them';
+    html += `<div class="bub ${cls}${grouped ? '' : ' grp'}">`;
+    if (!mine && !grouped) html += `<div class="who">${esc(g.who)}</div>`;
+    if (g.text) html += `<div class="txt">${esc(g.text).replace(/\n/g, '<br>')}</div>`;
+    for (const at of g.atts) {
+      if (at.t === 'img') html += `<img class="cimg" alt="${esc(at.label || 'image')}" src="${esc(at.url)}" loading="lazy" />`;
+      else if (at.t === 'vid') html += `<video class="cvid" controls preload="metadata" src="${esc(at.url)}"></video>`;
+      else if (at.t === 'aud') html += `<audio class="caud" controls preload="metadata" src="${esc(at.url)}"></audio>`;
+      else html += `<div class="filepill">\u{1F4CE} ${esc(at.label)}</div>`;
+    }
+    html += `<span class="ts">${esc(shortTime(g.time))}</span></div>`;
+    lastWho = mine ? 'me' : g.who;
+  }
+  return html + '</div>';
+}
+
+async function load(preferId){
+  try {
+    const r = await fetch('/api/ingest'); const j = await r.json();
+    items = j.items || [];
+    $('dir').textContent = j.dir || '';
+  } catch(e){ $('items').innerHTML = `<div class="empty">${esc(e.message||e)}</div>`; return; }
+  renderChips();
+  render();
+  const keep = preferId || currentId;
+  const next = (keep && rows.find(rw => rw.rowId === keep)) ? keep : (rows[0] && rows[0].rowId);
+  if (next) open(next);
+  else {
+    currentId = null;
+    $('detail').innerHTML = '<div class="empty">Hold <b>`</b> to capture a thought, or ⌘U cursor to save a screenshot — both land here.</div>';
+  }
+}
+// rows: captures newest-first, with the text filter applied
+function buildRows(){
+  const out = items.map(it => ({
+    rowId: it.id, capId: it.id,
+    title: it.title, ts: it.created || '', source: it.source,
+    preview: it.preview, image: !!it.image,
+  }));
+  out.sort((a, b) => String(b.ts || '').localeCompare(String(a.ts || '')));
+  const q = filterQ.trim().toLowerCase();
+  const srcOk = rw => srcFilter === 'all' || (rw.source || '?') === srcFilter;
+  if (!q) return out.filter(srcOk);
+  return out.filter(rw => srcOk(rw) && ((rw.title || '') + ' ' + (rw.preview || '')).toLowerCase().includes(q));
+}
+// source chips under the search box
+function renderChips(){
+  const box = $('srcChips');
+  const counts = {};
+  for (const it of items) counts[it.source || '?'] = (counts[it.source || '?'] || 0) + 1;
+  const mk = (id, label) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'schip' + (srcFilter === id ? ' on' : '');
+    b.textContent = label;
+    b.onclick = () => { srcFilter = id; renderChips(); render(); };
+    return b;
+  };
+  box.innerHTML = '';
+  box.appendChild(mk('all', `All · ${items.length}`));
+  for (const s of Object.keys(counts).sort()) box.appendChild(mk(s, `${s} · ${counts[s]}`));
+}
+function render(){
+  rows = buildRows();
+  if (!rows.length) { $('items').innerHTML = '<div class="empty">No captures yet.<br>Hold ` to speak, or ⌘U for a cursor shot.</div>'; return; }
+  $('items').innerHTML = rows.map(rw => {
+    const thumb = (rw.image)
+      ? `<img class="thumb" alt="" src="/api/ingest/media?id=${encodeURIComponent(rw.capId)}" loading="lazy" />`
+      : '';
+    return `<div class="item${rw.rowId === currentId ? ' sel' : ''}" data-id="${esc(rw.rowId)}" draggable="true">
+       ${thumb}
+       <div class="body">
+         <div class="t">${esc(rw.title)}</div>
+         <div class="m"><span>${fmtDate(rw.ts)}</span><span>${esc(rw.source)}</span></div>
+         <div class="p">${esc(rw.preview)}</div>
+         <div class="item-out" data-out="${esc(rw.rowId)}" hidden></div>
+       </div>
+       <div class="item-acts">
+         <button type="button" class="tow" data-tow="${esc(rw.rowId)}" title="Send to Writing" aria-label="Send to Writing">✎</button>
+         <button type="button" class="enh" data-enhance="${esc(rw.rowId)}" title="Enhance" aria-label="Enhance">${ICO_ENHANCE}</button>
+         <button type="button" class="del" data-delete="${esc(rw.rowId)}" title="Delete" aria-label="Delete">${ICO_DELETE}</button>
+       </div>
+     </div>`;
+  }).join('');
+  $('items').querySelectorAll('.item').forEach(el => {
+    el.onclick = () => open(el.dataset.id);
+    el.ondragstart = (e) => { dragId = el.dataset.id; el.classList.add('dragging'); try { e.dataTransfer.setData('text/plain', dragId); e.dataTransfer.effectAllowed = 'copy'; } catch(_){} };
+    el.ondragend = () => el.classList.remove('dragging');
+  });
+  $('items').querySelectorAll('[data-tow]').forEach(b => {
+    b.onclick = (e) => {
+      e.stopPropagation();
+      sendToWriting(b.dataset.tow);
+    };
+  });
+  $('items').querySelectorAll('[data-enhance]').forEach(b => {
+    b.onclick = (e) => {
+      e.stopPropagation();
+      const it = items.find(x => x.id === b.dataset.enhance);
+      enhance(b.dataset.enhance, (it && it.title) || b.dataset.enhance);
+    };
+  });
+  $('items').querySelectorAll('[data-delete]').forEach(b => {
+    b.onclick = (e) => {
+      e.stopPropagation();
+      const it = items.find(x => x.id === b.dataset.delete);
+      deleteNote(b.dataset.delete, (it && it.title) || b.dataset.delete);
+    };
+  });
+}
+async function open(id){
+  currentId = id;
+  currentTitle = (items.find(it => it.id === id) || {}).title || id;
+  $('items').querySelectorAll('.item').forEach(el => el.classList.toggle('sel', el.dataset.id===id));
+  try {
+    const r = await fetch('/api/ingest/item?id=' + encodeURIComponent(id)); const j = await r.json();
+    if (!r.ok) throw new Error(j.error || `load ${r.status}`);
+    const title = (j.meta && j.meta.title) || id;
+    currentTitle = title;
+    const shot = j.imageUrl
+      ? `<img class="shot" alt="screenshot" src="${esc(j.imageUrl)}" />`
+      : '';
+    const isChat = j.meta && j.meta.source === 'imessage';
+    $('detail').innerHTML =
+      `<div id="detailBar">` +
+        `<span id="routeMsg"></span>` +
+        `<button type="button" id="toWritingBtn" title="Route this capture to Writing as an Inspiration Idea">To Writing ✎</button>` +
+        `<button type="button" id="toExecBtn" title="Route this capture to Execute as a task">To Execute →</button>` +
+        `<button type="button" id="enhanceBtn">Enhance</button>` +
+        `<button type="button" id="delBtn">Delete</button>` +
+      `</div>` +
+      shot +
+      `<div class="md">${isChat ? renderChat(j.markdown || '') : mdToHtml(j.markdown || '', j.imageUrl ? id : null)}</div>` +
+      `<div id="outcomeMount"></div>`;
+    $('delBtn').onclick = () => deleteNote(id, title);
+    $('enhanceBtn').onclick = () => enhance(id, title);
+    $('toWritingBtn').onclick = () => sendToWriting(id);
+    $('toExecBtn').onclick = () => sendToExecute(id);
+  } catch(e){ $('detail').innerHTML = `<div class="empty">${esc(e.message||e)}</div>`; }
+}
+function rowBtn(attr, id){
+  return [...document.querySelectorAll('[' + attr + ']')].find(el => el.getAttribute(attr) === id) || null;
+}
+function enhanceButtons(id){
+  const row = rowBtn('data-enhance', id);
+  const detail = (currentId === id) ? $('enhanceBtn') : null;
+  return [row, detail].filter(Boolean);
+}
+function setEnhanceBusy(id, busy){
+  for (const b of enhanceButtons(id)) {
+    b.disabled = busy;
+    if (b.id === 'enhanceBtn') b.textContent = busy ? 'Enhancing…' : 'Enhance';
+    else b.classList.toggle('busy', busy);
+  }
+}
+function paintOutcome(id, title, j, err){
+  const why = err ? err : (j.why || '');
+  const outcome = err ? '' : (j.outcome || '');
+  if (currentId === id && $('outcomeMount')) {
+    if (err) {
+      $('outcomeMount').innerHTML = `<div id="outcome"><div class="why" style="color:#f87171">${esc(err)}</div></div>`;
+    } else {
+      $('outcomeMount').innerHTML =
+        `<div id="outcome">` +
+          `<h3>What is the tangible outcome I can do?</h3>` +
+          (why ? `<div class="why">${esc(why)}</div>` : '') +
+          `<textarea id="outcomeText">${esc(outcome)}</textarea>` +
+          `<div id="outcomeRow">` +
+            `<button type="button" id="backlogBtn">Add to backlog</button>` +
+            `<span id="outcomeMsg"></span>` +
+          `</div>` +
+        `</div>`;
+      $('backlogBtn').onclick = () => addToBacklog(id, title);
+      $('outcomeText').focus();
+    }
+  }
+  const inline = rowBtn('data-out', id);
+  if (!inline || currentId === id) {
+    if (inline && currentId === id) { inline.hidden = true; inline.innerHTML = ''; }
+    return;
+  }
+  if (err) {
+    inline.hidden = false;
+    inline.innerHTML = `<div class="why err">${esc(err)}</div>`;
+    return;
+  }
+  inline.hidden = false;
+  inline.innerHTML =
+    (why ? `<div class="why">${esc(why)}</div>` : '') +
+    `<textarea class="out-text">${esc(outcome)}</textarea>` +
+    `<div class="row">` +
+      `<button type="button" class="back">Add to backlog</button>` +
+      `<span class="msg"></span>` +
+    `</div>`;
+  inline.querySelector('.back').onclick = (e) => {
+    e.stopPropagation();
+    addToBacklog(id, title, inline);
+  };
+  inline.onclick = (e) => e.stopPropagation();
+}
+async function enhance(id, title){
+  setEnhanceBusy(id, true);
+  try {
+    const r = await fetch('/api/ingest/enhance?id=' + encodeURIComponent(id), { method: 'POST' });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || `enhance ${r.status}`);
+    paintOutcome(id, title, j);
+  } catch(e){
+    paintOutcome(id, title, null, String(e.message || e));
+  } finally {
+    setEnhanceBusy(id, false);
+  }
+}
+// ---- routing: where does this capture go? ----
+async function sendToWriting(id) {
+  const msg = $('routeMsg');
+  const btn = $('toWritingBtn');
+  if (btn) btn.disabled = true;
+  try {
+    const r = await fetch('/api/writing/route', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ingestId: id }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || `route ${r.status}`);
+    if (msg) msg.textContent = '→ in Writing inbox as an Inspiration Idea';
+  } catch (e) {
+    if (msg) { msg.textContent = String(e.message || e); msg.style.color = '#f87171'; }
+    else alert(String(e.message || e));
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+async function sendToExecute(id) {
+  const msg = $('routeMsg');
+  const btn = $('toExecBtn');
+  const it = items.find(x => x.id === id) || {};
+  const title = currentTitle || it.title || id;
+  const outcome = (it.preview || title || '').trim() || title;
+  if (btn) btn.disabled = true;
+  try {
+    const r = await fetch('/api/execute', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, outcome, sourceIngestId: id }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || `backlog ${r.status}`);
+    if (msg) { msg.textContent = '→ in Execute backlog'; msg.style.color = ''; }
+  } catch (e) {
+    if (msg) { msg.textContent = String(e.message || e); msg.style.color = '#f87171'; }
+    else alert(String(e.message || e));
+    if (btn) btn.disabled = false;
+  }
+}
+async function addToBacklog(id, title, inline){  const fromDetail = !inline && $('outcomeText');
+  const ta = inline ? inline.querySelector('.out-text') : fromDetail;
+  const msg = inline ? inline.querySelector('.msg') : $('outcomeMsg');
+  const b = inline ? inline.querySelector('.back') : $('backlogBtn');
+  const outcome = ((ta && ta.value) || '').trim();
+  if (!outcome) { if (msg) msg.textContent = 'write an outcome first'; return; }
+  if (b) b.disabled = true;
+  try {
+    const r = await fetch('/api/execute', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, outcome, sourceIngestId: id }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || `backlog ${r.status}`);
+    if (msg) { msg.textContent = '→ in Execute backlog'; msg.style.color = ''; }
+  } catch(e){
+    if (b) b.disabled = false;
+    if (msg) { msg.textContent = String(e.message || e); msg.style.color = '#f87171'; }
+  }
+}
+async function deleteNote(id, title){
+  if (!confirm(`Delete “${title}”? This can’t be undone.`)) return;
+  const wasCurrent = currentId === id;
+  const rowDel = rowBtn('data-delete', id);
+  const detailDel = wasCurrent ? $('delBtn') : null;
+  for (const b of [rowDel, detailDel].filter(Boolean)) b.disabled = true;
+  try {
+    const r = await fetch('/api/ingest/item?id=' + encodeURIComponent(id), { method: 'DELETE' });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || `delete ${r.status}`);
+    const idx = items.findIndex(it => it.id === id);
+    const fallback = items[idx + 1] || items[idx - 1] || null;
+    if (wasCurrent) {
+      currentId = null;
+      await load(fallback && fallback.id);
+    } else {
+      await load(currentId);
+    }
+  } catch (e) {
+    for (const b of [rowDel, detailDel].filter(Boolean)) b.disabled = false;
+    alert(String(e.message || e));
+  }
+}
+// ---- pulls: one icon button per source + dark pull-all ----
+function setPullBusy(btn, busy){
+  if (!btn) return;
+  btn.disabled = busy;
+  btn.classList.toggle('busy', busy);
+}
+function setAllPullBusy(busy){
+  ['photosBtn', 'syncBtn', 'emailBtn', 'imsgBtn', 'pullAllBtn'].forEach(id => setPullBusy($(id), busy));
+}
+async function runPull(btn, label, url, summarize){
+  setAllPullBusy(true);
+  $('syncMsg').style.color = '';
+  $('syncMsg').textContent = label + '…';
+  try {
+    const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || `sync ${r.status}`);
+    $('syncMsg').textContent = summarize(j);
+    await load();
+  } catch (e) {
+    $('syncMsg').textContent = String(e.message || e);
+    $('syncMsg').style.color = '#f87171';
+  } finally { setAllPullBusy(false); }
+}
+$('syncBtn').onclick = () => runPull($('syncBtn'), 'pulling Apple Notes',
+  '/api/ingest/apple-notes/sync',
+  (j) => `notes: ${j.imported} new · ${j.updated} updated · ${j.skipped} unchanged`);
+$('emailBtn').onclick = () => runPull($('emailBtn'), 'pulling Apple Mail',
+  '/api/ingest/email/sync',
+  (j) => `email: ${j.imported} new · ${j.skipped} skipped (${j.recent} in window)`);
+$('imsgBtn').onclick = () => runPull($('imsgBtn'), 'pulling iMessage',
+  '/api/ingest/imessage/sync',
+  (j) => `imessage: ${j.rewritten} chats · ${j.messages} messages · ${j.skipped} unchanged`);
+$('pullAllBtn').onclick = async () => {
+  setAllPullBusy(true);
+  $('syncMsg').style.color = '';
+  $('syncMsg').textContent = 'pulling from all…';
+  try {
+    const r = await fetch('/api/ingest/pull-all', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || `pull-all ${r.status}`);
+    const bits = [];
+    if (j.notes && j.notes.ok) bits.push(`notes +${j.notes.imported}`);
+    if (j.screenshots && j.screenshots.ok) bits.push(`screenshots +${j.screenshots.imported || 0}`);
+    if (j.email && j.email.ok) bits.push(`email +${j.email.imported}`);
+    if (j.imessage && j.imessage.ok) bits.push(`imessage ${j.imessage.rewritten} chats`);
+    for (const k of ['notes', 'screenshots', 'email', 'imessage']) {
+      if (j[k] && !j[k].ok) bits.push(`${k}: ${j[k].error}`);
+    }
+    $('syncMsg').textContent = bits.join(' · ') || 'nothing new';
+    await load();
+  } catch (e) {
+    $('syncMsg').textContent = String(e.message || e);
+    $('syncMsg').style.color = '#f87171';
+  } finally { setAllPullBusy(false); }
+};
+
+// ---- Apple Photos picker: scan → preview → select → ingest ----
+let pItems = [];            // scanned candidates
+const pSelected = new Set(); // tokens chosen for ingest
+
+function pRender(){
+  const grid = $('pGrid');
+  if (!pItems.length){ grid.innerHTML = '<div class="empty">No photos in this window.<br>Try a wider range above.</div>'; pFootUpdate(); return; }
+  grid.innerHTML = pItems.map(it => `
+    <div class="pCard ${pSelected.has(it.token)?'sel':''} ${it.ingested?'done':''}" data-token="${esc(it.token)}">
+      <img src="${esc(it.thumb)}" alt="" loading="lazy" />
+      <div class="chk">${pSelected.has(it.token)?'✓':''}</div>
+      ${it.ingested?'<div class="done-badge">saved</div>':''}
+      <div class="cap">${esc(fmtDate(it.date))}</div>
+    </div>`).join('');
+  grid.querySelectorAll('.pCard').forEach(el => el.onclick = () => {
+    const t = el.dataset.token;
+    if (pSelected.has(t)) pSelected.delete(t); else pSelected.add(t);
+    el.classList.toggle('sel', pSelected.has(t));
+    el.querySelector('.chk').textContent = pSelected.has(t) ? '✓' : '';
+    pFootUpdate();
+  });
+  pFootUpdate();
+}
+function pFootUpdate(){
+  const n = pSelected.size;
+  $('pIngest').disabled = n === 0;
+  $('pIngest').textContent = n ? `Ingest ${n} selected` : 'Ingest selected';
+}
+function pOpen(){ $('pOverlay').classList.add('on'); }
+function pClose(){ $('pOverlay').classList.remove('on'); }
+
+async function pScan(){
+  const hours = Number($('pWindow').value) || 48;
+  pItems = []; pSelected.clear();
+  $('pSub').textContent = 'scanning…';
+  $('pGrid').innerHTML = '<div class="empty">scanning your photos…</div>';
+  $('pFootMsg').textContent = '';
+  pFootUpdate();
+  try {
+    const r = await fetch('/api/ingest/apple-photos/scan', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ hours }) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || `scan ${r.status}`);
+    pItems = j.items || [];
+    // default: everything not-yet-ingested is selected
+    pItems.forEach(it => { if (!it.ingested) pSelected.add(it.token); });
+    $('pSub').textContent = `${pItems.length} found · ${j.total} in window`;
+    pRender();
+  } catch(e){
+    $('pGrid').innerHTML = `<div class="empty">${esc(e.message||e)}</div>`;
+    $('pSub').textContent = 'scan failed';
+  }
+}
+
+$('photosBtn').onclick = () => { pOpen(); pScan(); };
+$('pCancel').onclick = pClose;
+$('pOverlay').onclick = (e) => { if (e.target === $('pOverlay')) pClose(); };
+$('pWindow').onchange = pScan;
+$('pAll').onclick = () => { pItems.forEach(it => pSelected.add(it.token)); pRender(); };
+$('pNone').onclick = () => { pSelected.clear(); pRender(); };
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('pOverlay').classList.contains('on')) pClose(); });
+
+$('pIngest').onclick = async () => {
+  const tokens = [...pSelected];
+  if (!tokens.length) return;
+  $('pIngest').disabled = true; $('pCancel').disabled = true;
+  $('pFootMsg').textContent = `ingesting ${tokens.length} photo${tokens.length>1?'s':''} — captioning…`;
+  try {
+    const r = await fetch('/api/ingest/apple-photos/ingest', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ tokens }) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || `ingest ${r.status}`);
+    $('pFootMsg').textContent = `${j.ingested} ingested · ${j.skipped} skipped${j.failed?` · ${j.failed} failed`:''}`;
+    pClose();
+    await load();
+  } catch(e){
+    $('pFootMsg').textContent = String(e.message || e);
+  } finally { $('pIngest').disabled = false; $('pCancel').disabled = false; pFootUpdate(); }
+};
+
+// ---- merged-list filter + drag & drop ----
+let filterT = null;
+$('filterQ').addEventListener('input', () => {
+  clearTimeout(filterT);
+  filterT = setTimeout(() => { filterQ = $('filterQ').value; render(); }, 200);
+});
+document.addEventListener('dragend', () => { dragId = null; });
+$('detail').addEventListener('dragover', (e) => {
+  if (!dragId) return;
+  e.preventDefault();
+  try { e.dataTransfer.dropEffect = 'copy'; } catch(_){}
+  const bar = $('detailBar');
+  if (bar) bar.classList.add('drop-hi');
+});
+$('detail').addEventListener('dragleave', () => { const bar = $('detailBar'); if (bar) bar.classList.remove('drop-hi'); });
+$('detail').addEventListener('drop', (e) => {
+  const id = dragId || (e.dataTransfer ? e.dataTransfer.getData('text/plain') : null);
+  dragId = null;
+  const bar = $('detailBar'); if (bar) bar.classList.remove('drop-hi');
+  if (!id) return;
+  e.preventDefault();
+  if (e.target && e.target.closest && e.target.closest('#toWritingBtn')) { sendToWriting(id); return; }
+  if (e.target && e.target.closest && e.target.closest('#toExecBtn')) { sendToExecute(id); return; }
+  if (e.target && e.target.closest && e.target.closest('#enhanceBtn')) { const rw = rows.find(r => r.rowId === id); enhance(id, (rw && rw.title) || id); return; }
+  open(id);
+});
+
+load(new URLSearchParams(location.search).get('id'));
+// refresh when returning focus (new captures from the bubble)
+document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+setInterval(() => { if (!document.hidden) load(); }, 15000);
+</script>
+</body>
+</html>

@@ -1,7 +1,9 @@
 // Global hub cursor capture — click/drag stroke trail + screenshot + ≤50-word summary.
 // One instance in hub.html covers every view (active + parked iframes).
-// Tools: pen (default, stroke-on-drag) and rect (press `c` to toggle).
-// Capture runs on stroke/rect end (pointerup). Escape cancels drafts.
+// Tools: pen (default, stroke-on-drag), rect (press `c` to toggle), text
+// (press `t`, click to drop a pin, type a caption — the caption is saved and
+// overwrites the AI image read). Capture runs on stroke/rect end (pointerup),
+// or on caption save for the text tool. Escape cancels drafts.
 //
 // HubCursor.init({
 //   storageKey?: string,
@@ -17,7 +19,7 @@
   const TRAIL_MAX = 240;
   const TRAIL_MIN_DIST = 1.5;
   const TOOL_TIP =
-    'Toggle global cursor capture (⌘U / Ctrl+U) — pen default (drag to paint); c for rect; Escape cancels';
+    'Toggle global cursor capture (⌘U / Ctrl+U) — pen default (drag to paint); c for rect; t for text caption; Escape cancels';
 
   function ensureCss() {
     if (document.getElementById(STYLE_ID)) return;
@@ -66,7 +68,7 @@
         padding: 10px 12px; border-radius: 12px;
         background: rgba(7, 9, 16, .94); border: 1px solid rgba(255,255,255,.1);
         box-shadow: 0 12px 40px rgba(0,0,0,.45);
-        font-family: Lato, sans-serif; color: #e2e8f0;
+        font-family: var(--font, Lato, sans-serif); color: #e2e8f0;
       }
       #cursorDock.on { display: flex; }
       #cursorThumb {
@@ -75,7 +77,7 @@
       }
       #cursorDockMain { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
       #cursorDockLbl {
-        font: 700 10px Lato, sans-serif; letter-spacing: .1em; color: #475569; text-transform: uppercase;
+        font: 700 10px var(--font, Lato, sans-serif); letter-spacing: .1em; color: #475569; text-transform: uppercase;
       }
       #cursorSummary {
         font-size: 12.5px; color: #e2e8f0; line-height: 1.45;
@@ -91,21 +93,45 @@
       #cursorDockActs button {
         min-width: 56px; height: 28px; padding: 0 10px; border-radius: 8px;
         border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.04);
-        color: #94a3b8; font: 700 11px Lato, sans-serif; letter-spacing: .04em; cursor: pointer;
+        color: #94a3b8; font: 700 11px var(--font, Lato, sans-serif); letter-spacing: .04em; cursor: pointer;
       }
       #cursorDockActs button:hover { color: #e2e8f0; border-color: rgba(125,211,252,.35); }
-      #cursorToggle {
-        position: fixed; z-index: 184; right: 16px; bottom: 16px;
-        padding: 10px 16px; border-radius: 999px;
-        border: 1px solid rgba(255,255,255,.12); background: rgba(8,10,18,.88);
-        color: #64748b; font: 700 11px Lato, sans-serif; letter-spacing: .06em;
-        text-transform: uppercase; cursor: pointer;
-        box-shadow: 0 8px 28px rgba(0,0,0,.35); backdrop-filter: blur(12px);
+      #cursorCaptionRow { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+      #cursorCaptionRow[hidden] { display: none; }
+      #cursorCaption {
+        width: 100%; background: #0b0d14; color: #e2e8f0; border: 1px solid rgba(251,191,36,.35);
+        border-radius: 8px; padding: 7px 9px; font: 400 12.5px var(--font, Lato, sans-serif);
+        resize: vertical; box-sizing: border-box;
       }
-      #cursorToggle:hover { color: #cbd5e1; border-color: rgba(125,211,252,.35); }
-      #cursorToggle.on {
-        color: #7dd3fc; border-color: rgba(125,211,252,.5);
-        background: rgba(125,211,252,.12);
+      #cursorCaption:focus { outline: none; border-color: rgba(251,191,36,.7); }
+      #cursorCaptionActs { display: flex; gap: 6px; }
+      #cursorCaptionActs button {
+        min-width: 56px; height: 26px; padding: 0 10px; border-radius: 8px;
+        border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.04);
+        color: #94a3b8; font: 700 11px var(--font, Lato, sans-serif); letter-spacing: .04em; cursor: pointer;
+      }
+      #cursorCaptionSave { color: #fbbf24; border-color: rgba(251,191,36,.4); }
+      /* Split pill shell — capture-bubble.js appends the mic half into #hubCornerPill. */
+      #hubCornerPill {
+        position: fixed; z-index: 184; right: 18px; bottom: 18px;
+        display: flex; align-items: stretch; height: 48px;
+        border-radius: 999px; overflow: hidden;
+        border: 1px solid rgba(255,255,255,.12); background: rgba(8,10,18,.88);
+        box-shadow: 0 8px 28px rgba(0,0,0,.35); backdrop-filter: blur(12px);
+        font-family: var(--font, Lato, sans-serif);
+      }
+      #hubCornerPill #cursorToggle {
+        height: 100%; padding: 0 16px; margin: 0;
+        border: none; border-radius: 0; border-right: 1px solid rgba(255,255,255,.1);
+        background: transparent;
+        color: #64748b; font: 700 11px var(--font, Lato, sans-serif); letter-spacing: .06em;
+        text-transform: uppercase; cursor: pointer; white-space: nowrap;
+      }
+      #hubCornerPill #cursorToggle:hover {
+        color: #cbd5e1; background: rgba(255,255,255,.04);
+      }
+      #hubCornerPill #cursorToggle.on {
+        color: #7dd3fc; background: rgba(125,211,252,.12);
       }
       body.hub-cursor-on #views iframe { pointer-events: none !important; }
       body.hub-cursor-on #bar, body.hub-cursor-on #navDrawer,
@@ -140,22 +166,38 @@
       dock.innerHTML = `
         <img id="cursorThumb" alt="cursor screenshot" width="88" height="64" />
         <div id="cursorDockMain">
-          <div id="cursorDockLbl">Cursor · pen · c rect</div>
-          <div id="cursorSummary" class="empty">Drag to paint a trail — release to capture. Press c for rectangle tool.</div>
+          <div id="cursorDockLbl">Cursor · pen · c rect · t text</div>
+          <div id="cursorSummary" class="empty">Drag to paint a trail — release to capture. Press c for rectangle, t for text.</div>
           <div id="cursorMeta"></div>
+          <div id="cursorCaptionRow" hidden>
+            <textarea id="cursorCaption" rows="2" placeholder="Type a caption — save replaces the AI read"></textarea>
+            <div id="cursorCaptionActs">
+              <button type="button" id="cursorCaptionSave" title="Save caption (Enter)">save</button>
+              <button type="button" id="cursorCaptionCancel" title="Cancel (Escape)">cancel</button>
+            </div>
+          </div>
         </div>
         <div id="cursorDockActs">
           <button type="button" id="cursorCopy" title="Copy summary">copy</button>
         </div>`;
       document.body.appendChild(dock);
     }
-    if (!document.getElementById('cursorToggle')) {
+    let pill = document.getElementById('hubCornerPill');
+    if (!pill) {
+      pill = document.createElement('div');
+      pill.id = 'hubCornerPill';
+      document.body.appendChild(pill);
+    }
+    const existingBtn = document.getElementById('cursorToggle');
+    if (!existingBtn) {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.id = 'cursorToggle';
       btn.title = TOOL_TIP;
       btn.textContent = 'cursor off';
-      document.body.appendChild(btn);
+      pill.appendChild(btn);
+    } else if (existingBtn.parentElement !== pill) {
+      pill.appendChild(existingBtn);
     }
   }
 
@@ -191,14 +233,19 @@
     const metaEl = document.getElementById('cursorMeta');
     const thumb = document.getElementById('cursorThumb');
     const btn = document.getElementById('cursorToggle');
+    const capRow = document.getElementById('cursorCaptionRow');
+    const capInput = document.getElementById('cursorCaption');
     btn.title = TOOL_TIP;
 
     let enabled = localStorage.getItem(storageKey) === '1';
-    /** @type {'pen'|'rect'} */
+    /** @type {'pen'|'rect'|'text'} */
     let tool = 'pen';
     let pinned = false;
     let stroking = false;
     let busy = false;
+    let pendingCaption = '';
+    /** @type {{ x: number, y: number } | null} */
+    let textPin = null;
     let pos = { x: 0, y: 0 };
     let lastReq = 0;
     let lastSummary = '';
@@ -212,13 +259,25 @@
     let lastRect = null;
 
     function toolLabel() {
-      return tool === 'rect' ? 'Cursor · rect · c pen' : 'Cursor · pen · c rect';
+      if (tool === 'rect') return 'Cursor · rect · c pen · t text';
+      if (tool === 'text') return 'Cursor · text · click to pin, type caption';
+      return 'Cursor · pen · c rect · t text';
     }
 
     function emptyHint() {
-      return tool === 'rect'
-        ? 'Drag a rectangle — release to capture. Press c for pen.'
-        : 'Drag to paint a trail — release to capture. Press c for rectangle.';
+      if (tool === 'rect') return 'Drag a rectangle — release to capture. Press c for pen, t for text.';
+      if (tool === 'text') return 'Click to drop a text pin, type a caption — save replaces the AI read.';
+      return 'Drag to paint a trail — release to capture. Press c for rectangle, t for text.';
+    }
+
+    function hideCaptionEditor() { if (capRow) capRow.hidden = true; }
+    function showCaptionEditor() {
+      if (!capRow) return;
+      capRow.hidden = false;
+      if (capInput) {
+        capInput.value = pendingCaption || '';
+        setTimeout(() => capInput.focus(), 0);
+      }
     }
 
     function updateToolChrome() {
@@ -234,6 +293,9 @@
       stroking = false;
       draftRect = null;
       pinned = false;
+      textPin = null;
+      pendingCaption = '';
+      hideCaptionEditor();
       el.classList.remove('pinned');
       if (wasDrawing && tool === 'pen') trail = [];
       if (trailRaf) { cancelAnimationFrame(trailRaf); trailRaf = 0; }
@@ -241,7 +303,7 @@
     }
 
     function setTool(next) {
-      if (next !== 'pen' && next !== 'rect') return;
+      if (next !== 'pen' && next !== 'rect' && next !== 'text') return;
       if (tool === next) return;
       cancelDraft();
       tool = next;
@@ -364,8 +426,20 @@
         }
       }
 
-      if ((trail.length || draftRect) && enabled) {
+      if ((trail.length || draftRect || textPin) && enabled) {
         trailRaf = requestAnimationFrame(() => { trailRaf = 0; drawTrail(); });
+      }
+
+      if (textPin) {
+        trailCtx.beginPath();
+        trailCtx.arc(textPin.x, textPin.y, 10, 0, Math.PI * 2);
+        trailCtx.fillStyle = 'rgba(251,191,36,.92)';
+        trailCtx.fill();
+        trailCtx.fillStyle = '#05060a';
+        trailCtx.font = '700 12px Lato, sans-serif';
+        trailCtx.textAlign = 'center';
+        trailCtx.textBaseline = 'middle';
+        trailCtx.fillText('T', textPin.x, textPin.y + 0.5);
       }
     }
 
@@ -473,10 +547,15 @@
       const extra = getContext() || {};
       const r = tool === 'rect' ? lastRect : null;
       const rect = rectPayload(r);
+      const caption = (pendingCaption || '').trim();
+      const pin = tool === 'text' ? textPin : null;
       return {
         ...extra,
         tool,
         pinned,
+        caption: caption || null,
+        textPin: pin ? { x: pin.x, y: pin.y } : null,
+        textPinLine: pin ? `text pin ${pin.x},${pin.y}` : null,
         xy: `${Math.round(pos.x)},${Math.round(pos.y)}`,
         trail: tr.count ? {
           windowMs: tr.windowMs,
@@ -550,7 +629,90 @@
       ctx.strokeRect(rx, ry, rw, rh);
     }
 
+    function stampText(ctx, width, height, map, pin, caption) {
+      if (!pin) return;
+      const p = mapPt(map, pin.x, pin.y, width, height);
+      const r = Math.max(11, width * 0.013);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(251,191,36,.95)';
+      ctx.fill();
+      ctx.fillStyle = '#05060a';
+      ctx.font = `700 ${Math.round(r * 1.1)}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('T', p.x, p.y + 1);
+      const label = String(caption || '').replace(/\s+/g, ' ').trim().slice(0, 90);
+      if (label) {
+        const fs = Math.max(13, Math.round(width * 0.016));
+        ctx.font = `${fs}px sans-serif`;
+        const tw = ctx.measureText(label).width;
+        const bx = Math.min(Math.max(p.x + r + 8, 8), Math.max(8, width - tw - 20));
+        const by = Math.min(Math.max(p.y - r - 12, 30), height - 12);
+        ctx.fillStyle = 'rgba(5,6,10,.88)';
+        ctx.fillRect(bx - 6, by - fs - 8, tw + 12, fs + 16);
+        ctx.fillStyle = '#fbbf24';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillText(label, bx, by);
+      }
+    }
+
+    // True screen grab (main display) from the server with the trail/rect/pins
+    // stamped on top in client coords. This is the actual screen — not an
+    // html2canvas re-render of one iframe. Null when unavailable (non-mac, no
+    // display access) so the caller can fall back.
+    async function grabScreen() {
+      try {
+        const res = await fetch('/api/activity/screen', { method: 'POST' });
+        const j = await res.json();
+        if (!res.ok || !j.dataUrl) return null;
+        const img = new Image();
+        await new Promise((ok, bad) => { img.onload = ok; img.onerror = bad; img.src = j.dataUrl; });
+        if (!img.naturalWidth || !img.naturalHeight) return null;
+        return img;
+      } catch { return null; }
+    }
+
+    // Map viewport CSS px -> screen-image pixels. The grab covers the main display;
+    // the hub viewport sits at (screenX, screenY) plus best-effort chrome compensation.
+    function screenMap(img) {
+      const dispW = window.screen.width || window.innerWidth;
+      const dispH = window.screen.height || window.innerHeight;
+      const sideChrome = Math.max(0, ((window.outerWidth || 0) - window.innerWidth) / 2);
+      const topChrome = Math.max(0, ((window.outerHeight || 0) - window.innerHeight) - sideChrome);
+      return {
+        originX: -((window.screenX || 0) + sideChrome),
+        originY: -((window.screenY || 0) + topChrome),
+        frameW: dispW,
+        frameH: dispH,
+      };
+    }
+
+    function composeScreenShot(img) {
+      const scale = Math.min(1, 2200 / Math.max(img.naturalWidth, 1));
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(img.naturalWidth * scale));
+      c.height = Math.max(1, Math.round(img.naturalHeight * scale));
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img, 0, 0, c.width, c.height);
+      // mapPt maps (viewport px - origin) / frame * canvas px, so pass the
+      // display-CSS-pixel frame; the canvas scale is handled by c.width/height.
+      const map = screenMap(img);
+      stampTrail(ctx, c.width, c.height, map);
+      if (tool === 'rect' && lastRect) stampRect(ctx, c.width, c.height, map, lastRect);
+      if (tool === 'text' && textPin) stampText(ctx, c.width, c.height, map, textPin, pendingCaption);
+      return c.toDataURL('image/jpeg', 0.82);
+    }
+
     async function captureShot() {
+      // Preferred: the real screen with the mouse trail on top for context.
+      const screen = await grabScreen();
+      if (screen) {
+        try { return composeScreenShot(screen); } catch (e) {
+          console.warn('[hub-cursor] screen compose failed, falling back', e);
+        }
+      }
       const target = typeof opts.getCaptureTarget === 'function'
         ? opts.getCaptureTarget()
         : { root: getCaptureRoot() };
@@ -579,6 +741,7 @@
           const c2 = canvas.getContext('2d');
           stampTrail(c2, canvas.width, canvas.height, map);
           if (tool === 'rect' && lastRect) stampRect(c2, canvas.width, canvas.height, map, lastRect);
+          if (tool === 'text' && textPin) stampText(c2, canvas.width, canvas.height, map, textPin, pendingCaption);
           return canvas.toDataURL('image/jpeg', 0.72);
         }
       } catch (e) {
@@ -594,10 +757,10 @@
       ctx.fillStyle = '#05060a';
       ctx.fillRect(0, 0, c.width, c.height);
       ctx.fillStyle = '#7dd3fc';
-      ctx.font = '700 18px Lato, sans-serif';
+      ctx.font = '700 18px ' + (typeof HubClient !== 'undefined' && HubClient.uiFont ? HubClient.uiFont() : 'Lato, sans-serif');
       ctx.fillText('Valinor', 28, 40);
       ctx.fillStyle = '#e2e8f0';
-      ctx.font = '14px Lato, sans-serif';
+      ctx.font = '14px ' + (typeof HubClient !== 'undefined' && HubClient.uiFont ? HubClient.uiFont() : 'Lato, sans-serif');
       const ctxInfo = buildContext();
       const lines = [
         ctxInfo.activeTab ? `tab ${ctxInfo.activeTab}` : null,
@@ -606,6 +769,7 @@
         ctxInfo.pointLabel ? `cursor → ${ctxInfo.pointLabel}` : `cursor @ ${ctxInfo.xy}`,
         ctxInfo.trailLine ? `trail ${ctxInfo.trailLine}` : null,
         ctxInfo.rectLine || null,
+        ctxInfo.textPinLine || ctxInfo.caption || null,
         ctxInfo.pointText || null,
       ].filter(Boolean);
       let y = 78;
@@ -615,24 +779,29 @@
       }
       stampTrail(ctx, c.width, c.height, null);
       if (tool === 'rect' && lastRect) stampRect(ctx, c.width, c.height, null, lastRect);
+      if (tool === 'text' && textPin) stampText(ctx, c.width, c.height, null, textPin, pendingCaption);
       return c.toDataURL('image/jpeg', 0.85);
     }
 
-    function showResult({ summary, words, screenshotUrl, screenshotPath, source, error }) {
+    function showResult({ summary, words, screenshotUrl, screenshotPath, source, error, ingestId }) {
       lastSummary = summary || '';
       summaryEl.textContent = lastSummary || (error ? String(error) : 'No summary');
       summaryEl.classList.toggle('empty', !lastSummary);
       const bits = [];
       if (words != null) bits.push(`${words}w`);
-      if (source) bits.push(source);
+      if (source === 'manual-caption') bits.push('your caption');
+      else if (source) bits.push(source);
       bits.push(tool);
       const tr = trailStats();
       if (tr.count) bits.push(`trail ${Math.round(tr.spanMs / 100) / 10}s · ${tr.distancePx}px`);
       if (lastRect && tool === 'rect') bits.push(`rect ${lastRect.w}×${lastRect.h}`);
+      if (textPin && tool === 'text') bits.push(`text ${textPin.x}×${textPin.y}`);
       const extra = getContext() || {};
       if (extra.activeTab) bits.push(String(extra.activeTab));
       if (extra.parked?.length) bits.push(`${extra.parked.length} parked`);
-      if (screenshotPath) {
+      if (ingestId) {
+        bits.push(`<a href="/hub.html#ingest" title="Open in Ingest">ingest</a>`);
+      } else if (screenshotPath) {
         bits.push(`<a href="${esc(screenshotUrl || ('/' + screenshotPath))}" target="_blank" rel="noopener">${esc(screenshotPath)}</a>`);
       }
       if (pinned) bits.push('pinned');
@@ -658,12 +827,17 @@
         const res = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image, context }),
+          body: JSON.stringify({ image, context, caption: (pendingCaption || '').trim() || undefined }),
         });
         const j = await res.json();
         if (reqId !== lastReq) return;
         if (!res.ok) throw new Error(j.error || 'cursor-context failed');
         showResult(j);
+        if ((pendingCaption || '').trim()) {
+          pendingCaption = '';
+          textPin = null;
+          drawTrail();
+        }
       } catch (e) {
         if (reqId !== lastReq) return;
         summaryEl.textContent = String(e.message || e);
@@ -690,8 +864,17 @@
 
     hit.addEventListener('pointerdown', (e) => {
       if (!enabled || e.button !== 0) return;
-      if (e.target.closest?.('#cursorDock, #cursorToggle')) return;
+      if (e.target.closest?.('#cursorDock, #hubCornerPill, #cursorToggle, #cbWrap')) return;
       if (isUiChrome(e.target)) return;
+      if (tool === 'text') {
+        textPin = { x: Math.round(e.clientX), y: Math.round(e.clientY) };
+        pinned = true;
+        el.classList.add('pinned');
+        placeCursor(e.clientX, e.clientY, { paint: false });
+        drawTrail();
+        showCaptionEditor();
+        return;
+      }
       stroking = true;
       pinned = true;
       el.classList.add('pinned');
@@ -708,7 +891,7 @@
     });
 
     hit.addEventListener('pointerup', (e) => {
-      if (!enabled || !stroking || e.button !== 0) return;
+      if (!enabled || tool === 'text' || !stroking || e.button !== 0) return;
       stroking = false;
       pinned = true;
       el.classList.add('pinned');
@@ -751,7 +934,13 @@
       const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
       if (k === 'c' && !e.metaKey && !e.ctrlKey && !e.altKey) {
         e.preventDefault();
-        setTool(tool === 'rect' ? 'pen' : 'rect');
+        if (tool === 'text') setTool('rect');
+        else setTool(tool === 'rect' ? 'pen' : 'rect');
+        return;
+      }
+      if (k === 't' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        setTool(tool === 'text' ? 'pen' : 'text');
         return;
       }
       if (e.key === 'Escape') {
@@ -768,6 +957,29 @@
       if (!enabled) return;
       sizeTrailCanvas();
       drawTrail();
+    });
+
+    document.getElementById('cursorCaptionSave').onclick = (e) => {
+      e.stopPropagation();
+      pendingCaption = (capInput?.value || '').trim();
+      if (!pendingCaption) { capInput?.focus(); return; }
+      hideCaptionEditor();
+      void runCapture('caption');
+    };
+    document.getElementById('cursorCaptionCancel').onclick = (e) => {
+      e.stopPropagation();
+      pendingCaption = '';
+      hideCaptionEditor();
+    };
+    capInput?.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter' && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        document.getElementById('cursorCaptionSave').click();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        document.getElementById('cursorCaptionCancel').click();
+      }
     });
 
     document.getElementById('cursorCopy').onclick = async () => {
@@ -795,11 +1007,14 @@
       toggle();
     };
 
-    // Keep dock/toggle clickable above the hit layer
+    // Keep dock/pill clickable above the hit layer
     dock.style.zIndex = '183';
-    btn.style.zIndex = '184';
+    const pill = document.getElementById('hubCornerPill');
+    if (pill) pill.style.zIndex = '184';
+    else btn.style.zIndex = '184';
     dock.addEventListener('pointerdown', (e) => e.stopPropagation());
     btn.addEventListener('pointerdown', (e) => e.stopPropagation());
+    if (pill) pill.addEventListener('pointerdown', (e) => e.stopPropagation());
 
     updateToolChrome();
     setEnabled(enabled);

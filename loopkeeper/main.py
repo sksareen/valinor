@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    logger.info("🚀 Starting Savar AI backend...")
+    logger.info("🚀 Starting Loopkeeper backend...")
     
     # Initialize database (but don't fail if it's not available)
     try:
@@ -39,22 +39,19 @@ async def lifespan(app: FastAPI):
     yield
     
     # Shutdown
-    logger.info("👋 Shutting down Savar AI backend...")
+    logger.info("👋 Shutting down Loopkeeper backend...")
 
 # Initialize FastAPI app
 app = FastAPI(
-    title="Savar AI", 
+    title="Loopkeeper", 
     description="Clean minimalist AI chat interface with conversation memory",
     lifespan=lifespan
 )
 
 # Configure CORS
 allowed_origins = [
-    "https://savarsareen.com",
-    "https://www.savarsareen.com",
-    "https://savar.ai",
-    "https://www.savar.ai",
-    "https://savarsareen.vercel.app",
+    "https://tryvalinor.com",
+    "https://www.tryvalinor.com",
 ]
 
 # Allow all localhost/127.0.0.1 origins (any port) for development
@@ -101,7 +98,7 @@ except Exception as e:
 @app.get("/")
 async def root():
     return {
-        "message": "Savar AI API", 
+        "message": "Loopkeeper API", 
         "status": "running",
         "timestamp": datetime.now().isoformat()
     }

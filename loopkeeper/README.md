@@ -1,6 +1,6 @@
 # Loopkeeper (embedded in Valinor)
 
-Copied from `sites/savarsareen/chat/backend` so the LOOPS tab does not depend on a
+Bundled with Valinor so the LOOPS tab does not depend on a
 separate reverse-proxied process.
 
 Valinor’s `server.js` starts this FastAPI app on `127.0.0.1:18003` and proxies

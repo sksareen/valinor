@@ -240,6 +240,7 @@ async function transcribeAudio({ audioBase64, format }, apiKey) {
         ],
       }],
       temperature: 0,
+      usage: { include: true },
     }),
   });
   const text = await res.text();
@@ -256,6 +257,7 @@ async function transcribeAudio({ audioBase64, format }, apiKey) {
     throw err;
   }
   const usage = json.usage || {};
+  const out = (json.choices?.[0]?.message?.content || '').trim();
   agentUsage.record({
     surface: 'transcribe',
     model: json.model || TRANSCRIBE_MODEL,
@@ -264,8 +266,9 @@ async function transcribeAudio({ audioBase64, format }, apiKey) {
     cost: usage.cost ?? null,
     ok: true,
     label: 'stt',
+    input: '[audio]',
+    output: out,
   });
-  const out = (json.choices?.[0]?.message?.content || '').trim();
   return { text: out };
 }
 
@@ -460,24 +463,51 @@ function buildCard(name, args, layout) {
   return null;
 }
 
-function systemPrompt(boardState, history) {
+function toolsForKind(kind) {
+  const k = String(kind || '').trim().toLowerCase();
+  if (k === 'video') {
+    return TOOL_DEFS.filter((t) => ['youtube_search', 'show_video'].includes(t.function?.name));
+  }
+  if (k === 'wiki') {
+    return TOOL_DEFS.filter((t) => ['wikipedia_search', 'wikipedia_page', 'show_web'].includes(t.function?.name));
+  }
+  return TOOL_DEFS;
+}
+
+function systemPrompt(boardState, history, kind) {
   const cards = (boardState || []).map((c) => ({
     id: c.id, kind: c.kind || 'note', title: c.title || c.text || '',
   }));
   const hist = (history || []).slice(-6).map((h) => ({
     role: h.role, content: String(h.content || '').slice(0, 400),
   }));
-  return [
+  const k = String(kind || '').trim().toLowerCase();
+  const lines = [
     'You are a spatial board agent. The user speaks; you gather facts with retrieval tools, then place results on the board with render tools.',
-    'Always end by calling one or more show_* tools so the user sees something on the board. Prefer show_list for filmographies, show_video for trailers, show_web for Wikipedia articles.',
-    'After placing the right show_list / show_video / show_web card(s), stop. Do NOT also call show_text to restate what the card already shows.',
+  ];
+  if (k === 'video') {
+    lines.push(
+      'This request is VIDEO ONLY. Call youtube_search, then show_video with a videoId from the results. Do not call Wikipedia tools. Do not use show_web or show_list — Live only plays video cards.',
+    );
+  } else if (k === 'wiki') {
+    lines.push(
+      'This request is WIKIPEDIA ONLY. Call wikipedia_search / wikipedia_page, then show_web with the article URL. Do not search YouTube.',
+    );
+  } else {
+    lines.push(
+      'Always end by calling one or more show_* tools so the user sees something on the board. Prefer show_list for filmographies, show_video for trailers, show_web for Wikipedia articles.',
+      'When the user asks for Wikipedia of "the Odyssey, original translation", prefer Homer\'s epic (or Emily Wilson translation) — NOT the Nolan film — unless board context clearly points at the film.',
+    );
+  }
+  lines.push(
+    'After placing the right card(s), stop. Do NOT also call show_text to restate what the card already shows.',
     'Use the CURRENT BOARD STATE to resolve pronouns and short references ("the Odyssey", "that list", "original translation").',
-    'When the user asks for Wikipedia of "the Odyssey, original translation", prefer Homer\'s epic (or Emily Wilson translation) — NOT the Nolan film — unless board context clearly points at the film.',
     'Be concise in any show_text. Do not invent videoIds or URLs — search first.',
     '',
     'CURRENT BOARD STATE: ' + JSON.stringify(cards),
     hist.length ? 'RECENT TURNS: ' + JSON.stringify(hist) : '',
-  ].filter(Boolean).join('\n');
+  );
+  return lines.filter(Boolean).join('\n');
 }
 
 function sseWrite(res, evt) {
@@ -500,6 +530,7 @@ async function callOpenRouter(apiKey, messages, tools) {
       tools,
       tool_choice: 'auto',
       temperature: 0.2,
+      usage: { include: true },
     }),
   });
   const text = await res.text();
@@ -530,7 +561,8 @@ async function callOpenRouter(apiKey, messages, tools) {
 
 /**
  * Run one agent turn. Streams SSE events to `res` and mirrors them on the trace bus.
- * body: { transcript, boardState, history }
+ * body: { transcript, boardState, history, kind }
+ * kind: 'video' | 'wiki' | omitted (full tool set, used by board.html)
  * apiKey: OPENROUTER_API_KEY (may be missing → clear error)
  */
 async function runAgentTurn(res, body, apiKey) {
@@ -538,13 +570,15 @@ async function runAgentTurn(res, body, apiKey) {
   const transcript = String(body.transcript || '').trim();
   const boardState = Array.isArray(body.boardState) ? body.boardState : [];
   const history = Array.isArray(body.history) ? body.history : [];
+  const kind = String(body.kind || '').trim().toLowerCase();
+  const toolDefs = toolsForKind(kind);
   const emit = (evt) => {
     const full = { turnId, t: Date.now(), ...evt };
     sseWrite(res, full);
     pushTrace(full);
   };
 
-  emit({ type: 'turn.start', transcript });
+  emit({ type: 'turn.start', transcript, kind: kind || null });
 
   if (!apiKey) {
     emit({
@@ -561,7 +595,7 @@ async function runAgentTurn(res, body, apiKey) {
   }
 
   const messages = [
-    { role: 'system', content: systemPrompt(boardState, history) },
+    { role: 'system', content: systemPrompt(boardState, history, kind) },
     { role: 'user', content: transcript },
   ];
 
@@ -578,7 +612,7 @@ async function runAgentTurn(res, body, apiKey) {
       emit({ type: 'model.request', round, model: DEFAULT_MODEL });
       let result;
       try {
-        result = await callOpenRouter(apiKey, messages, TOOL_DEFS);
+        result = await callOpenRouter(apiKey, messages, toolDefs);
       } catch (e) {
         const status = e.status || 0;
         let message = e.message || String(e);
@@ -613,6 +647,17 @@ async function runAgentTurn(res, body, apiKey) {
         ok: true,
         turnId,
         label: `round ${round}`,
+        input: (() => {
+          for (let i = messages.length - 1; i >= 0; i--) {
+            const m = messages[i];
+            if (m.role !== 'user') continue;
+            if (typeof m.content === 'string') return m.content;
+            if (Array.isArray(m.content)) return m.content.map((p) => p.text || '').join(' ');
+          }
+          return '';
+        })(),
+        output: result.message.content
+          || ((result.message.tool_calls || []).map((tc) => tc.function?.name).filter(Boolean).join(', ')),
       });
 
       const toolCalls = result.message.tool_calls || [];
@@ -694,4 +739,6 @@ module.exports = {
   transcribeAudio,
   tools,
   TOOL_DEFS,
+  DEFAULT_MODEL,
+  TRANSCRIBE_MODEL,
 };

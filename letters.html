@@ -4,102 +4,639 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-<title>Letters</title>
+<title>Writing</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
+  :root, html[data-theme="dark"] {
+    --bg: #070910;
+    --bg-editor: #0b0d15;
+    --bg-card: #14161f;
+    --bg-paper: #12141d;
+    --bg-head: rgba(11,13,21,.92);
+    --bg-new: rgba(125,211,252,.04);
+    --bg-new-hover: rgba(125,211,252,.09);
+    --bg-code: rgba(125,211,252,.12);
+    --ink: #e2e8f0;
+    --ink-title: #e8eaf0;
+    --ink-sheet: #dfe3ea;
+    --ink-h1: #f1f5f9;
+    --ink-h2: #eef2f7;
+    --ink-quote: #a8b3c4;
+    --ink-code: #9bdcfd;
+    --ink-prev: #94a3b8;
+    --mute: #64748b;
+    --faint: #475569;
+    --hint: #3f4a5c;
+    --hint-b: #5b6b82;
+    --line: rgba(255,255,255,.09);
+    --line-soft: rgba(255,255,255,.06);
+    --line-paper: rgba(255,255,255,.07);
+    --line-btn: rgba(255,255,255,.14);
+    --rule: rgba(255,255,255,.045);
+    --accent: #7dd3fc;
+    --accent-soft: rgba(125,211,252,.08);
+    --accent-line: rgba(125,211,252,.35);
+    --accent-hover: rgba(125,211,252,.16);
+    --danger: #f87171;
+    --close-bg: rgba(255,255,255,.05);
+    --shadow: 0 10px 28px rgba(0,0,0,.5);
+    --shadow-hover: 0 18px 42px rgba(0,0,0,.65);
+    --shadow-paper: 0 24px 60px rgba(0,0,0,.55);
+  }
+  html[data-theme="light"] {
+    --bg: #f4f5f7;
+    --bg-editor: #eef1f5;
+    --bg-card: #ffffff;
+    --bg-paper: #fffef9;
+    --bg-head: rgba(255,255,255,.94);
+    --bg-new: rgba(2,132,199,.05);
+    --bg-new-hover: rgba(2,132,199,.1);
+    --bg-code: rgba(2,132,199,.1);
+    --ink: #0f172a;
+    --ink-title: #0f172a;
+    --ink-sheet: #1e293b;
+    --ink-h1: #020617;
+    --ink-h2: #0f172a;
+    --ink-quote: #475569;
+    --ink-code: #0369a1;
+    --ink-prev: #475569;
+    --mute: #64748b;
+    --faint: #94a3b8;
+    --hint: #94a3b8;
+    --hint-b: #64748b;
+    --line: rgba(15,23,42,.1);
+    --line-soft: rgba(15,23,42,.08);
+    --line-paper: rgba(15,23,42,.1);
+    --line-btn: rgba(15,23,42,.14);
+    --rule: rgba(15,23,42,.06);
+    --accent: #0284c7;
+    --accent-soft: rgba(2,132,199,.08);
+    --accent-line: rgba(2,132,199,.35);
+    --accent-hover: rgba(2,132,199,.14);
+    --danger: #dc2626;
+    --close-bg: rgba(15,23,42,.04);
+    --shadow: 0 10px 28px rgba(15,23,42,.1);
+    --shadow-hover: 0 18px 42px rgba(15,23,42,.14);
+    --shadow-paper: 0 24px 60px rgba(15,23,42,.12);
+  }
+
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { width: 100%; height: 100%; overflow: hidden; background: #070910;
-    font-family: Lato, sans-serif; color: #e2e8f0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
+    font-family: Lato, sans-serif; color: var(--ink); }
 
   /* ===== gallery: letters as a pile of paper cards ===== */
   #gallery { position: fixed; inset: 0; overflow-y: auto; padding: 74px 40px 60px; }
-  #gtitle { position: fixed; top: 20px; left: 28px; z-index: 5; font-size: 13px; font-weight: 700;
-    letter-spacing: .14em; color: #7dd3fc; }
+  #ghead { position: fixed; top: 20px; left: 28px; right: 28px; z-index: 5;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  #gtitle { font-size: 13px; font-weight: 700; letter-spacing: .14em; color: var(--accent); }
+  #gdir { font: 11.5px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--mute);
+    cursor: pointer; word-break: break-all; }
+  #gdir:hover { color: var(--ink-prev); }
+  #sessionBtn {
+    padding: 6px 12px; font: 600 11.5px Lato, sans-serif; letter-spacing: .06em;
+    color: var(--accent); background: var(--accent-soft);
+    border: 1px solid var(--accent-line); border-radius: 4px; cursor: pointer;
+  }
+  #sessionBtn:hover { background: var(--accent-hover); }
+  #sessionBtn:disabled { opacity: .55; cursor: wait; }
+  #sessionErr { font-size: 12px; color: var(--danger); }
+  /* ===== drawer tabs (voice + session prompt share the right slide-out) ===== */
+  .vd-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+  .vd-tabs button { flex: 1; padding: 7px 8px; font: 700 11px Lato, sans-serif; letter-spacing: .08em;
+    text-transform: uppercase; cursor: pointer; color: var(--mute); background: transparent;
+    border: 1px solid var(--line); border-radius: 5px; }
+  .vd-tabs button.sel { color: var(--accent); background: var(--accent-soft); border-color: var(--accent-line); }
+  /* ===== session prompt editor (system prompt behind session reflection) ===== */
+  #sessionPromptText { width: 100%; min-height: 300px; padding: 12px 13px;
+    font: 13px/1.65 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--ink-sheet);
+    background: var(--bg-editor); border: 1px solid var(--line-btn); border-radius: 8px;
+    outline: none; resize: vertical; }
+  #sessionPromptText:focus { border-color: var(--accent-line); }
+  #promptSave { padding: 7px 14px; font: 600 12px Lato, sans-serif; cursor: pointer;
+    color: #06202e; background: var(--accent); border: none; border-radius: 6px; }
+  #promptSave:disabled { opacity: .55; cursor: wait; }
+  #promptReset { padding: 7px 14px; font: 600 12px Lato, sans-serif; cursor: pointer;
+    color: var(--ink); background: var(--close-bg); border: 1px solid var(--line-btn); border-radius: 6px; }
+  #promptNote { font-size: 11.5px; color: var(--mute); }
+  #promptErr { font-size: 11.5px; color: var(--danger); padding: 0 16px 12px; }
+  #promptErr:empty { display: none; }
   #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 26px;
     max-width: 1200px; margin: 0 auto; }
   .letter { position: relative; min-height: 210px; padding: 20px 22px; cursor: pointer;
-    background: #14161f; border: 1px solid rgba(255,255,255,.09); border-radius: 4px;
-    box-shadow: 0 10px 28px rgba(0,0,0,.5); transition: transform .15s, box-shadow .15s;
+    background: var(--bg-card); border: 1px solid var(--line); border-radius: 4px;
+    box-shadow: var(--shadow); transition: transform .15s, box-shadow .15s;
     display: flex; flex-direction: column; overflow: hidden; }
   .letter:nth-child(3n)   { rotate: 0.7deg; }
   .letter:nth-child(3n+1) { rotate: -0.6deg; }
-  .letter:hover { transform: translateY(-5px); box-shadow: 0 18px 42px rgba(0,0,0,.65);
-    border-color: rgba(125,211,252,.4); rotate: 0deg; }
-  /* ruled paper lines */
+  .letter:hover { transform: translateY(-5px); box-shadow: var(--shadow-hover);
+    border-color: var(--accent-line); rotate: 0deg; }
   .letter .rule { position: absolute; inset: 0; pointer-events: none; opacity: .5;
-    background: repeating-linear-gradient(transparent, transparent 27px, rgba(255,255,255,.045) 27px, rgba(255,255,255,.045) 28px);
+    background: repeating-linear-gradient(transparent, transparent 27px, var(--rule) 27px, var(--rule) 28px);
     background-position-y: 58px; }
-  .letter .date { font-size: 11px; color: #64748b; letter-spacing: .06em; text-align: right; }
-  .letter h3 { font-size: 16.5px; font-weight: 700; color: #e8eaf0; margin: 8px 0 10px; line-height: 1.25; }
-  .letter .prev { font-size: 12.5px; line-height: 28px; color: #94a3b8; flex: 1;
+  .letter .date { font-size: 11px; color: var(--mute); letter-spacing: .06em; text-align: right; }
+  .letter h3 { font-size: 16.5px; font-weight: 700; color: var(--ink-title); margin: 8px 0 10px; line-height: 1.25; }
+  .letter .prev { font-size: 12.5px; line-height: 28px; color: var(--ink-prev); flex: 1;
     display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
   .letter .del { position: absolute; top: 8px; left: 10px; border: none; background: none; color: transparent;
     font-size: 13px; cursor: pointer; }
-  .letter:hover .del { color: #64748b; }
-  .letter .del:hover { color: #f87171; }
+  .letter:hover .del { color: var(--mute); }
+  .letter .del:hover { color: var(--danger); }
   .letter.new { align-items: center; justify-content: center; border-style: dashed;
-    border-color: rgba(125,211,252,.35); background: rgba(125,211,252,.04); color: #7dd3fc;
+    border-color: var(--accent-line); background: var(--bg-new); color: var(--accent);
     font-weight: 600; font-size: 14px; min-height: 210px; rotate: 0deg; }
-  .letter.new:hover { background: rgba(125,211,252,.09); }
+  .letter.new:hover { background: var(--bg-new-hover); }
   .letter.new .plus { font-size: 34px; margin-bottom: 8px; font-weight: 400; }
 
   /* ===== editor: full-screen letter ===== */
-  #editor { position: fixed; inset: 0; z-index: 20; display: none; background: #0b0d15; overflow-y: auto; }
+  #editor { position: fixed; inset: 0; z-index: 20; display: none; background: var(--bg-editor); overflow-y: auto; }
   #editor.show { display: block; }
   #ehead { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between;
-    padding: 14px 22px; background: rgba(11,13,21,.92); backdrop-filter: blur(8px);
-    border-bottom: 1px solid rgba(255,255,255,.06); }
-  #ehead .meta { font-size: 12px; color: #64748b; }
-  #ehead .meta b { color: #94a3b8; }
-  #closeBtn { width: 34px; height: 34px; border-radius: 10px; border: 1px solid rgba(255,255,255,.14);
-    background: rgba(255,255,255,.05); color: #e2e8f0; font-size: 15px; cursor: pointer; }
+    padding: 14px 22px; background: var(--bg-head); backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line-soft); }
+  #ehead .meta { font-size: 12px; color: var(--mute); min-width: 0; flex: 1; margin-right: 16px; }
+  #ehead .meta b { color: var(--ink-prev); }
+  #epath { display: block; margin-top: 4px; font: 11px ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--faint); cursor: pointer; word-break: break-all; }
+  #epath:hover { color: var(--mute); }
+  #epath:empty { display: none; }
+  #closeBtn { width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--line-btn);
+    background: var(--close-bg); color: var(--ink); font-size: 15px; cursor: pointer; }
   #closeBtn:hover { background: #ef4444; color: #fff; border-color: transparent; }
   #paper { max-width: 720px; margin: 34px auto 120px; padding: 46px 54px; min-height: 70vh;
-    background: #12141d; border: 1px solid rgba(255,255,255,.07); border-radius: 4px;
-    box-shadow: 0 24px 60px rgba(0,0,0,.55); }
-  #sheet { outline: none; min-height: 60vh; font-size: 16px; line-height: 1.75; color: #dfe3ea;
-    caret-color: #7dd3fc; }
-  #sheet:empty::before { content: 'Dear me,'; color: #475569; }
-  /* obsidian-ish typography */
-  #sheet h1 { font-size: 27px; line-height: 1.3; margin: .5em 0 .3em; color: #f1f5f9; }
-  #sheet h2 { font-size: 21px; line-height: 1.3; margin: .6em 0 .25em; color: #eef2f7; }
-  #sheet h3 { font-size: 17.5px; margin: .6em 0 .2em; color: #e2e8f0; }
+    background: var(--bg-paper); border: 1px solid var(--line-paper); border-radius: 4px;
+    box-shadow: var(--shadow-paper); }
+  #sheet { outline: none; min-height: 60vh; font-size: 16px; line-height: 1.75; color: var(--ink-sheet);
+    caret-color: var(--accent); }
+  #sheet:empty::before { content: 'Dear me,'; color: var(--faint); }
+  #sheet h1 { font-size: 27px; line-height: 1.3; margin: .5em 0 .3em; color: var(--ink-h1); }
+  #sheet h2 { font-size: 21px; line-height: 1.3; margin: .6em 0 .25em; color: var(--ink-h2); }
+  #sheet h3 { font-size: 17.5px; margin: .6em 0 .2em; color: var(--ink); }
   #sheet ul, #sheet ol { padding-left: 1.5em; margin: .25em 0; }
   #sheet li { margin: .15em 0; }
-  #sheet blockquote { border-left: 3px solid #7dd3fc; padding: .1em 0 .1em 1em; margin: .4em 0;
-    color: #a8b3c4; }
-  #sheet code { background: rgba(125,211,252,.12); border-radius: 4px; padding: .08em .35em;
-    font-size: .92em; color: #9bdcfd; }
-  #sheet b, #sheet strong { color: #f1f5f9; }
-  #savestat { font-size: 11px; color: #475569; }
-  #mdhint { max-width: 720px; margin: 10px auto 0; text-align: center; font-size: 11.5px; color: #3f4a5c; }
-  #mdhint b { color: #5b6b82; }
+  #sheet blockquote { border-left: 3px solid var(--accent); padding: .1em 0 .1em 1em; margin: .4em 0;
+    color: var(--ink-quote); }
+  #sheet code { background: var(--bg-code); border-radius: 4px; padding: .08em .35em;
+    font-size: .92em; color: var(--ink-code); }
+  #sheet b, #sheet strong { color: var(--ink-h1); }
+  #savestat { font-size: 11px; color: var(--faint); }
+  #mdhint { max-width: 720px; margin: 10px auto 0; text-align: center; font-size: 11.5px; color: var(--hint); }
+  #mdhint b { color: var(--hint-b); }
+  #ehead .eactions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+  #histBtn { padding: 6px 12px; font: 600 11.5px Lato, sans-serif; letter-spacing: .06em;
+    color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-line);
+    border-radius: 4px; cursor: pointer; }
+  #histBtn:hover { background: var(--accent-hover); }
+  #histBtn.on { background: var(--accent-hover); }
+
+  /* ===== inline rewrite popup (select -> voice rewrite in place) ===== */
+  #rwPop { position: fixed; z-index: 60; width: 350px; max-width: calc(100vw - 32px);
+    background: var(--bg-card); border: 1px solid var(--accent-line); border-radius: 10px;
+    box-shadow: var(--shadow-hover); padding: 12px 13px; display: none; }
+  #rwPop.show { display: block; }
+  #rwPop .rw-sel { font-size: 11.5px; color: var(--faint); margin-bottom: 8px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #rwPrompt { width: 100%; padding: 8px 10px; font: 13px Lato, sans-serif; color: var(--ink-sheet);
+    background: var(--bg-editor); border: 1px solid var(--line-btn); border-radius: 6px; outline: none; }
+  #rwPrompt:focus { border-color: var(--accent-line); }
+  #rwPop .rw-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+  #rwGo, #rwAccept { padding: 7px 13px; font: 600 12px Lato, sans-serif; cursor: pointer;
+    color: #06202e; background: var(--accent); border: none; border-radius: 6px; }
+  #rwGo:disabled { opacity: .45; cursor: default; }
+  #rwDeny, #rwDeny2 { padding: 7px 13px; font: 600 12px Lato, sans-serif; cursor: pointer;
+    color: var(--ink); background: var(--close-bg); border: 1px solid var(--line-btn); border-radius: 6px; }
+  #rwErr { font-size: 11.5px; color: var(--danger); margin-top: 6px; }
+  #rwErr:empty { display: none; }
+  .rw-diff { margin-top: 10px; max-height: 220px; overflow-y: auto; padding: 10px 11px;
+    font-size: 13.5px; line-height: 1.6; color: var(--ink-sheet);
+    background: var(--bg-editor); border: 1px solid var(--line-soft); border-radius: 6px; }
+  .rw-diff:empty { display: none; }
+  .rw-diff del { background: rgba(248,113,113,.16); color: #f87171;
+    text-decoration: line-through; border-radius: 3px; padding: 0 2px; }
+  .rw-diff ins { background: rgba(74,222,128,.14); color: #4ade80;
+    text-decoration: none; border-radius: 3px; padding: 0 2px; }
+
+  /* ===== version history panel (persisted per-letter timeline) ===== */
+  #histPanel { position: fixed; top: 64px; right: 16px; bottom: 16px; width: 300px; z-index: 30;
+    display: none; flex-direction: column; background: var(--bg-card);
+    border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow-hover); overflow: hidden; }
+  #histPanel.show { display: flex; }
+  #histPanel .hp-head { display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 14px; border-bottom: 1px solid var(--line-soft);
+    font: 700 11px Lato, sans-serif; letter-spacing: .12em; color: var(--accent); }
+  #histClose { width: 26px; height: 26px; border-radius: 7px; border: 1px solid var(--line-btn);
+    background: var(--close-bg); color: var(--ink); font-size: 12px; cursor: pointer; }
+  #histClose:hover { background: #ef4444; color: #fff; border-color: transparent; }
+  #histList { flex: 1; overflow-y: auto; padding: 10px 12px 16px;
+    display: flex; flex-direction: column; gap: 8px; }
+  .hist-empty { font-size: 12px; color: var(--faint); line-height: 1.6; }
+  .hist-row { border: 1px solid var(--line-soft); border-radius: 8px; padding: 9px 11px;
+    font-size: 12px; line-height: 1.55; }
+  .hist-row .hp-prompt { color: var(--ink); font-weight: 700; }
+  .hist-row .hp-when { color: var(--mute); font-size: 10.5px; margin: 2px 0 6px; }
+  .hist-row .hp-snip { color: var(--ink-prev); max-height: 84px; overflow: hidden;
+    display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; }
+  .hist-row .hp-snip b { color: var(--ink); font-weight: 600; }
+  .hist-row .hp-revert { margin-top: 7px; font: 600 11px Lato, sans-serif; color: var(--accent);
+    background: none; border: none; cursor: pointer; padding: 0; }
+  .hist-row .hp-revert:hover { text-decoration: underline; }
+  .hist-row .hp-revert:disabled { opacity: .5; cursor: wait; }
+
+  /* ===== star exemplars on gallery cards ===== */
+  .letter .star { position: absolute; top: 8px; right: 10px; border: none; background: none;
+    font-size: 15px; line-height: 1; cursor: pointer; color: var(--faint); z-index: 2; }
+  .letter:hover .star { color: var(--mute); }
+  .letter .star.on { color: #fbbf24; }
+  .letter .star:hover { color: #fbbf24; }
+
+  /* ===== voice drawer (tune-as-you-go) ===== */
+  /* (Top-bar Voice button removed — the VOICE edge handle + ⌘J open this drawer.) */
+  /* Drawer chrome (handle, edge-hover, sliding panel) lives in slideout.js — the shared
+     component used here and on EXECUTE. #voiceHandle/#edgeHover/#voiceDrawer carry its
+     .slideout-* classes; only this page's inner content is styled below. */
+  #runsList { display: flex; flex-direction: column; gap: 6px; max-height: 34vh; overflow-y: auto; }
+  .run-row { border: 1px solid var(--line-soft); border-radius: 6px; padding: 8px 10px; font: 12px Lato, sans-serif; }
+  .run-row .run-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .run-row .run-when { color: var(--mute); font-size: 11px; white-space: nowrap; }
+  .run-row .run-in { color: var(--ink); margin: 2px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .run-row .run-fb { color: var(--ink-quote); font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .run-row .run-fb.pending { color: var(--faint); font-style: normal; }
+  .run-row .run-revert { font: 600 10.5px Lato, sans-serif; color: var(--accent); background: none; border: none; cursor: pointer; padding: 0; }
+  .run-row .run-revert:hover { text-decoration: underline; }
+  #vdhead { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px 12px;
+    border-bottom: 1px solid var(--line-soft); }
+  #vdhead .t { font: 700 13px Lato, sans-serif; letter-spacing: .14em; color: var(--accent); }
+  #vdhead .status { font-size: 11px; color: var(--mute); margin-top: 3px; }
+  #vdclose { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--line-btn);
+    background: var(--close-bg); color: var(--ink); font-size: 14px; cursor: pointer; }
+  #vdclose:hover { background: #ef4444; color: #fff; border-color: transparent; }
+  #vdbody { flex: 1; overflow-y: auto; padding: 16px 18px 40px; }
+  .vd-sec { margin-bottom: 22px; }
+  .vd-sec > label { display: block; font: 700 10.5px Lato, sans-serif; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--mute); margin-bottom: 8px; }
+  .vd-hint { font-size: 11.5px; color: var(--faint); line-height: 1.5; margin: -2px 0 8px; }
+  #voiceProfile { width: 100%; min-height: 240px; resize: vertical; padding: 12px 13px;
+    font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; line-height: 1.6;
+    color: var(--ink-sheet); background: var(--bg-paper); border: 1px solid var(--line-paper);
+    border-radius: 6px; outline: none; }
+  #voiceProfile:focus { border-color: var(--accent-line); }
+  .vd-btn { padding: 8px 14px; font: 600 12px Lato, sans-serif; letter-spacing: .04em;
+    color: var(--accent-ink, #06202c); background: var(--accent); border: none; border-radius: 5px; cursor: pointer; }
+  .vd-btn:hover { filter: brightness(1.08); }
+  .vd-btn:disabled { opacity: .55; cursor: wait; }
+  .vd-btn.ghost { color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-line); }
+  .vd-btn.ghost:hover { background: var(--accent-hover); filter: none; }
+  .vd-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .vd-err { font-size: 11.5px; color: var(--danger); margin-top: 6px; }
+  .vd-note { font-size: 11.5px; color: var(--mute); margin-top: 6px; }
+  .kind-tabs { display: flex; gap: 6px; margin-bottom: 8px; }
+  .kind-tabs button { flex: 1; padding: 7px 8px; font: 600 11.5px Lato, sans-serif; cursor: pointer;
+    color: var(--mute); background: transparent; border: 1px solid var(--line); border-radius: 5px; }
+  .kind-tabs button.sel { color: var(--accent); background: var(--accent-soft); border-color: var(--accent-line); }
+  #sampleLabel, #sampleText, #testIn { width: 100%; padding: 9px 11px; font: 13px Lato, sans-serif;
+    color: var(--ink-sheet); background: var(--bg-paper); border: 1px solid var(--line-paper);
+    border-radius: 6px; outline: none; margin-bottom: 8px; }
+  #sampleText { min-height: 96px; resize: vertical; line-height: 1.5; }
+  #sampleText:focus, #sampleLabel:focus, #testIn:focus, #testInstr:focus { border-color: var(--accent-line); }
+  #testInstr { width: 100%; padding: 8px 11px; font: 12.5px Lato, sans-serif; color: var(--ink-sheet);
+    background: var(--bg-paper); border: 1px solid var(--line-paper); border-radius: 6px; outline: none; margin-bottom: 8px; }
+  .sample-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+  .sample-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; font-size: 12px;
+    background: var(--bg-paper); border: 1px solid var(--line-soft); border-radius: 5px; }
+  .sample-item .badge { font: 700 9px Lato, sans-serif; letter-spacing: .08em; text-transform: uppercase;
+    padding: 2px 6px; border-radius: 3px; }
+  .sample-item .badge.mine { color: var(--accent); background: var(--accent-soft); }
+  .sample-item .badge.inspiration { color: #fbbf24; background: rgba(251,191,36,.12); }
+  .sample-item .lbl { flex: 1; color: var(--ink-prev); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sample-item .rm { border: none; background: none; color: var(--faint); cursor: pointer; font-size: 13px; }
+  .sample-item .rm:hover { color: var(--danger); }
+  #testOut { margin-top: 10px; padding: 12px 13px; font: 14px Lato, sans-serif; line-height: 1.6;
+    color: var(--ink-sheet); background: var(--bg-paper); border: 1px solid var(--line-paper);
+    border-radius: 6px; white-space: pre-wrap; min-height: 20px; }
+  #testOut:empty { display: none; }
+
+  /* ===== inspiration ideas inbox (routed from ingest) ===== */
+  #inboxWrap { max-width: 1200px; margin: 0 auto 26px; display: none; }
+  #inboxWrap.show { display: block; }
+  #inboxTitle { font-size: 11px; font-weight: 700; letter-spacing: .16em; color: var(--mute); margin-bottom: 12px; }
+  #inboxTitle b { color: var(--accent); }
+  #inboxRow { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+  .idea { position: relative; padding: 18px 20px 16px; cursor: default;
+    background: linear-gradient(160deg, var(--bg-card), var(--bg-paper));
+    border: 1px solid var(--accent-line); border-radius: 8px; box-shadow: var(--shadow);
+    display: flex; flex-direction: column; gap: 8px; }
+  .idea .eyebrow { font-size: 9.5px; font-weight: 700; letter-spacing: .22em; color: var(--accent); }
+  .idea h3 { font-size: 16px; font-weight: 700; color: var(--ink-title); line-height: 1.3; }
+  .idea .prev { font-size: 12.5px; line-height: 1.55; color: var(--ink-prev); }
+  .idea .pill { align-self: flex-start; font-size: 10px; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--mute); background: var(--bg-new);
+    border: 1px solid var(--line); border-radius: 20px; padding: 2px 9px; }
+  .idea .pill.hot { color: var(--accent); border-color: var(--accent-line); }
+  .idea .row { display: flex; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
+  .idea button { padding: 7px 13px; font: 600 12px Lato, sans-serif; border-radius: 5px; cursor: pointer; }
+  .idea .accept { color: var(--accent-ink, #06202c); background: var(--accent); border: none; }
+  .idea .accept:hover { filter: brightness(1.08); }
+  .idea .open { color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-line); }
+  .idea .open:hover { background: var(--accent-hover); }
+  .idea .dismiss { color: var(--mute); background: transparent; border: 1px solid var(--line); }
+  .idea .dismiss:hover { color: var(--danger); border-color: var(--danger); }
+  .idea button:disabled { opacity: .55; cursor: wait; }
+
+  /* ===== thread overlay (one chat per article) ===== */
+  #thread { position: fixed; inset: 0; z-index: 25; display: none; background: var(--bg-editor); overflow-y: auto; }
+  #thread.show { display: block; }
+  #thead { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 12px;
+    padding: 14px 22px; background: var(--bg-head); backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line-soft); flex-wrap: wrap; }
+  #thead .tt { flex: 1; min-width: 200px; }
+  #thead .tt b { color: var(--ink-prev); font-size: 14px; }
+  #thead .tt .sub { font-size: 11px; color: var(--faint); margin-top: 2px; }
+  #thead .stage { display: flex; gap: 6px; flex-wrap: wrap; }
+  #thead .stage button { padding: 6px 11px; font: 600 11.5px Lato, sans-serif; letter-spacing: .03em;
+    color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-line);
+    border-radius: 5px; cursor: pointer; }
+  #thead .stage button:hover:not(:disabled) { background: var(--accent-hover); }
+  #thead .stage button:disabled { opacity: .55; cursor: wait; }
+  #thead .stage button.primary { color: var(--accent-ink, #06202c); background: var(--accent); border: none; }
+  #tclose { width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--line-btn);
+    background: var(--close-bg); color: var(--ink); font-size: 15px; cursor: pointer; flex: none; }
+  #tclose:hover { background: #ef4444; color: #fff; border-color: transparent; }
+  #tmsgs { max-width: 720px; margin: 26px auto 12px; padding: 0 20px; display: flex; flex-direction: column; gap: 14px; }
+  .tmsg { padding: 14px 16px; border-radius: 8px; font-size: 14px; line-height: 1.65; }
+  .tmsg.user { align-self: flex-end; max-width: 85%; background: var(--accent-soft);
+    border: 1px solid var(--accent-line); color: var(--ink-sheet); white-space: pre-wrap; }
+  .tmsg.user .kind { display: block; font-size: 9.5px; font-weight: 700; letter-spacing: .18em;
+    color: var(--accent); margin-bottom: 6px; }
+  .tmsg.asst { background: var(--bg-paper); border: 1px solid var(--line-paper); color: var(--ink-sheet); }
+  .tmsg.asst h2 { font-size: 16px; margin: .2em 0 .4em; color: var(--ink-h1); }
+  .tmsg.asst h3 { font-size: 14px; margin: .8em 0 .3em; color: var(--ink-h2); }
+  .tmsg.asst p { margin: 0 0 .6em; }
+  .tmsg.asst ul { padding-left: 1.4em; margin: .2em 0 .6em; }
+  .tmsg.asst li { margin: .2em 0; }
+  .tmsg.asst a { color: var(--accent); }
+  .tmsg.asst em { color: var(--ink-quote); }
+  #tinputBar { max-width: 720px; margin: 6px auto 60px; padding: 0 20px; }
+  #tinputRow { display: flex; gap: 8px; align-items: flex-end; }
+  #tinput { flex: 1; min-height: 52px; resize: vertical; padding: 10px 12px; font: 13.5px Lato, sans-serif;
+    line-height: 1.5; color: var(--ink-sheet); background: var(--bg-paper);
+    border: 1px solid var(--line-paper); border-radius: 8px; outline: none; }
+  #tinput:focus { border-color: var(--accent-line); }
+  #tsend, #tdict { flex: none; padding: 10px 14px; font: 600 12.5px Lato, sans-serif; border-radius: 7px; cursor: pointer; }
+  #tsend { color: var(--accent-ink, #06202c); background: var(--accent); border: none; }
+  #tsend:hover:not(:disabled) { filter: brightness(1.08); }
+  #tdict { color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-line); }
+  #tdict:hover:not(:disabled) { background: var(--accent-hover); }
+  #tdict.rec { color: #fecaca; background: rgba(248,113,113,.14); border-color: rgba(248,113,113,.4); }
+  #tsend:disabled, #tdict:disabled { opacity: .55; cursor: wait; }
+  #terr { font-size: 12px; color: var(--danger); margin-top: 8px; min-height: 16px; }
+  #thint { font-size: 11.5px; color: var(--hint); margin-top: 4px; }
 </style>
 </head>
 <body>
   <div id="gallery">
-    <div id="gtitle">LETTERS</div>
+    <div id="ghead">
+      <div id="gtitle">WRITING</div>
+      <div id="gdir" title=""></div>
+      <button id="sessionBtn" type="button" title="Write a session-reflection letter from the last hour of hub work">✨ Session Reflection</button>
+      <div id="sessionErr"></div>
+    </div>
+    <div id="inboxWrap">
+      <div id="inboxTitle">INSPIRATION IDEAS <b id="inboxCount"></b> <span style="font-weight:400;letter-spacing:.02em;">— routed from Ingest · accept one to start writing it</span></div>
+      <div id="inboxRow"></div>
+    </div>
     <div id="grid"></div>
+  </div>
+  <div id="edgeHover" class="slideout-edge" aria-hidden="true"></div>
+  <div id="voiceHandle" class="slideout-handle" title="Voice (⌘J) — or hover the right edge">VOICE</div>
+  <div id="voiceDrawer" class="slideout-panel" aria-hidden="true">
+    <div id="vdhead">
+      <div>
+        <div class="t">VOICE</div>
+        <div class="status" id="vdStatus">—</div>
+      </div>
+      <button id="vdclose" type="button" title="close">✕</button>
+    </div>
+    <div id="vdbody">
+      <div class="vd-tabs">
+        <button type="button" data-vtab="voice" class="sel">Voice</button>
+        <button type="button" data-vtab="prompt">Prompt</button>
+      </div>
+      <div id="vdVoicePane">
+
+      <div class="vd-sec">
+        <label>Teach it your voice</label>
+        <div class="vd-hint">This is how it learns to sound like you, not like AI. Star letters you're proud of, or paste writing below — your own, or writers you admire.</div>
+        <div class="kind-tabs">
+          <button type="button" data-kind="mine" class="sel">My writing</button>
+          <button type="button" data-kind="inspiration">Inspiration</button>
+        </div>
+        <input id="sampleLabel" type="text" placeholder="Label (e.g. 'my best essay', 'Orwell — Politics & the English Language')" />
+        <textarea id="sampleText" placeholder="Paste the writing here…"></textarea>
+        <div class="vd-row">
+          <button id="addSampleBtn" type="button" class="vd-btn ghost">Add sample</button>
+        </div>
+        <div id="sampleErr" class="vd-err"></div>
+        <div class="sample-list" id="sampleList"></div>
+      </div>
+
+      <div class="vd-sec">
+        <div class="vd-row" style="justify-content: space-between;">
+          <label style="margin:0;">Voice profile</label>
+          <button id="buildBtn" type="button" class="vd-btn">Learn my voice</button>
+        </div>
+        <div class="vd-hint">Editable. Argue with it — delete a line that isn't you, add one that is. Saved as you type.</div>
+        <textarea id="voiceProfile" placeholder="Not built yet — add a sample or star a letter, then hit “Learn my voice.”"></textarea>
+        <div id="buildErr" class="vd-err"></div>
+      </div>
+
+      <div class="vd-sec">
+        <label>Test it</label>
+        <div class="vd-hint">Paste a sentence and see how it reads in your voice, right now, with the profile above (unsaved edits included).</div>
+        <input id="testInstr" type="text" placeholder="Optional instruction (e.g. 'tighter', 'less formal')" />
+        <textarea id="testIn" placeholder="A sentence or paragraph to rewrite…" style="min-height:70px;"></textarea>
+        <div class="vd-row">
+          <button id="testBtn" type="button" class="vd-btn ghost">Rewrite</button>
+        </div>
+        <div id="testErr" class="vd-err"></div>
+        <div id="testOut"></div>
+        <div class="vd-row" id="testToAgentRow" hidden style="margin-top:8px;">
+          <button id="testToAgent" type="button" class="vd-btn ghost">To Agent →</button>
+          <span class="vd-hint" style="margin:0;">drops this into the Live chat, ready to send</span>
+        </div>
+        <div id="testFeedback" hidden style="margin-top:10px;">
+          <div class="vd-hint">Not quite you? Say what's off or what you want more of — it folds into your voice profile.</div>
+          <textarea id="fbText" placeholder="e.g. too formal, I'd never say 'utilize'; keep the short punchy closer…" style="min-height:56px;"></textarea>
+          <div class="vd-row">
+            <button id="applyFbBtn" type="button" class="vd-btn">Apply to voice</button>
+            <span id="fbNote" class="vd-hint" style="margin:0;"></span>
+          </div>
+          <div id="fbErr" class="vd-err"></div>
+        </div>
+      </div>
+
+      <div class="vd-sec">
+        <div class="vd-row" style="justify-content: space-between;">
+          <label style="margin:0;">Runs</label>
+          <span id="runsCount" class="vd-hint" style="margin:0;"></span>
+        </div>
+        <div class="vd-hint">Every rewrite → feedback → update loop, newest first. Revert rolls the voice back to just before that run.</div>
+        <div id="runsList"></div>
+      </div>
+
+      </div><!-- /vdVoicePane -->
+      <div id="vdPromptPane" hidden>
+        <div class="vd-sec">
+          <label>Session reflection prompt</label>
+          <div class="vd-hint">System prompt behind “✨ Session Reflection.” Saved on the server, used on the next run.</div>
+          <textarea id="sessionPromptText" spellcheck="false"></textarea>
+          <div class="vd-row">
+            <button id="promptSave" type="button" class="vd-btn">Save prompt</button>
+            <button id="promptReset" type="button" class="vd-btn ghost">Reset to default</button>
+          </div>
+          <div id="promptNote" class="vd-note"></div>
+          <div id="promptErr" class="vd-err"></div>
+        </div>
+
+        <div class="vd-sec">
+          <label>Test it</label>
+          <div class="vd-hint">Runs the prompt above (unsaved edits included) over the real last hour and previews the letter — nothing is saved.</div>
+          <div class="vd-row">
+            <button id="promptTestBtn" type="button" class="vd-btn ghost">Run test on last hour</button>
+          </div>
+          <div id="promptTestErr" class="vd-err"></div>
+          <div id="promptTestTitle" style="font-weight:650;margin-top:8px;"></div>
+          <div id="promptTestOut" style="white-space:pre-wrap;margin-top:6px;max-height:320px;overflow:auto;"></div>
+          <div class="vd-row" id="promptToAgentRow" hidden style="margin-top:8px;">
+            <button id="promptToAgent" type="button" class="vd-btn ghost">To Agent →</button>
+            <span class="vd-hint" style="margin:0;">drops this into the Live chat, ready to send</span>
+          </div>
+          <div id="promptTestFeedback" hidden style="margin-top:10px;">
+            <div class="vd-hint">Not quite it? Say what's off — it folds into the prompt above.</div>
+            <textarea id="promptFbText" placeholder="e.g. too much play-by-play of my commands; reflect on what it meant…" style="min-height:56px;"></textarea>
+            <div class="vd-row">
+              <button id="promptApplyFbBtn" type="button" class="vd-btn">Apply to prompt</button>
+              <span id="promptFbNote" class="vd-hint" style="margin:0;"></span>
+            </div>
+            <div id="promptFbErr" class="vd-err"></div>
+          </div>
+        </div>
+
+        <div class="vd-sec">
+          <div class="vd-row" style="justify-content: space-between;">
+            <label style="margin:0;">Runs</label>
+            <span id="promptRunsCount" class="vd-hint" style="margin:0;"></span>
+          </div>
+          <div class="vd-hint">Every test → feedback → update loop, newest first. Revert rolls the prompt back to just before that run.</div>
+          <div id="promptRunsList"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="thread">
+    <div id="thead">
+      <div class="tt"><b id="ttitle">Idea</b><div class="sub" id="tsub"></div></div>
+      <div class="stage">
+        <button id="stageResearch" type="button" title="Research heavily: primary + secondary sources and real data">Research</button>
+        <button id="stageOptions" type="button" title="Plan 2–3 thesis + structure options">Plan options</button>
+        <button id="stageDraft" type="button" class="primary" title="Draft the article in your voice">Draft</button>
+        <button id="stageOpen" type="button" title="Open the draft in the editor for end-to-end reading + line edits">Open in editor</button>
+      </div>
+      <button id="tclose" title="close (Esc)">✕</button>
+    </div>
+    <div id="tmsgs"></div>
+    <div id="tinputBar">
+      <div id="tinputRow">
+        <textarea id="tinput" placeholder="Reply — pick an option, combine them, redirect me… (or dictate with the mic)"></textarea>
+        <button id="tdict" type="button" title="Dictate a voice note">◉</button>
+        <button id="tsend" type="button">Send</button>
+      </div>
+      <div id="terr"></div>
+      <div id="thint">Your reply guides the draft. Text or dictated voice note — both land in this thread.</div>
+    </div>
   </div>
 
   <div id="editor">
     <div id="ehead">
-      <div class="meta"><b id="etitle">New letter</b> · <span id="edate"></span> · <span id="savestat"></span></div>
-      <button id="closeBtn" title="close (Esc)">✕</button>
+      <div class="meta">
+        <div><b id="etitle">New letter</b> · <span id="edate"></span> · <span id="savestat"></span></div>
+        <div id="epath"></div>
+      </div>
+      <div class="eactions">
+        <button id="histBtn" type="button" title="Version history for this letter">History</button>
+        <button id="closeBtn" title="close (Esc)">✕</button>
+      </div>
     </div>
     <div id="paper"><div id="sheet" contenteditable="true" spellcheck="true"></div></div>
-    <div id="mdhint"><b># </b>heading · <b>- </b>list · <b>> </b>quote · <b>**bold**</b> · <b>*italic*</b> · <b>`code`</b> · <b>⌘B/⌘I</b></div>
+    <div id="mdhint"><b># </b>heading · <b>- </b>list · <b>> </b>quote · <b>**bold**</b> · <b>*italic*</b> · <b>`code`</b> · <b>⌘B/⌘I</b> · select text to rewrite it in your voice</div>
+  </div>
+  <div id="rwPop" aria-hidden="true">
+    <div class="rw-sel" id="rwSel"></div>
+    <input id="rwPrompt" type="text" placeholder="How to rewrite? (e.g. more formal) — required" />
+    <div class="rw-row" id="rwStagePrompt">
+      <button id="rwGo" type="button" disabled>Rewrite</button>
+      <button id="rwDeny" type="button">Dismiss</button>
+    </div>
+    <div class="rw-diff" id="rwDiff"></div>
+    <div class="rw-row" id="rwStageDiff" hidden>
+      <button id="rwAccept" type="button">Accept</button>
+      <button id="rwDeny2" type="button">Deny</button>
+    </div>
+    <div id="rwErr"></div>
+  </div>
+  <div id="histPanel" aria-hidden="true">
+    <div class="hp-head"><span>VERSION HISTORY</span><button id="histClose" type="button" title="close">✕</button></div>
+    <div id="histList"></div>
   </div>
 
 <script src="hub-client.js"></script>
+<script src="slideout.js"></script>
+<script src="ingest-drawer.js"></script>
 <script>
 if (location.protocol === 'file:') location.replace('http://localhost:4777/letters.html');
 HubClient.forwardNavKeys();   // 1–7 nav works from the gallery (not while writing — contenteditable is skipped)
+if (window.IngestDrawer) IngestDrawer.attach(); // global left-edge ingest tab (⌘I)
+// Routed from the ingest drawer -> refresh the inbox without a page reload.
+document.addEventListener('ingestdrawer:sent', (e) => {
+  if (e && e.detail && e.detail.dest === 'writing') {
+    try { loadIdeas(); } catch {}
+  }
+});
 
 const $ = (id) => document.getElementById(id);
 const grid = $('grid'), editor = $('editor'), sheet = $('sheet');
 let current = null;         // filename of the open letter
+let lettersDir = '';
 let saveT = null, dirty = false;
+let savedMd = '';   // last-saved content — writes (and mtime bumps) only happen when this differs
+
+// ===== voice drawer state (isolated from the editor) =====
+let voiceStars = {};        // { file: true } — starred exemplars
+let voiceSamples = [];      // in-app added samples
+let voiceUpdatedAt = null, voiceExists = false, voiceHasKey = false;
+let sampleKind = 'mine';
+let voiceSaveT = null;
+
+function filePathOf(file) {
+  if (!file) return '';
+  if (!lettersDir) return file;
+  return lettersDir.replace(/\/$/, '') + '/' + file;
+}
+function showPath(file) {
+  const el = $('epath');
+  const p = filePathOf(file);
+  el.textContent = p;
+  el.title = p ? p + ' — click to copy' : '';
+}
+async function copyPath(text, el) {
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    const prev = el.textContent;
+    el.textContent = 'copied';
+    setTimeout(() => { if (el.textContent === 'copied') el.textContent = prev; }, 900);
+  } catch {}
+}
 
 // ================= markdown <-> DOM (the subset the editor produces) =================
 function mdToDom(md) {
@@ -244,7 +781,9 @@ function scheduleSave() {
 async function save() {
   if (!current || !dirty) return;
   const md = domToMd(sheet);
+  if (md === savedMd) { dirty = false; $('savestat').textContent = 'saved'; return; }
   await fetch('/api/letter/' + current, { method: 'POST', body: md }).catch(() => {});
+  savedMd = md;
   dirty = false;
   $('savestat').textContent = 'saved';
   $('etitle').textContent = titleOf(md);
@@ -258,7 +797,17 @@ const fmtDate = (ms) => new Date(ms).toLocaleDateString(undefined, { year: 'nume
 // ================= gallery =================
 async function loadGallery() {
   let letters = [];
-  try { letters = await (await fetch('/api/letters')).json(); } catch (e) {}
+  try {
+    const data = await (await fetch('/api/letters')).json();
+    if (Array.isArray(data)) letters = data;
+    else {
+      lettersDir = data.dir || lettersDir;
+      letters = data.letters || [];
+    }
+  } catch (e) {}
+  const gdir = $('gdir');
+  gdir.textContent = lettersDir;
+  gdir.title = lettersDir ? lettersDir + ' — click to copy' : '';
   grid.innerHTML = '';
   const add = document.createElement('div');
   add.className = 'letter new';
@@ -271,16 +820,31 @@ async function loadGallery() {
     const title = titleOf(l.preview);
     const body = (l.preview || '').split('\n').filter(x => x.trim()).slice(1).join(' ')
       .replace(/[#*`>]/g, '').slice(0, 220);
+    const starred = !!voiceStars[l.file];
     el.innerHTML = `<div class="rule"></div><button class="del" title="delete">✕</button>` +
+      `<button class="star${starred ? ' on' : ''}" title="Star as a voice exemplar">${starred ? '★' : '☆'}</button>` +
       `<div class="date">${fmtDate(l.mtime)}</div><h3></h3><div class="prev"></div>`;
     el.querySelector('h3').textContent = title;
     el.querySelector('.prev').textContent = body || '…';
-    el.onclick = (e) => { if (!e.target.classList.contains('del')) openLetter(l.file); };
+    el.onclick = (e) => { if (!e.target.classList.contains('del') && !e.target.classList.contains('star')) openLetter(l.file); };
     el.querySelector('.del').onclick = async (e) => {
       e.stopPropagation();
       if (!confirm(`Delete "${title}"? The markdown file is removed.`)) return;
       await fetch('/api/letter/' + l.file, { method: 'DELETE' }).catch(() => {});
       loadGallery();
+    };
+    el.querySelector('.star').onclick = async (e) => {
+      e.stopPropagation();
+      const btn = e.target;
+      const on = !btn.classList.contains('on');
+      btn.classList.toggle('on', on);
+      btn.textContent = on ? '★' : '☆';
+      if (on) voiceStars[l.file] = true; else delete voiceStars[l.file];
+      try {
+        const r = await fetch('/api/writing/star', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ file: l.file, on }) });
+        const j = await r.json(); if (j.stars) voiceStars = j.stars;
+      } catch {}
+      updateVoiceStatus();
     };
     grid.appendChild(el);
   }
@@ -295,6 +859,7 @@ async function openLetter(file) {
     sheet.innerHTML = '';
     $('etitle').textContent = 'New letter';
     $('edate').textContent = fmtDate(Date.now());
+    savedMd = '';
     dirty = true;               // ensures even an empty first save creates the file on write
   } else {
     current = file;
@@ -302,29 +867,1008 @@ async function openLetter(file) {
     try { md = await (await fetch('/api/letter/' + file)).text(); } catch (e) {}
     sheet.innerHTML = '';
     sheet.appendChild(mdToDom(md));
+    savedMd = domToMd(sheet);   // roundtripped baseline — viewing without edits writes nothing
     $('etitle').textContent = titleOf(md);
     $('edate').textContent = '';
     dirty = false;
   }
+  showPath(current);
   $('savestat').textContent = '';
   editor.classList.add('show');
+  hideRwPop(); hideHist();
+  loadHist();
   sheet.focus();
 }
 async function closeLetter() {
   clearTimeout(saveT);
-  const md = domToMd(sheet);
-  if (current && md.trim()) { dirty = true; await save(); }
+  // save() writes only when the content actually differs from the last save —
+  // just viewing a letter never touches its mtime, so it never bumps to the top.
+  if (current && domToMd(sheet).trim()) await save();
   editor.classList.remove('show');
+  hideRwPop(); hideHist();
   current = null;
+  showPath('');
   loadGallery();
 }
 $('closeBtn').onclick = closeLetter;
+$('gdir').onclick = () => copyPath(lettersDir, $('gdir'));
+$('epath').onclick = () => copyPath(filePathOf(current), $('epath'));
 addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && $('rwPop').classList.contains('show')) { hideRwPop(); return; }
+  if (e.key === 'Escape' && $('histPanel').classList.contains('show')) { hideHist(); return; }
   if (e.key === 'Escape' && editor.classList.contains('show')) closeLetter();
   if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); dirty = true; save(); }
 });
 
+// ================= inline rewrite: select -> prompt -> voice rewrite in place =================
+// Selection popup calls the shared POST /api/writing/rewrite engine (voice profile +
+// exemplars, same as the Voice drawer Test box), previews a word diff, and swaps the
+// text in place on Accept. Every Accept appends to the persisted per-letter timeline.
+let rwRange = null, rwBefore = '', rwOutput = '', rwRunId = null, rwBusy = false;
+
+function rwSelText() {
+  const sel = getSelection();
+  if (!sel || !sel.rangeCount || sel.isCollapsed) return null;
+  const r = sel.getRangeAt(0);
+  if (!sheet.contains(r.commonAncestorContainer)) return null;
+  const text = sel.toString();
+  if (!text.trim()) return null;
+  return { sel, r, text };
+}
+function positionRwPop() {
+  if (!rwRange) return;
+  const pop = $('rwPop');
+  const rect = rwRange.getBoundingClientRect();
+  const w = 350, gap = 10;
+  let left = Math.min(Math.max(16, rect.left), Math.max(16, innerWidth - w - 16));
+  let top = rect.bottom + gap;
+  if (top + 260 > innerHeight) top = Math.max(70, rect.top - 260);
+  pop.style.left = left + 'px';
+  pop.style.top = top + 'px';
+}
+function openRwPop() {
+  const hit = rwSelText();
+  if (!hit || rwBusy) return;
+  rwRange = hit.r.cloneRange();
+  rwBefore = hit.text;
+  rwOutput = ''; rwRunId = null;
+  $('rwSel').textContent = rwBefore.trim().slice(0, 90) + (rwBefore.trim().length > 90 ? '…' : '');
+  $('rwPrompt').value = '';
+  $('rwGo').disabled = true;
+  $('rwGo').textContent = 'Rewrite';
+  $('rwErr').textContent = '';
+  $('rwDiff').innerHTML = '';
+  $('rwStagePrompt').hidden = false;
+  $('rwStageDiff').hidden = true;
+  const pop = $('rwPop');
+  pop.classList.add('show');
+  pop.setAttribute('aria-hidden', 'false');
+  positionRwPop();
+  setTimeout(() => $('rwPrompt').focus(), 30);
+}
+function hideRwPop() {
+  $('rwPop').classList.remove('show');
+  $('rwPop').setAttribute('aria-hidden', 'true');
+  rwRange = null; rwBefore = ''; rwOutput = ''; rwRunId = null; rwBusy = false;
+  $('rwGo').disabled = false;
+}
+function escH2(s) {
+  const d = document.createElement('div');
+  d.textContent = String(s == null ? '' : s);
+  return d.innerHTML;
+}
+// Minimal word diff (no new deps): LCS over whitespace-boundary tokens,
+// old-only -> <del> red, new-only -> <ins> green.
+function wordDiffHtml(oldText, newText) {
+  const tok = (s) => String(s || '').match(/\S+\s*/g) || [];
+  const a = tok(oldText), b = tok(newText);
+  const n = a.length, m = b.length;
+  if (!n && !m) return '';
+  const dp = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) {
+    dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+  }
+  let html = '', i = 0, j = 0;
+  while (i < n && j < m) {
+    if (a[i] === b[j]) { html += escH2(a[i]); i++; j++; }
+    else if (dp[i + 1][j] >= dp[i][j + 1]) { html += '<del>' + escH2(a[i]) + '</del>'; i++; }
+    else { html += '<ins>' + escH2(b[j]) + '</ins>'; j++; }
+  }
+  while (i < n) html += '<del>' + escH2(a[i++]) + '</del>';
+  while (j < m) html += '<ins>' + escH2(b[j++]) + '</ins>';
+  return html;
+}
+function insertRewriteText(range, text) {
+  range.deleteContents();
+  const sc = range.startContainer;
+  const parentEl = sc.nodeType === 1 ? sc : sc.parentElement;
+  const tight = parentEl && /^(LI|H1|H2|H3|BLOCKQUOTE|CODE|B|I|STRONG|EM)$/.test(parentEl.nodeName);
+  if (!/\n/.test(text) || tight || !parentEl || parentEl === sheet) {
+    if (parentEl === sheet) {
+      const d = document.createElement('div');
+      const parts = String(text).split('\n');
+      const frag = document.createDocumentFragment();
+      parts.forEach((ln) => {
+        const div = document.createElement('div');
+        if (ln) div.textContent = ln; else div.innerHTML = '<br>';
+        frag.appendChild(div);
+      });
+      range.insertNode(frag);
+      range.collapse(false);
+    } else {
+      range.insertNode(document.createTextNode(text));
+      range.collapse(false);
+    }
+    return;
+  }
+  const frag = document.createDocumentFragment();
+  String(text).split('\n').forEach((ln) => {
+    const d = document.createElement('div');
+    if (ln) d.textContent = ln; else d.innerHTML = '<br>';
+    frag.appendChild(d);
+  });
+  range.insertNode(frag);
+  range.collapse(false);
+}
+// Show on mouse + keyboard selections; ignore clicks inside the popup itself.
+sheet.addEventListener('mouseup', (e) => {
+  if ($('rwPop').contains(e.target)) return;
+  setTimeout(() => { if (editor.classList.contains('show')) openRwPop(); }, 20);
+});
+sheet.addEventListener('keyup', (e) => {
+  if (e.shiftKey || e.key.startsWith('Arrow')) {
+    if (editor.classList.contains('show')) openRwPop();
+  }
+});
+sheet.addEventListener('input', () => { if (rwRange && !rwBusy) hideRwPop(); });
+editor.addEventListener('scroll', () => { if (rwRange && !rwBusy) positionRwPop(); });
+$('rwPrompt').addEventListener('input', () => {
+  $('rwGo').disabled = !$('rwPrompt').value.trim();
+});
+$('rwPrompt').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && $('rwPrompt').value.trim() && !rwBusy) $('rwGo').click();
+  e.stopPropagation();
+});
+$('rwDeny').onclick = hideRwPop;
+$('rwDeny2').onclick = hideRwPop;
+$('rwGo').onclick = async () => {
+  const prompt = $('rwPrompt').value.trim();
+  if (!prompt || !rwBefore || rwBusy) return;
+  rwBusy = true;
+  $('rwGo').disabled = true;
+  $('rwGo').textContent = 'Rewriting…';
+  $('rwErr').textContent = '';
+  try {
+    const r = await fetch('/api/writing/rewrite', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: rwBefore, instruction: prompt }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || 'rewrite failed');
+    rwOutput = j.output || '';
+    rwRunId = j.runId || null;
+    if (!rwOutput.trim()) throw new Error('empty rewrite — try again');
+    $('rwDiff').innerHTML = wordDiffHtml(rwBefore, rwOutput);
+    $('rwStagePrompt').hidden = true;
+    $('rwStageDiff').hidden = false;
+  } catch (e) {
+    $('rwErr').textContent = e.message;
+    $('rwGo').disabled = false;
+  } finally {
+    rwBusy = false;
+    $('rwGo').textContent = 'Rewrite';
+  }
+};
+$('rwAccept').onclick = async () => {
+  if (!rwRange || !rwOutput) return;
+  if (!sheet.contains(rwRange.startContainer) && !sheet.contains(rwRange.endContainer)) {
+    $('rwErr').textContent = 'Selection moved — reselect the text and try again.';
+    return;
+  }
+  const err = $('rwErr');
+  const btn = $('rwAccept');
+  btn.disabled = true;
+  try {
+    const prompt = $('rwPrompt').value.trim();
+    const docBefore = domToMd(sheet);
+    const sel = getSelection();
+    sel.removeAllRanges();
+    sel.addRange(rwRange);
+    insertRewriteText(rwRange, rwOutput);
+    sel.removeAllRanges();
+    sel.addRange(rwRange);
+    sheet.normalize();
+    dirty = true;
+    await save();
+    const docAfter = domToMd(sheet);
+    try {
+      const hr = await fetch('/api/letter-history/' + current, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, before: rwBefore, after: rwOutput, docBefore, docAfter, runId: rwRunId }),
+      });
+      const hj = await hr.json().catch(() => ({}));
+      if (hr.ok && hj.entries) renderHist(hj.entries);
+    } catch {}
+    hideRwPop();
+  } catch (e) {
+    err.textContent = e.message;
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+// ================= version history: persisted per-letter timeline =================
+let histEntries = [];
+function hideHist() {
+  $('histPanel').classList.remove('show');
+  $('histPanel').setAttribute('aria-hidden', 'true');
+  $('histBtn').classList.remove('on');
+}
+async function loadHist() {
+  histEntries = [];
+  renderHist([]);
+  if (!current) return;
+  try {
+    const r = await fetch('/api/letter-history/' + current);
+    const j = await r.json();
+    if (r.ok && Array.isArray(j.entries)) { histEntries = j.entries; renderHist(histEntries); }
+  } catch {}
+}
+function renderHist(entries) {
+  const list = $('histList');
+  list.innerHTML = '';
+  if (!entries.length) {
+    list.innerHTML = '<div class="hist-empty">No rewrites yet. Select text in the letter to rewrite it in your voice — each Accept lands here so you can scroll back and undo.</div>';
+    return;
+  }
+  for (const e of entries) {
+    const row = document.createElement('div');
+    row.className = 'hist-row';
+    const when = new Date(e.ts || Date.now()).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    const snip = (e.after || e.docAfter || '').trim().slice(0, 160) || '(revert)';
+    row.innerHTML = `<div class="hp-prompt"></div><div class="hp-when"></div><div class="hp-snip"></div>`;
+    row.querySelector('.hp-prompt').textContent = (e.revertOf ? 'Revert — ' : '') + (e.prompt || 'Rewrite');
+    row.querySelector('.hp-when').textContent = when;
+    row.querySelector('.hp-snip').innerHTML = '<b>→</b> ' + escH2(snip);
+    const btn = document.createElement('button');
+    btn.className = 'hp-revert';
+    btn.type = 'button';
+    btn.textContent = 'Restore this version';
+    btn.onclick = () => revertHist(e.id, btn);
+    row.appendChild(btn);
+    list.appendChild(row);
+  }
+}
+async function revertHist(id, btn) {
+  const e = histEntries.find((x) => x.id === id);
+  if (!e || !current) return;
+  const target = e.docAfter != null && e.docAfter !== '' ? e.docAfter : e.after;
+  if (target == null) return;
+  btn.disabled = true;
+  try {
+    const docBefore = domToMd(sheet);
+    sheet.innerHTML = '';
+    sheet.appendChild(mdToDom(target));
+    dirty = true;
+    await save();
+    const docAfter = domToMd(sheet);
+    const hr = await fetch('/api/letter-history/' + current, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt: 'Restore: ' + (e.prompt || 'rewrite'),
+        before: docBefore.slice(0, 4000), after: target.slice(0, 4000),
+        docBefore, docAfter, revertOf: e.id,
+      }),
+    });
+    const hj = await hr.json().catch(() => ({}));
+    if (hr.ok && hj.entries) { histEntries = hj.entries; renderHist(histEntries); }
+  } catch (err) {
+    btn.textContent = 'Restore failed — try again';
+    setTimeout(() => { btn.textContent = 'Restore this version'; btn.disabled = false; }, 1600);
+    return;
+  }
+  btn.disabled = false;
+}
+$('histBtn').onclick = () => {
+  const p = $('histPanel');
+  if (p.classList.contains('show')) hideHist();
+  else { p.classList.add('show'); p.setAttribute('aria-hidden', 'false'); $('histBtn').classList.add('on'); loadHist(); }
+};
+$('histClose').onclick = hideHist;
+
 loadGallery();
+
+$('sessionBtn').onclick = async () => {
+  const btn = $('sessionBtn');
+  const err = $('sessionErr');
+  if (btn.disabled) return;
+  btn.disabled = true;
+  btn.textContent = 'Writing…';
+  err.textContent = '';
+  try {
+    const res = await fetch('/api/letters/from-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hours: 1 }),
+    });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(j.error || `HTTP ${res.status}`);
+    if (!j.file) throw new Error('no letter returned');
+    await openLetter(j.file);
+  } catch (e) {
+    err.textContent = e.message || 'Could not write';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '✨ Session Reflection';
+  }
+};
+
+// ================= session reflection prompt (system prompt behind "✨ Session Reflection") =================
+// Lives in the right slide-out's Prompt tab.
+function setDrawerTab(tab) {
+  document.querySelectorAll('.vd-tabs button').forEach((b) => b.classList.toggle('sel', b.dataset.vtab === tab));
+  $('vdVoicePane').hidden = tab !== 'voice';
+  $('vdPromptPane').hidden = tab !== 'prompt';
+}
+document.querySelectorAll('.vd-tabs button').forEach((b) => {
+  b.onclick = () => setDrawerTab(b.dataset.vtab);
+});
+async function loadSessionPrompt() {
+  $('promptErr').textContent = '';
+  $('promptNote').textContent = '';
+  $('sessionPromptText').value = 'Loading…';
+  try {
+    const r = await fetch('/api/letters/session-prompt');
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || 'could not load');
+    $('sessionPromptText').value = j.prompt || '';
+    $('promptNote').textContent = j.isDefault ? 'showing built-in default' : 'customized — Reset restores the default';
+  } catch (e) {
+    $('sessionPromptText').value = '';
+    $('promptErr').textContent = e.message;
+  }
+}
+$('promptSave').onclick = async () => {
+  const btn = $('promptSave');
+  const err = $('promptErr');
+  err.textContent = '';
+  btn.disabled = true;
+  try {
+    const r = await fetch('/api/letters/session-prompt', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: $('sessionPromptText').value }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || 'save failed');
+    $('sessionPromptText').value = j.prompt || '';
+    $('promptNote').textContent = 'saved — used on the next “✨ Session Reflection” run';
+  } catch (e) { err.textContent = e.message; }
+  finally { btn.disabled = false; }
+};
+$('promptReset').onclick = async () => {
+  const err = $('promptErr');
+  err.textContent = '';
+  try {
+    const r = await fetch('/api/letters/session-prompt', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reset: true }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || 'reset failed');
+    $('sessionPromptText').value = j.prompt || '';
+    $('promptNote').textContent = 'showing built-in default';
+  } catch (e) { err.textContent = e.message; }
+};
+
+// prompt runs — the eval trajectory log (mirrors the voice Runs section)
+async function loadPromptRuns() {
+  try {
+    const j = await (await fetch('/api/letters/session-prompt/runs')).json();
+    renderPromptRuns(j || []);
+  } catch {}
+}
+function renderPromptRuns(runs) {
+  const list = $('promptRunsList');
+  $('promptRunsCount').textContent = runs.length ? (runs.length + (runs.length === 1 ? ' run' : ' runs')) : '';
+  list.innerHTML = '';
+  if (!runs.length) {
+    list.innerHTML = '<div class="vd-hint" style="margin:0;">No runs yet — run a test, then apply feedback.</div>';
+    return;
+  }
+  for (const r of runs) {
+    const row = document.createElement('div');
+    row.className = 'run-row';
+    row.innerHTML =
+      '<div class="run-top"><span class="run-when"></span>' +
+      '<button class="run-revert" title="Roll the prompt back to before this run">revert</button></div>' +
+      '<div class="run-in"></div>' +
+      '<div class="run-fb ' + (r.feedback ? '' : 'pending') + '"></div>';
+    row.querySelector('.run-when').textContent = (timeAgo(r.ts) || '') + ' · ' + (r.outputTitle || 'test');
+    row.querySelector('.run-in').textContent = r.outputBody || '(empty)';
+    row.querySelector('.run-fb').textContent = r.feedback ? ('“' + r.feedback + '”') : 'no feedback applied';
+    const rev = row.querySelector('.run-revert');
+    if (!r.hasBefore) { rev.disabled = true; rev.style.opacity = '.4'; rev.style.cursor = 'default'; }
+    rev.onclick = async () => {
+      if (!r.hasBefore) return;
+      $('promptFbErr').textContent = '';
+      try {
+        const rr = await fetch('/api/letters/session-prompt/revert', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: r.id, which: 'before' }),
+        });
+        const jj = await rr.json();
+        if (!rr.ok) throw new Error(jj.error || 'revert failed');
+        $('sessionPromptText').value = jj.prompt || $('sessionPromptText').value;
+        $('promptNote').textContent = 'reverted — save state shown above';
+        $('promptFbNote').textContent = 'Reverted prompt to before that run.';
+      } catch (e) { $('promptFbErr').textContent = e.message; }
+    };
+    list.appendChild(row);
+  }
+}
+
+// prompt test — run the current (unsaved ok) prompt over the last hour
+let lastPromptTest = null; // { title, body, runId } — what the feedback loop reacts to
+$('promptTestBtn').onclick = async () => {
+  const err = $('promptTestErr');
+  err.textContent = ''; $('promptTestOut').textContent = ''; $('promptTestTitle').textContent = '';
+  $('promptTestFeedback').hidden = true; $('promptToAgentRow').hidden = true; $('promptFbNote').textContent = '';
+  const btn = $('promptTestBtn');
+  btn.disabled = true; btn.textContent = 'Running…';
+  try {
+    const r = await fetch('/api/letters/session-prompt/test', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: $('sessionPromptText').value, hours: 1 }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || 'test failed');
+    $('promptTestTitle').textContent = j.title || '';
+    $('promptTestOut').textContent = j.body || '(empty)';
+    lastPromptTest = { title: j.title, body: j.body, runId: j.runId || null };
+    $('promptTestFeedback').hidden = false;
+    $('promptToAgentRow').hidden = false;
+    loadPromptRuns(); // the test just logged a new (pending) trajectory
+  } catch (e) { err.textContent = e.message; }
+  finally { btn.disabled = false; btn.textContent = 'Run test on last hour'; }
+};
+
+// prompt feedback loop — fold a critique of the test letter back into the prompt
+$('promptApplyFbBtn').onclick = async () => {
+  const feedback = $('promptFbText').value.trim();
+  const err = $('promptFbErr');
+  err.textContent = ''; $('promptFbNote').textContent = '';
+  if (!feedback) { err.textContent = 'Say what to change first.'; return; }
+  const btn = $('promptApplyFbBtn');
+  btn.disabled = true; btn.textContent = 'Applying…';
+  try {
+    const r = await fetch('/api/letters/session-prompt/refine', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        feedback,
+        runId: lastPromptTest && lastPromptTest.runId,
+        testTitle: lastPromptTest && lastPromptTest.title,
+        testBody: lastPromptTest && lastPromptTest.body,
+        prompt: $('sessionPromptText').value, // fold into the current (unsaved) prompt
+      }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || 'apply failed');
+    $('sessionPromptText').value = j.prompt || $('sessionPromptText').value;
+    $('promptNote').textContent = 'updated from feedback — saved, used on the next run';
+    $('promptFbText').value = '';
+    $('promptTestFeedback').hidden = true; // loop closed; the preview stays for the next pass
+    $('promptFbNote').textContent = 'Prompt updated — Run test again to feel the change.';
+    loadPromptRuns(); // close out this trajectory in the list
+    $('promptTestBtn').focus();
+  } catch (e) { err.textContent = e.message; }
+  finally { btn.disabled = false; btn.textContent = 'Apply to prompt'; }
+};
+
+// ================= voice drawer =================
+const drawer = $('voiceDrawer');
+function timeAgo(ms) {
+  if (!ms) return null;
+  const s = (Date.now() - ms) / 1000;
+  if (s < 90) return 'just now';
+  if (s < 5400) return Math.round(s / 60) + 'm ago';
+  if (s < 129600) return Math.round(s / 3600) + 'h ago';
+  return Math.round(s / 86400) + 'd ago';
+}
+function exemplarCount() {
+  const mine = Object.keys(voiceStars).filter(f => voiceStars[f]).length
+    + voiceSamples.filter(s => s.kind === 'mine').length;
+  const insp = voiceSamples.filter(s => s.kind === 'inspiration').length;
+  return { mine, insp };
+}
+function updateVoiceStatus() {
+  const { mine, insp } = exemplarCount();
+  const bits = [];
+  if (voiceExists && voiceUpdatedAt) bits.push('updated ' + timeAgo(voiceUpdatedAt));
+  else bits.push('not built yet');
+  bits.push(`${mine} mine`);
+  if (insp) bits.push(`${insp} inspiration`);
+  if (!voiceHasKey) bits.push('⚠ no API key');
+  $('vdStatus').textContent = bits.join(' · ');
+}
+function renderSamples() {
+  const list = $('sampleList');
+  list.innerHTML = '';
+  for (const s of voiceSamples) {
+    const row = document.createElement('div');
+    row.className = 'sample-item';
+    row.innerHTML = `<span class="badge ${s.kind}">${s.kind === 'mine' ? 'MINE' : 'INSP'}</span>` +
+      `<span class="lbl"></span><button class="rm" title="remove">✕</button>`;
+    row.querySelector('.lbl').textContent = s.label;
+    row.querySelector('.rm').onclick = async () => {
+      try {
+        const r = await fetch('/api/writing/sample/' + s.id, { method: 'DELETE' });
+        const j = await r.json(); voiceSamples = j.samples || [];
+      } catch {}
+      renderSamples(); updateVoiceStatus();
+    };
+    list.appendChild(row);
+  }
+}
+async function loadVoice() {
+  try {
+    const j = await (await fetch('/api/writing/voice')).json();
+    voiceStars = j.stars || {};
+    voiceSamples = j.samples || [];
+    voiceUpdatedAt = j.updatedAt || null;
+    voiceExists = !!j.exists;
+    voiceHasKey = !!j.hasKey;
+    if (j.profile != null) $('voiceProfile').value = j.profile;
+  } catch {}
+  updateVoiceStatus();
+  renderSamples();
+}
+// Chrome + behavior come from the shared slideout component; this page just supplies the
+// elements and a content hook. Same design element as EXECUTE's email-loops drawer.
+const voiceSO = Slideout.attach({
+  panel: drawer,
+  handle: $('voiceHandle'),
+  edge: $('edgeHover'),
+  openers: [$('voiceHandle')], // Prompt top button opens via its own handler (tab-aware)
+  closers: [$('vdclose')],
+  hotkey: 'j',
+  onOpen: () => { loadVoice(); loadRuns(); loadPromptRuns(); },
+});
+function openDrawer(pin) { voiceSO.open(pin !== false); }
+function closeDrawer() { voiceSO.close(); }
+function toggleDrawer() { voiceSO.toggle(); }
+
+// runs — the eval trajectory log
+async function loadRuns() {
+  try {
+    const j = await (await fetch('/api/writing/voice/runs')).json();
+    renderRuns(j.runs || []);
+  } catch {}
+}
+function renderRuns(runs) {
+  const list = $('runsList');
+  $('runsCount').textContent = runs.length ? (runs.length + (runs.length === 1 ? ' run' : ' runs')) : '';
+  list.innerHTML = '';
+  if (!runs.length) {
+    list.innerHTML = '<div class="vd-hint" style="margin:0;">No runs yet — rewrite something, then apply feedback.</div>';
+    return;
+  }
+  for (const r of runs) {
+    const row = document.createElement('div');
+    row.className = 'run-row';
+    row.innerHTML =
+      '<div class="run-top"><span class="run-when"></span>' +
+      '<button class="run-revert" title="Roll the voice back to before this run">revert</button></div>' +
+      '<div class="run-in"></div>' +
+      '<div class="run-fb ' + (r.feedback ? '' : 'pending') + '"></div>';
+    row.querySelector('.run-when').textContent = timeAgo(r.ts) || '';
+    row.querySelector('.run-in').textContent = r.input || '(empty)';
+    row.querySelector('.run-fb').textContent = r.feedback ? ('“' + r.feedback + '”') : 'no feedback applied';
+    const rev = row.querySelector('.run-revert');
+    if (!r.hasBefore) { rev.disabled = true; rev.style.opacity = '.4'; rev.style.cursor = 'default'; }
+    rev.onclick = async () => {
+      if (!r.hasBefore) return;
+      $('fbErr').textContent = '';
+      try {
+        const rr = await fetch('/api/writing/voice/revert', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: r.id, which: 'before' }),
+        });
+        const jj = await rr.json();
+        if (!rr.ok) throw new Error(jj.error || 'revert failed');
+        $('voiceProfile').value = jj.profile || $('voiceProfile').value;
+        voiceUpdatedAt = jj.updatedAt || Date.now(); voiceExists = true;
+        updateVoiceStatus();
+        $('fbNote').textContent = 'Reverted voice to before that run.';
+      } catch (e) { $('fbErr').textContent = e.message; }
+    };
+    list.appendChild(row);
+  }
+}
+// (#vdclose close is wired by Slideout via `closers` above.)
+
+// kind tabs (My writing / Inspiration)
+document.querySelectorAll('.kind-tabs button').forEach(b => {
+  b.onclick = () => {
+    sampleKind = b.dataset.kind;
+    document.querySelectorAll('.kind-tabs button').forEach(x => x.classList.toggle('sel', x === b));
+    $('sampleLabel').placeholder = sampleKind === 'mine'
+      ? "Label (e.g. 'my best essay')"
+      : "Label (e.g. 'Orwell — Politics & the English Language')";
+  };
+});
+
+// add a sample
+$('addSampleBtn').onclick = async () => {
+  const text = $('sampleText').value.trim();
+  const err = $('sampleErr');
+  err.textContent = '';
+  if (!text) { err.textContent = 'Paste some writing first.'; return; }
+  const btn = $('addSampleBtn');
+  btn.disabled = true;
+  try {
+    const r = await fetch('/api/writing/sample', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kind: sampleKind, label: $('sampleLabel').value, text }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || 'could not add');
+    voiceSamples = j.samples || voiceSamples;
+    $('sampleText').value = ''; $('sampleLabel').value = '';
+    renderSamples(); updateVoiceStatus();
+  } catch (e) { err.textContent = e.message; }
+  finally { btn.disabled = false; }
+};
+
+// build / learn
+$('buildBtn').onclick = async () => {
+  const btn = $('buildBtn');
+  const err = $('buildErr');
+  err.textContent = '';
+  const { mine, insp } = exemplarCount();
+  if (!mine && !insp) { err.textContent = 'Star a letter or add a sample first.'; return; }
+  btn.disabled = true; btn.textContent = 'Learning…';
+  try {
+    const r = await fetch('/api/writing/voice/build', { method: 'POST' });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || 'build failed');
+    $('voiceProfile').value = j.profile || '';
+    voiceUpdatedAt = j.updatedAt || Date.now();
+    voiceExists = true;
+    updateVoiceStatus();
+  } catch (e) { err.textContent = e.message; }
+  finally { btn.disabled = false; btn.textContent = 'Learn my voice'; }
+};
+
+// profile: save as you type (debounced)
+$('voiceProfile').addEventListener('input', () => {
+  clearTimeout(voiceSaveT);
+  voiceSaveT = setTimeout(async () => {
+    try {
+      const r = await fetch('/api/writing/voice', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile: $('voiceProfile').value }),
+      });
+      const j = await r.json();
+      voiceUpdatedAt = j.updatedAt || Date.now(); voiceExists = true;
+      updateVoiceStatus();
+    } catch {}
+  }, 700);
+});
+
+// test box — uses the current (unsaved) profile text as override
+let lastTest = null; // { text, output } — what the feedback loop reacts to
+$('testBtn').onclick = async () => {
+  const text = $('testIn').value.trim();
+  const err = $('testErr');
+  err.textContent = ''; $('testOut').textContent = '';
+  $('testFeedback').hidden = true; $('testToAgentRow').hidden = true; $('fbNote').textContent = '';
+  if (!text) { err.textContent = 'Give it a sentence to rewrite.'; return; }
+  const btn = $('testBtn');
+  btn.disabled = true; btn.textContent = 'Rewriting…';
+  try {
+    const r = await fetch('/api/writing/rewrite', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, instruction: $('testInstr').value, profileOverride: $('voiceProfile').value }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || 'rewrite failed');
+    const output = j.output || '(empty)';
+    $('testOut').textContent = output;
+    lastTest = { text, output, runId: j.runId || null };
+    $('testFeedback').hidden = false; // let him react to this rewrite
+    $('testToAgentRow').hidden = false;
+    loadRuns(); // the rewrite just logged a new (pending) trajectory
+  } catch (e) { err.textContent = e.message; }
+  finally { btn.disabled = false; btn.textContent = 'Rewrite'; }
+};
+
+// feedback loop — fold a critique of the last rewrite back into the profile
+$('applyFbBtn').onclick = async () => {
+  const feedback = $('fbText').value.trim();
+  const err = $('fbErr');
+  err.textContent = ''; $('fbNote').textContent = '';
+  if (!feedback) { err.textContent = 'Say what to change first.'; return; }
+  const btn = $('applyFbBtn');
+  btn.disabled = true; btn.textContent = 'Applying…';
+  try {
+    const r = await fetch('/api/writing/voice/refine', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        feedback,
+        runId: lastTest && lastTest.runId,
+        text: lastTest && lastTest.text,
+        output: lastTest && lastTest.output,
+        profileOverride: $('voiceProfile').value, // fold into the current (unsaved) profile
+      }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || 'apply failed');
+    $('voiceProfile').value = j.profile || $('voiceProfile').value;
+    voiceUpdatedAt = j.updatedAt || Date.now(); voiceExists = true;
+    updateVoiceStatus();
+    $('fbText').value = '';
+    $('testFeedback').hidden = true; // loop closed; the test phrase stays for the next pass
+    $('fbNote').textContent = 'Voice updated — Rewrite again to feel the change.';
+    loadRuns(); // close out this trajectory in the list
+    $('testBtn').focus();
+  } catch (e) { err.textContent = e.message; }
+  finally { btn.disabled = false; btn.textContent = 'Apply to voice'; }
+};
+
+// To Agent — drop a drawer test output into the Live chat, ready to send.
+// Handoff is via localStorage; live.html consumes it into #chatIn on load.
+function sendTestToAgent(text, source) {
+  const body = String(text || '').trim();
+  if (!body || body === '(empty)') return;
+  try {
+    localStorage.setItem('live-chat-draft',
+      JSON.stringify({ text: `[from Writing · ${source}]\n\n${body}`, ts: Date.now() }));
+  } catch {}
+  location.href = '/live.html';
+}
+$('testToAgent').onclick = () => sendTestToAgent(lastTest && lastTest.output, 'voice test');
+$('promptToAgent').onclick = () => {
+  if (!lastPromptTest) return;
+  let b = String(lastPromptTest.body || '');
+  const t = String(lastPromptTest.title || '').trim();
+  // body opens with "# {title}" — the draft already carries it
+  if (t) b = b.replace(new RegExp('^#\\s+' + t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*\n+'), '');
+  sendTestToAgent((t ? t + '\n\n' : '') + b, 'prompt test');
+};
+
+// ⌘J toggle + Esc close are handled by the shared slideout component (see Slideout.attach above).
+
+// ================= inspiration ideas + thread (idea → article) =================
+let projects = [];
+let threadProject = null;
+let threadBusy = false;
+
+function escH(s) { const d = document.createElement('div'); d.textContent = String(s == null ? '' : s); return d.innerHTML; }
+function mdLite(src) {
+  const lines = String(src || '').split('\n');
+  let html = '', inList = false;
+  const inline = (s) => escH(s)
+    .replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+    .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+  for (const raw of lines) {
+    const l = raw.replace(/\s+$/, '');
+    if (/^### /.test(l)) { if (inList) { html += '</ul>'; inList = false; } html += `<h3>${inline(l.slice(4))}</h3>`; continue; }
+    if (/^## /.test(l)) { if (inList) { html += '</ul>'; inList = false; } html += `<h2>${inline(l.slice(3))}</h2>`; continue; }
+    if (/^# /.test(l)) { if (inList) { html += '</ul>'; inList = false; } html += `<h2>${inline(l.slice(2))}</h2>`; continue; }
+    if (/^- /.test(l)) { if (!inList) { html += '<ul>'; inList = true; } html += `<li>${inline(l.slice(2))}</li>`; continue; }
+    if (inList) { html += '</ul>'; inList = false; }
+    if (l.trim()) html += `<p>${inline(l)}</p>`;
+  }
+  if (inList) html += '</ul>';
+  return html || '<p>…</p>';
+}
+const STAGE_LABEL = {
+  inbox: 'new', accepted: 'accepted', researching: 'researching…',
+  'options-pending': 'researched', 'awaiting-pick': 'pick a thesis',
+  drafting: 'drafting…', 'in-review': 'draft ready',
+};
+
+async function loadIdeas() {
+  try {
+    const j = await (await fetch('/api/writing/projects')).json();
+    projects = (j.projects || []).filter(p => p.status !== 'dismissed');
+  } catch { projects = []; }
+  renderInbox();
+}
+function renderInbox() {
+  const wrap = $('inboxWrap'), row = $('inboxRow');
+  if (!projects.length) { wrap.classList.remove('show'); return; }
+  wrap.classList.add('show');
+  $('inboxCount').textContent = `(${projects.length})`;
+  const sorted = projects.slice().sort((a, b) =>
+    (a.status === 'inbox' ? 0 : 1) - (b.status === 'inbox' ? 0 : 1));
+  row.innerHTML = '';
+  for (const p of sorted) {
+    const card = document.createElement('div');
+    card.className = 'idea';
+    const isInbox = p.status === 'inbox';
+    const label = STAGE_LABEL[p.status] || p.status;
+    card.innerHTML = `<div class="eyebrow">✎ Inspiration Idea</div>` +
+      `<span class="pill${isInbox ? ' hot' : ''}">${escH(label)}</span>` +
+      `<h3></h3><div class="prev"></div><div class="row"></div>`;
+    card.querySelector('h3').textContent = p.title || 'Untitled idea';
+    card.querySelector('.prev').textContent = p.preview || '';
+    const btns = card.querySelector('.row');
+    if (isInbox) {
+      const a = document.createElement('button'); a.className = 'accept'; a.textContent = 'Accept → start writing';
+      a.onclick = async () => { a.disabled = true; await acceptIdea(p.id); };
+      const d = document.createElement('button'); d.className = 'dismiss'; d.textContent = 'Dismiss';
+      d.onclick = async () => { d.disabled = true; await dismissIdea(p.id); };
+      btns.append(a, d);
+    } else {
+      const o = document.createElement('button'); o.className = 'open';
+      o.textContent = p.draftFile ? 'Open thread / draft' : 'Open thread';
+      o.onclick = () => openThread(p.id);
+      btns.appendChild(o);
+    }
+    row.appendChild(card);
+  }
+}
+async function acceptIdea(id) {
+  try {
+    await fetch('/api/writing/project/accept', { method: 'POST',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+    await loadIdeas();
+    openThread(id);
+  } catch (e) { alert(String(e.message || e)); loadIdeas(); }
+}
+async function dismissIdea(id) {
+  try {
+    await fetch('/api/writing/project/dismiss', { method: 'POST',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+  } catch {}
+  loadIdeas();
+}
+async function openThread(id) {
+  try {
+    threadProject = await (await fetch('/api/writing/project?id=' + encodeURIComponent(id))).json();
+    if (!threadProject || !threadProject.id) throw new Error('not found');
+  } catch (e) { alert(String(e.message || e)); return; }
+  $('thread').classList.add('show');
+  renderThread();
+}
+function closeThread() {
+  $('thread').classList.remove('show');
+  threadProject = null;
+  loadIdeas();
+}
+function renderThread() {
+  const p = threadProject;
+  if (!p) return;
+  $('ttitle').textContent = p.title || 'Idea';
+  $('tsub').textContent = `${STAGE_LABEL[p.status] || p.status}${p.draftFile ? ' · ' + p.draftFile : ''}`;
+  $('stageOpen').style.display = p.draftFile ? '' : 'none';
+  const box = $('tmsgs');
+  box.innerHTML = '';
+  for (const m of (p.thread || [])) {
+    const el = document.createElement('div');
+    if (m.role === 'user') {
+      el.className = 'tmsg user';
+      const kind = m.kind === 'braindump' ? 'Brain dump' : 'You';
+      el.innerHTML = `<span class="kind">${escH(kind)}</span>`;
+      el.appendChild(document.createTextNode(m.text || ''));
+    } else {
+      el.className = 'tmsg asst';
+      el.innerHTML = mdLite(m.text || '');
+    }
+    box.appendChild(el);
+  }
+  box.scrollTop = box.scrollHeight;
+  $('terr').textContent = '';
+}
+function setThreadBusy(busy, label) {
+  threadBusy = busy;
+  for (const id of ['stageResearch', 'stageOptions', 'stageDraft', 'tsend', 'tdict']) {
+    const el = $(id);
+    if (el) el.disabled = busy;
+  }
+  if (busy && label) $('terr').textContent = label;
+  else if (!busy) $('terr').textContent = '';
+}
+async function refreshThread() {
+  if (!threadProject) return;
+  try {
+    threadProject = await (await fetch('/api/writing/project?id=' + encodeURIComponent(threadProject.id))).json();
+    renderThread();
+  } catch (e) { $('terr').textContent = String(e.message || e); }
+}
+async function threadStage(kind) {
+  if (!threadProject || threadBusy) return;
+  setThreadBusy(true, kind === 'research' ? 'Researching — fanning out searches…' : kind === 'options' ? 'Planning thesis options…' : 'Drafting in your voice… (up to 2 min)');
+  try {
+    const r = await fetch('/api/writing/project/' + kind, { method: 'POST',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: threadProject.id }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || `${kind} failed`);
+    threadProject = j;
+    renderThread();
+    loadIdeas();
+  } catch (e) { $('terr').textContent = String(e.message || e); }
+  finally { setThreadBusy(false); }
+}
+async function sendThreadReply() {
+  if (!threadProject || threadBusy) return;
+  const text = $('tinput').value.trim();
+  if (!text) return;
+  setThreadBusy(true, 'Sending…');
+  try {
+    const r = await fetch('/api/writing/project/reply', { method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: threadProject.id, text }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || 'reply failed');
+    threadProject = j;
+    $('tinput').value = '';
+    renderThread();
+  } catch (e) { $('terr').textContent = String(e.message || e); }
+  finally { setThreadBusy(false); }
+}
+$('stageResearch').onclick = () => threadStage('research');
+$('stageOptions').onclick = () => threadStage('options');
+$('stageDraft').onclick = () => threadStage('draft');
+$('stageOpen').onclick = () => {
+  if (threadProject && threadProject.draftFile) {
+    const f = threadProject.draftFile;
+    closeThread();
+    openLetter(f);
+  }
+};
+$('tsend').onclick = sendThreadReply;
+$('tinput').addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') sendThreadReply();
+});
+$('tclose').onclick = closeThread;
+
+// dictate a voice note into the thread input (transcribe, don't send yet)
+let tRec = null, tChunks = [], tRecording = false;
+$('tdict').onclick = async () => {
+  if (tRecording) { try { tRec.stop(); } catch {} return; }
+  try { await navigator.mediaDevices.getUserMedia({ audio: true }); }
+  catch { $('terr').textContent = 'mic blocked — check permission'; return; }
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true }).catch(() => null);
+  if (!stream) return;
+  tChunks = [];
+  try { tRec = new MediaRecorder(stream); }
+  catch { $('terr').textContent = 'recording unsupported here'; return; }
+  tRec.ondataavailable = (e) => { if (e.data && e.data.size) tChunks.push(e.data); };
+  tRec.onstop = async () => {
+    tRecording = false;
+    $('tdict').classList.remove('rec');
+    $('tdict').textContent = '◉';
+    const blob = new Blob(tChunks, { type: (tChunks[0] && tChunks[0].type) || 'audio/webm' });
+    stream.getTracks().forEach(t => t.stop());
+    if (blob.size < 800) return;
+    setThreadBusy(true, 'Transcribing voice note…');
+    try {
+      const r = await fetch('/api/transcribe', { method: 'POST', headers: { 'Content-Type': blob.type }, body: blob });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || `transcribe ${r.status}`);
+      const sep = $('tinput').value.trim() ? '\n' : '';
+      $('tinput').value = $('tinput').value + sep + (j.text || '').trim();
+      $('tinput').focus();
+    } catch (e) { $('terr').textContent = String(e.message || e); }
+    finally { setThreadBusy(false); }
+  };
+  tRec.start();
+  tRecording = true;
+  $('tdict').classList.add('rec');
+  $('tdict').textContent = '■';
+};
+// Esc closes the thread before the editor underneath
+addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && $('thread') && $('thread').classList.contains('show')) {
+    e.stopPropagation(); closeThread();
+  }
+}, true);
+
+// load star state up front, then repaint the gallery so cards show their stars
+loadVoice().then(loadGallery);
+loadIdeas();
 </script>
 </body>
 </html>

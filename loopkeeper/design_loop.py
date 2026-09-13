@@ -31,7 +31,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 ROOT = Path(__file__).resolve().parent
-REPO = ROOT.parents[1]  # sites/savarsareen
+REPO = ROOT.parents[1]  # valinor repo root
 OUT_DIR = ROOT / "design_runs"
 LOG_PATH = OUT_DIR / "log.jsonl"
 STATE_PATH = OUT_DIR / "state.json"

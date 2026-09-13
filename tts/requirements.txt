@@ -1,0 +1,14 @@
+# Local neural TTS for the live companion (Kitten TTS mini ~80MB model).
+# Installed into tts/venv by the Node server on first boot.
+# Note: kittentts declares misaki[en], which pulls torch (~100MB+) we don't need.
+# tts-server.js uninstalls torch after pip install — English phonemes use espeakng_loader.
+onnxruntime>=1.17.0
+soundfile>=0.12.1
+numpy>=1.24.0
+huggingface_hub>=0.20.0
+num2words>=0.5.13
+espeakng_loader>=0.2.4
+spacy>=3.7.0
+misaki>=0.9.4
+phonemizer-fork>=3.3.0
+https://github.com/KittenML/KittenTTS/releases/download/0.8.1/kittentts-0.8.1-py3-none-any.whl

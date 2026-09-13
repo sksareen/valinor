@@ -1,0 +1,2638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<title>Learn — speak to remember</title>
+<style>
+  :root, html[data-theme="dark"] {
+    --bg: #05060a; --bg-elev: #0b0d14; --ink: #e2e8f0; --mute: #64748b; --accent: #7dd3fc;
+  }
+  html[data-theme="light"] {
+    --bg: #f8fafc; --bg-elev: #ffffff; --ink: #0f172a; --mute: #64748b; --accent: #0284c7;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
+    font-family: Lato, sans-serif; color: var(--ink); }
+  #self { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover;
+    transform: scaleX(-1); background: var(--bg); }
+  .scrim { position: fixed; inset: 0; background: rgba(5,6,10,.42); pointer-events: none; }
+
+  #prompter { position: fixed; top: 0; bottom: 120px; left: 50%; transform: translateX(-50%);
+    width: min(1100px, 88vw); overflow: hidden; text-align: center; overscroll-behavior: contain; }
+  #scroll { font-weight: 650; line-height: 1.42; letter-spacing: -0.01em; will-change: transform;
+    color: #f8fafc; text-shadow: 0 2px 18px rgba(0,0,0,.9), 0 0 4px rgba(0,0,0,.7); }
+  #scroll .card { margin: 1.1em 0; opacity: .38; transition: opacity .18s; }
+  #scroll .card.cur { opacity: 1; }
+  #scroll .card.done { opacity: .45; }
+  #scroll .cue { color: var(--accent); font-size: .72em; opacity: .9; margin-bottom: .15em; }
+  #scroll .note { color: #94a3b8; font-size: .55em; font-weight: 500; margin-top: .2em;
+    max-width: 36em; margin-left: auto; margin-right: auto; }
+  #scroll .answer { font-variant-numeric: tabular-nums; letter-spacing: .04em; }
+  #scroll .answer.masked { color: #64748b; letter-spacing: .18em; }
+  #scroll .answer.revealed { color: #fbbf24; }
+  #scroll .answer.matched { color: #34d399; }
+  #scroll .answer.miss { color: #f87171; animation: missPulse .45s ease; }
+  @keyframes missPulse { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+  #heard.miss { color: #f87171; }
+  #scroll .w { transition: color .12s, opacity .12s; }
+  #scroll .w.done { color: #64748b; opacity: .5; }
+  #scroll .w.cur { color: var(--accent); text-shadow: 0 0 20px rgba(125,211,252,.55); }
+  /* Study: connected prose, not quiz cards */
+  #scroll .study-prose { text-align: left; max-width: 34em; margin: 0 auto; }
+  #scroll .study-line { margin: 0.9em 0; line-height: 1.55; font-weight: 600; }
+  #scroll .study-lead { color: var(--accent); font-size: .72em; letter-spacing: .04em;
+    margin-bottom: 1.1em; opacity: .9; }
+  #scroll .study-num { color: var(--accent); font-variant-numeric: tabular-nums;
+    font-weight: 700; opacity: .85; } /* visual digits — not spoken */
+
+  /* Left vertical timeline — large, vertically centered */
+  #timeline {
+    position: fixed; left: 28px; top: 0; bottom: 110px; width: 260px;
+    z-index: 4; display: none; flex-direction: column; justify-content: center;
+    overflow: hidden; padding: 0 8px; pointer-events: none;
+  }
+  #timeline.show { display: flex; }
+  #timeline .tl-title {
+    font: 700 12px Lato, sans-serif; letter-spacing: .18em; color: var(--accent);
+    opacity: .8; margin: 0 0 18px 32px; text-transform: uppercase; flex-shrink: 0;
+  }
+  #timeline .tl-rail {
+    position: relative; padding-left: 32px; max-height: min(72vh, 640px); overflow-y: auto;
+  }
+  #timeline .tl-rail::before {
+    content: ''; position: absolute; left: 10px; top: 6px; bottom: 6px; width: 3px;
+    background: linear-gradient(to bottom, rgba(125,211,252,.12), rgba(125,211,252,.55), rgba(125,211,252,.12));
+  }
+  #timeline .tl-node {
+    position: relative; margin: 0 0 22px; padding: 0 0 0 6px;
+    opacity: .4; transition: opacity .2s, color .2s;
+  }
+  #timeline .tl-node:last-child { margin-bottom: 0; }
+  #timeline .tl-node::before {
+    content: ''; position: absolute; left: -28px; top: 6px; width: 14px; height: 14px;
+    border-radius: 50%; background: #1e293b; border: 2px solid rgba(125,211,252,.4);
+    transition: background .2s, border-color .2s, box-shadow .2s;
+  }
+  #timeline .tl-node.done { opacity: .75; }
+  #timeline .tl-node.done::before { background: rgba(125,211,252,.55); border-color: var(--accent); }
+  #timeline .tl-node.cur { opacity: 1; }
+  #timeline .tl-node.cur::before {
+    background: var(--accent); border-color: #fff;
+    box-shadow: 0 0 16px rgba(125,211,252,.75);
+  }
+  #timeline .tl-year {
+    font: 700 17px/1.2 Lato, sans-serif; font-variant-numeric: tabular-nums;
+    color: #94a3b8;
+  }
+  #timeline .tl-node.cur .tl-year { color: var(--accent); }
+  #timeline .tl-label {
+    font: 600 16px/1.3 Lato, sans-serif; color: #e2e8f0; margin-top: 3px;
+    text-shadow: 0 1px 10px rgba(0,0,0,.85);
+  }
+  body.timeline-on #prompter {
+    left: calc(50% + 110px);
+    width: min(900px, calc(88vw - 260px));
+  }
+  @media (max-width: 960px) {
+    #timeline { display: none !important; }
+    body.timeline-on #prompter { left: 50%; width: min(1100px, 88vw); }
+  }
+
+  #lensline { position: fixed; top: calc(var(--hub-pad-top, 44px) + 8px); left: 50%; transform: translateX(-50%);
+    color: var(--accent); font: 600 11px Lato, sans-serif; letter-spacing: .18em; opacity: .7; }
+
+  #bar { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+    background: rgba(8,10,18,.7); backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,.08); border-radius: 999px; z-index: 5; }
+  .btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 15px; border-radius: 999px;
+    border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.05); color: #e2e8f0;
+    font: 600 13px Lato, sans-serif; cursor: pointer; white-space: nowrap; transition: .12s; }
+  .btn:hover { background: rgba(255,255,255,.12); }
+  .btn.primary { background: var(--accent); color: #05060a; border-color: transparent; }
+  .sep { width: 1px; height: 24px; background: rgba(255,255,255,.12); }
+
+  /* stepper — prev/next + title that opens a jump list */
+  .stepNav { position: relative; display: flex; align-items: center; gap: 2px; }
+  .stepNav .step { width: 32px; height: 34px; padding: 0; justify-content: center;
+    border-radius: 999px; font-size: 16px; line-height: 1; color: #94a3b8; }
+  .stepNav .step:hover { color: #e2e8f0; }
+  .stepNav .stepTitle { min-width: 88px; max-width: 180px; justify-content: center;
+    overflow: hidden; text-overflow: ellipsis; }
+  .stepMenu { position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%);
+    min-width: 180px; max-height: 50vh; overflow-y: auto; padding: 6px;
+    background: rgba(8,10,18,.92); backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,.1); border-radius: 14px; display: none; z-index: 6; }
+  .stepMenu.open { display: block; }
+  .stepMenu button { display: block; width: 100%; text-align: left; padding: 8px 12px;
+    border: 0; border-radius: 8px; background: transparent; color: #cbd5e1;
+    font: 600 13px Lato, sans-serif; cursor: pointer; white-space: nowrap; }
+  .stepMenu button:hover { background: rgba(255,255,255,.08); color: #f8fafc; }
+  .stepMenu button.active { color: var(--accent); background: rgba(125,211,252,.1); }
+  #heard { position: fixed; bottom: 84px; left: 50%; transform: translateX(-50%);
+    font: 600 12px Lato, sans-serif; color: #64748b; z-index: 5; opacity: .85;
+    max-width: 70vw; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  #heard.retry { color: #fbbf24; cursor: pointer; text-decoration: underline; opacity: 1; }
+
+  .panel { position: fixed; inset: 0; z-index: 20; display: none; flex-direction: column;
+    align-items: center; justify-content: center; gap: 14px; background: rgba(5,6,10,.92); backdrop-filter: blur(8px); }
+  .panel.show { display: flex; }
+  .panel h2 { font-size: 22px; font-weight: 700; }
+  .panel .sub { color: #94a3b8; font: 500 14px/1.5 Lato, sans-serif; max-width: 28em; text-align: center; }
+  .panel .tomorrow { color: var(--accent); font: 600 16px Lato, sans-serif; margin-top: 8px; }
+  #summaryBody { width: min(520px, 90vw); max-height: 42vh; overflow: auto; text-align: left;
+    font: 500 13px/1.55 Lato, sans-serif; color: #cbd5e1; }
+  #summaryBody table { width: 100%; border-collapse: collapse; }
+  #summaryBody th, #summaryBody td { padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,.06); }
+  #summaryBody th { color: #64748b; font-weight: 600; text-align: left; }
+  #summaryBody .sec-h { color:#64748b; font:700 11px Lato,sans-serif; letter-spacing:.14em;
+    text-transform:uppercase; margin:0 0 6px; }
+  #summaryBody td.pips { color: var(--accent); letter-spacing:2px; }
+  .row { display: flex; gap: 10px; }
+
+  #editor #edTitle, #editor #edPairs {
+    width: min(560px, 90vw); background: rgba(255,255,255,.06); color: #e2e8f0;
+    border: 1px solid rgba(255,255,255,.14); border-radius: 10px; padding: 10px 12px;
+    font: 500 14px/1.5 Lato, sans-serif; }
+  #editor #edPairs { height: 34vh; resize: vertical; white-space: pre; overflow: auto; }
+  #editor .sub b { color: var(--accent); }
+  #edList { width: min(560px, 90vw); display: flex; flex-wrap: wrap; gap: 6px; }
+  #edList .sec-h { width: 100%; color:#64748b; font:700 11px Lato,sans-serif;
+    letter-spacing:.14em; text-transform:uppercase; margin: 2px 0; }
+  #edList .edchip { padding: 6px 12px; font-size: 12px; }
+</style>
+</head>
+<body>
+  <video id="self" autoplay playsinline muted></video>
+  <div class="scrim"></div>
+
+  <div id="lensline">▲ STUDY — SPEAK IT IN</div>
+  <aside id="timeline" aria-label="Timeline">
+    <div class="tl-title">Timeline</div>
+    <div class="tl-rail" id="timelineRail"></div>
+  </aside>
+  <div id="prompter"><div id="scroll"></div></div>
+  <div id="heard"></div>
+
+  <div id="bar">
+    <button class="btn" id="voiceBtn">🎙 Voice</button>
+    <button class="btn" id="revealBtn" style="display:none">Reveal</button>
+    <button class="btn" id="skipQuizBtn">Skip to quiz</button>
+    <button class="btn" id="resetBtn">Reset</button>
+    <div class="sep"></div>
+    <div class="stepNav" id="topicNav">
+      <button class="btn step" id="prevTopic" title="Previous topic" aria-label="Previous topic">‹</button>
+      <button class="btn stepTitle" id="topicTitle" title="Jump to topic" aria-haspopup="listbox" aria-expanded="false"></button>
+      <button class="btn step" id="nextTopic" title="Next topic" aria-label="Next topic">›</button>
+      <div class="stepMenu" id="topicMenu" role="listbox"></div>
+    </div>
+  </div>
+
+  <div class="panel" id="handoff">
+    <h2>Map loaded</h2>
+    <div class="sub">Now recall — answers hidden. Speak what you remember.</div>
+    <div class="row">
+      <button class="btn primary" id="beginRecallBtn">Begin recall</button>
+      <button class="btn" id="skipHandoffBtn">Done for now</button>
+    </div>
+  </div>
+
+  <div class="panel" id="summary">
+    <h2>Session done</h2>
+    <div id="summaryMeta" class="sub"></div>
+    <div id="summaryBody"></div>
+    <div class="tomorrow">Come back tomorrow for one pass.</div>
+    <div class="row"><button class="btn primary" id="againBtn">Again</button><button class="btn" id="closeSummary">Close</button></div>
+  </div>
+
+  <div class="panel" id="editor">
+    <h2 id="editorTitle">New topic</h2>
+    <div class="sub">One pair per line — <b>prompt = answer</b>. Keep answers short and speakable (1–4 words) so voice recall can match them.</div>
+    <input id="edTitle" placeholder="Topic name (e.g. Spanish verbs)" autocomplete="off" />
+    <textarea id="edPairs" spellcheck="false"
+      placeholder="Capital of France = Paris&#10;Mitochondria = powerhouse of the cell&#10;to run (Spanish) = correr"></textarea>
+    <div id="edList"></div>
+    <div class="row">
+      <button class="btn primary" id="edSave">Save &amp; study</button>
+      <button class="btn" id="edDelete" style="display:none">Delete</button>
+      <button class="btn" id="edCancel">Cancel</button>
+    </div>
+  </div>
+
+<script src="hub-client.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const self = $('self'), scrollEl = $('scroll'), prompter = $('prompter');
+HubClient.forwardNavKeys();
+
+// ---------- 1. Topics (each keeps its own FACTS + study prose) ----------
+const LANDMARK_CARDS = false;
+
+const TOPICS = {
+  gpu: {
+    id: 'gpu',
+    title: 'NVIDIA FLOPs',
+    kind: 'flops',
+    facts: [
+      { id: 'v100', chip: 'V100', arch: 'Volta', year: 2017, tflops: 125, spoken: 'one hundred twenty-five', landmark: null, note: null },
+      { id: 'a100', chip: 'A100', arch: 'Ampere', year: 2020, tflops: 312, spoken: 'three hundred twelve', landmark: null, note: null },
+      { id: 'h100', chip: 'H100', arch: 'Hopper', year: 2022, tflops: 989, spoken: 'nine hundred eighty-nine', landmark: 'just under one petaflop', note: null },
+      { id: 'h200', chip: 'H200', arch: 'Hopper', year: 2023, tflops: 989, spoken: 'nine hundred eighty-nine', landmark: 'same compute as H100',
+        note: 'Same compute class as H100 — the difference is memory: 141GB HBM3e vs 80GB.' },
+      { id: 'b200', chip: 'B200', arch: 'Blackwell', year: 2024, tflops: 2250, spoken: 'two thousand two hundred fifty', landmark: null, note: null },
+      { id: 'rubin', chip: 'Rubin', arch: 'Rubin', year: 2026, tflops: 4000, spoken: 'four thousand', landmark: null,
+        note: 'NVIDIA’s next architecture after Blackwell (ships 2H 2026). Dense FP16 figure is preliminary — NVIDIA quotes Rubin mostly in FP4.' },
+    ],
+  },
+  rome: {
+    id: 'rome',
+    title: 'Rome: Republic → Empire',
+    kind: 'dates',
+    // Chronology: First Triumvirate → Caesar’s civil war → Second Triumvirate → Augustus → his death
+    facts: [
+      {
+        id: 'first-triumvirate',
+        label: 'First Triumvirate',
+        context: 'Caesar, Pompey, Crassus',
+        year: 60, era: 'BCE', spoken: 'sixty',
+        note: null,
+        study: 'In sixty (60) BCE, Caesar, Pompey, and Crassus form the First Triumvirate.',
+      },
+      {
+        id: 'carrhae',
+        label: 'Carrhae',
+        context: 'Crassus killed; the alliance breaks',
+        year: 53, era: 'BCE', spoken: 'fifty three',
+        note: 'With Crassus dead in Parthia, nothing balances Caesar and Pompey — the drift to civil war begins.',
+        study: 'In fifty three (53) BCE, Crassus is killed at Carrhae, and the First Triumvirate breaks.',
+      },
+      {
+        id: 'rubicon',
+        label: 'Rubicon',
+        context: 'Caesar’s civil war begins',
+        year: 49, era: 'BCE', spoken: 'forty nine',
+        note: null,
+        study: 'In forty nine (49) BCE, Caesar crosses the Rubicon and the civil war begins.',
+      },
+      {
+        id: 'pharsalus',
+        label: 'Pharsalus',
+        context: 'Caesar defeats Pompey',
+        year: 48, era: 'BCE', spoken: 'forty eight',
+        note: null,
+        study: 'In forty eight (48) BCE, Caesar defeats Pompey at Pharsalus.',
+      },
+      {
+        id: 'ides',
+        label: 'Ides of March',
+        context: 'Caesar assassinated',
+        year: 44, era: 'BCE', spoken: 'forty four',
+        note: null,
+        study: 'In forty four (44) BCE, on the Ides of March, Caesar is assassinated.',
+      },
+      {
+        id: 'second-triumvirate',
+        label: 'Second Triumvirate',
+        context: 'Octavian, Antony, Lepidus',
+        year: 43, era: 'BCE', spoken: 'forty three',
+        note: null,
+        study: 'In forty three (43) BCE, Octavian, Antony, and Lepidus form the Second Triumvirate.',
+      },
+      {
+        id: 'philippi',
+        label: 'Philippi',
+        context: 'Brutus and Cassius defeated',
+        year: 42, era: 'BCE', spoken: 'forty two',
+        note: null,
+        study: 'In forty two (42) BCE, the Second Triumvirate defeats Brutus and Cassius at Philippi.',
+      },
+      {
+        id: 'actium',
+        label: 'Actium',
+        context: 'Octavian defeats Antony and Cleopatra',
+        year: 31, era: 'BCE', spoken: 'thirty one',
+        note: null,
+        study: 'In thirty one (31) BCE, Octavian defeats Antony and Cleopatra at Actium.',
+      },
+      {
+        id: 'augustus',
+        label: 'Augustus',
+        context: 'Principate begins',
+        year: 27, era: 'BCE', spoken: 'twenty seven',
+        note: 'Octavian receives the title Augustus — the Republic’s form remains, but one man holds the power.',
+        study: 'In twenty seven (27) BCE, Octavian becomes Augustus and the Principate begins.',
+      },
+      {
+        id: 'augustus-death',
+        label: 'Death of Augustus',
+        context: 'End of his reign',
+        year: 14, era: 'CE', spoken: 'fourteen',
+        note: null,
+        study: 'In fourteen (14) CE, Augustus dies — the end of his reign, and the Empire endures.',
+      },
+    ],
+  },
+
+  training: {
+    id: 'training',
+    title: 'Training — Part 1',
+    kind: 'pairs',
+    studyLead: 'Part one — how a model learns. From the loss function to fine-tuning: the loop that shapes the weights. Read each idea, then say the answer aloud.',
+    facts: [
+      { id: 'loss', term: 'Loss function',
+        prompt: 'What does the loss function measure', answer: 'how wrong the model is',
+        study: 'Training begins with a loss function — one number that measures how wrong the model’s predictions are. Lower loss, better model. Everything in training exists to push that number down.' },
+      { id: 'gradient', term: 'Gradient',
+        prompt: 'What does the gradient tell you', answer: 'the uphill direction of loss',
+        study: 'The gradient is the slope of the loss with respect to every weight — it points the way that increases loss fastest. To cut loss, you go the opposite way: downhill.' },
+      { id: 'gradient-descent', term: 'Gradient descent',
+        prompt: 'What is gradient descent', answer: 'step the weights downhill',
+        study: 'Gradient descent is the core algorithm: compute the gradient, then nudge every weight a small step opposite it. Repeat millions of times and the model rolls downhill toward lower loss.',
+        note: 'The loss “surface” is a landscape with one dimension per weight — millions of them. You’re finding the low points of an unimaginably high-dimensional valley.' },
+      { id: 'learning-rate', term: 'Learning rate',
+        prompt: 'What does the learning rate control', answer: 'the size of each step',
+        study: 'The learning rate sets how big each downhill step is. Too large and you overshoot the valley and diverge; too small and training crawls. It is the single most important knob.',
+        note: 'Large-model pretraining typically peaks around 1e-4 to 3e-4, with a short warmup then a cosine decay toward zero.' },
+      { id: 'backprop', term: 'Backpropagation',
+        prompt: 'How are gradients computed through a deep network', answer: 'backpropagation',
+        study: 'Backpropagation computes those gradients efficiently: run the input forward to get the loss, then apply the chain rule backward through every layer, so each weight learns how much it caused the error.' },
+      { id: 'fwd-bwd', term: 'Forward + backward pass',
+        prompt: 'The two passes in one training step are', answer: 'forward and backward',
+        study: 'Every training step is two passes: the forward pass computes predictions and loss; the backward pass computes gradients. Then the optimizer updates the weights. Forward, backward, update — that is one step.' },
+      { id: 'sgd', term: 'Stochastic gradient descent',
+        prompt: 'Why train on a mini-batch instead of the whole dataset', answer: 'a cheap gradient estimate',
+        study: 'Computing the exact gradient over the whole dataset each step is far too expensive. Stochastic gradient descent estimates it from a random mini-batch — noisier, but far faster, and the noise even helps escape bad spots. LLM pretraining batches are huge, millions of tokens per step.' },
+      { id: 'optimizer', term: 'Optimizer (Adam)',
+        prompt: 'What does an optimizer like Adam add over plain SGD', answer: 'momentum and adaptive step sizes',
+        study: 'Optimizers like Adam improve on raw descent: momentum carries velocity through flat stretches, and per-weight adaptive rates let each weight take an appropriately sized step. AdamW, the weight-decay variant, is the LLM default — its two moment estimates add about 8 bytes per parameter of memory.' },
+      { id: 'hill-climbing', term: 'Hill climbing',
+        prompt: 'How does hill climbing differ from gradient descent', answer: 'trial and error, no gradient',
+        study: 'Hill climbing is the simpler cousin: from where you are, try a nearby change and keep it only if the score improves. No gradient, no derivative — just local trial and error. Gradient descent beats it whenever you can compute a gradient, because the gradient tells you which way to move instead of guessing.',
+        note: 'Both are local search, and both can get stuck in a local optimum — a spot better than all its neighbors but not the global best.' },
+      { id: 'local-minima', term: 'Local minima & saddles',
+        prompt: 'What is a local minimum', answer: 'a low point that isn’t the global best',
+        study: 'The loss landscape has local minima — valleys lower than everything nearby but not the deepest — and saddle points that only look flat. In very high dimensions most traps are saddles, which momentum and noise can slip past.' },
+      { id: 'epoch', term: 'Epoch / step',
+        prompt: 'What is one epoch', answer: 'one full pass over the data',
+        study: 'An epoch is one complete pass through the training set. Frontier models train over enormous corpora measured in tokens seen — Llama 3 saw about 15 trillion — often for only a fraction of an epoch.' },
+      { id: 'overfitting', term: 'Overfitting',
+        prompt: 'What is overfitting', answer: 'memorizing instead of generalizing',
+        study: 'Overfitting is memorizing the training data — low training loss, poor results on new inputs. The goal is generalization: patterns that transfer. Held-out validation loss is how you catch it.' },
+      { id: 'pretrain-finetune', term: 'Pretrain vs fine-tune',
+        prompt: 'Pretraining versus fine-tuning', answer: 'learn broadly, then specialize',
+        study: 'Pretraining learns broad language and world patterns from massive unlabeled text — the expensive part. Fine-tuning then specializes that base model on a smaller targeted set. Most capability comes from pretraining; most behavior-shaping from fine-tuning.' },
+    ],
+  },
+
+  inference: {
+    id: 'inference',
+    title: 'Inference — Part 2',
+    kind: 'pairs',
+    studyLead: 'Part two — how a trained model runs. First the tokens and attention it’s built on, then the latency and throughput of serving it. Read each idea, then say the answer aloud.',
+    facts: [
+      { id: 'token', section: 'The model — tokens and the transformer.', term: 'Token',
+        prompt: 'What is a token', answer: 'a sub-word chunk of text',
+        study: 'Models don’t see characters or words — they see tokens: sub-word chunks of very roughly four characters, about three-quarters of a word each, so 1,000 tokens is around 750 words. Context length, throughput, and cost are all counted in tokens.' },
+      { id: 'parameters', term: 'Parameters',
+        prompt: 'What are a model’s parameters', answer: 'the learned weights',
+        study: 'Parameters are the learned weights — the billions of numbers adjusted by gradient descent. “A seventy-billion-parameter model” means seventy billion of these knobs; at two bytes each in BF16, that’s about 140 GB of weights. At inference they’re frozen.' },
+      { id: 'autoregressive', term: 'Autoregressive generation',
+        prompt: 'How does a language model generate text', answer: 'one token at a time',
+        study: 'Generation is autoregressive: the model predicts the next token from everything so far, appends it, and feeds the whole sequence back to predict the next. Left to right, one token at a time — which is why output length costs time.' },
+      { id: 'logits', term: 'Logits, softmax, sampling',
+        prompt: 'What turns raw model outputs into a next-token choice', answer: 'softmax then sampling',
+        study: 'The model emits a logit — a raw score — for every token in its vocabulary. Softmax turns those into probabilities and a sampler picks one; temperature and top-p control how adventurous that pick is.' },
+      { id: 'attention', term: 'Attention',
+        prompt: 'What does attention let each token do', answer: 'weigh every earlier token',
+        study: 'Attention is the transformer’s core: for each token it computes how much to attend to every previous token, mixing their information. Each token’s keys and values are exactly what gets cached at inference.' },
+
+      { id: 'inference', section: 'Serving — latency and throughput.', term: 'Inference',
+        prompt: 'What is inference', answer: 'a forward pass, weights frozen',
+        study: 'Inference is using the trained model: a forward pass only — no backward pass, no weight updates. You feed a prompt in and read tokens out. Serving is the engineering of doing this fast, for many users at once.' },
+      { id: 'prefill-decode', term: 'Prefill & decode',
+        prompt: 'The two phases of an inference request are', answer: 'prefill and decode',
+        study: 'An inference request has two phases. Prefill processes the whole prompt in parallel to produce the first token. Decode then generates the rest one token at a time. Their performance profiles are completely different.' },
+      { id: 'ttft', term: 'Time to first token',
+        prompt: 'What does time to first token, TTFT, measure', answer: 'latency to the first token',
+        study: 'Time to first token, TTFT, is how long from request until the first token appears. It’s dominated by prefill — the model chewing through your prompt — so a longer prompt means a longer TTFT. It’s the “is it alive?” latency.' },
+      { id: 'itl', term: 'Inter-token latency',
+        prompt: 'What is inter-token latency, the time per output token', answer: 'the gap between later tokens',
+        study: 'After the first token, inter-token latency — also called time per output token — is the gap between each following token in the decode phase, typically ten to fifty milliseconds, i.e. twenty to a hundred tokens per second. Its inverse is that tokens-per-second rate, the speed you watch text stream.',
+        note: 'This is the “time to next token”: TTFT is the first token, inter-token latency is every one after. Total latency ≈ TTFT + inter-token latency × output length.' },
+      { id: 'kv-cache', term: 'KV cache',
+        prompt: 'What does the KV cache do', answer: 'stores past keys and values',
+        study: 'The KV cache is the trick behind fast decode: rather than re-reading the whole sequence for each new token, the model caches every token’s attention keys and values. Decode then does constant work per token — but the cache grows with context, eating memory.' },
+      { id: 'decode-bound', term: 'Compute- vs memory-bound',
+        prompt: 'Prefill is compute-bound; decode is bound by what', answer: 'memory bandwidth',
+        study: 'Prefill is compute-bound — heavy parallel math over the whole prompt. Decode is memory-bandwidth-bound: for each single token it must stream all the weights and the KV cache out of memory. Decode speed tracks memory bandwidth, not raw FLOPS.',
+        note: 'This is why the H200 — same FLOPS as the H100 but more and faster memory — speeds up inference. It ties straight back to the NVIDIA topic.' },
+      { id: 'batching', term: 'Throughput & batching',
+        prompt: 'How do you raise throughput without more hardware', answer: 'batch requests together',
+        study: 'Latency is one user’s speed; throughput is total tokens per second across everyone. Batching many requests into one forward pass reuses each weight-load across users; continuous batching swaps requests in and out as they finish. Bigger batches lift throughput but can raise each user’s latency.' },
+      { id: 'quantization', term: 'Quantization',
+        prompt: 'What does quantization trade for speed and memory', answer: 'numerical precision',
+        study: 'Quantization stores weights and activations in fewer bits — FP16 to FP8 to FP4 — shrinking memory and multiplying math throughput at some cost in precision. Because decode is memory-bound, smaller weights often mean directly faster inference. It’s the same precision ladder as the NVIDIA topic.' },
+      { id: 'speculative', term: 'Speculative decoding',
+        prompt: 'How does speculative decoding speed up generation', answer: 'draft small, verify big',
+        study: 'Speculative decoding attacks the one-token-at-a-time bottleneck: a small fast model drafts several tokens ahead, and the large model verifies them in a single parallel pass, keeping the ones it agrees with. When the draft is good, you get several tokens for the cost of one — often a two-to-three-times speedup.' },
+      { id: 'context-length', term: 'Context length',
+        prompt: 'What is the context length, the context window', answer: 'max tokens it can attend to',
+        study: 'Context length is how many tokens — prompt plus generation — the model can hold at once; modern models span 128,000 to over a million. Longer context means a bigger KV cache and slower, memory-hungrier inference, which is why very long contexts get expensive.' },
+    ],
+  },
+
+  parallelism: {
+    id: 'parallelism',
+    title: 'Distributed training',
+    kind: 'pairs',
+    studyLead: 'How you train a model too big for one chip: split the work across thousands of them. The strategies, the memory tricks, the communication, and the efficiency. Read each idea, then say the answer aloud.',
+    facts: [
+      { id: 'data-parallel', section: 'Ways to split the work.', term: 'Data parallelism',
+        prompt: 'What does data parallelism split', answer: 'the batch, not the model',
+        study: 'Data parallelism replicates the whole model on every device and splits the batch between them. Each replica computes gradients on its shard, then an all-reduce averages them so every copy stays in sync. It scales throughput, not model size — every device still holds the full model.' },
+      { id: 'tensor-parallel', term: 'Tensor parallelism',
+        prompt: 'What does tensor, or intra-layer, parallelism split', answer: 'individual weight matrices',
+        study: 'Tensor parallelism splits a single layer’s weight matrices across devices — each computes part of the matmul, and the results are all-reduced within the layer. It cuts per-device memory and compute, but the constant communication demands the fastest interconnect, so it usually stays inside one node over NVLink, typically 8-way to match the GPUs in a server.' },
+      { id: 'pipeline-parallel', term: 'Pipeline parallelism',
+        prompt: 'What does pipeline parallelism split', answer: 'the layers into stages',
+        study: 'Pipeline parallelism puts different layers on different devices as sequential stages, and micro-batches flow through like an assembly line. It’s communication-light — only activations cross between stages — but filling and draining the pipeline creates idle “bubbles.”',
+        note: 'The bubble fraction is roughly (stages − 1) / micro-batches — so more micro-batches shrink it, and the pipeline spends a larger fraction of its time full.' },
+      { id: 'expert-parallel', term: 'Expert parallelism (MoE)',
+        prompt: 'In a Mixture-of-Experts, what does expert parallelism split', answer: 'the experts across devices',
+        study: 'In a Mixture-of-Experts model each token is routed to a few expert feed-forward networks out of many — Mixtral fires 2 of 8, and models like DeepSeek and GPT-4 are widely believed to be MoE. Expert parallelism places different experts on different devices; an all-to-all shuffles tokens to their experts and back. Only a fraction of the parameters activate per token — more capacity for the same compute.' },
+      { id: 'sequence-parallel', term: 'Sequence / context parallelism',
+        prompt: 'What does sequence, or context, parallelism split', answer: 'the sequence dimension',
+        study: 'Sequence or context parallelism splits the token dimension across devices, so no single one holds the whole sequence’s activations. It’s what makes very long context lengths trainable, at the cost of extra communication in attention.' },
+      { id: 'three-d-parallel', term: '3D parallelism',
+        prompt: 'What is 3D parallelism', answer: 'combining data, tensor, and pipeline',
+        study: 'Real frontier runs combine all three: tensor parallelism inside a node over NVLink, pipeline parallelism across nodes, and data parallelism across the resulting replicas. Choosing the split — the parallelism mesh — to match the interconnect topology is the core systems problem.' },
+
+      { id: 'zero-fsdp', section: 'Fitting it in memory.', term: 'ZeRO / FSDP',
+        prompt: 'What do ZeRO and FSDP shard across data-parallel ranks', answer: 'optimizer states, gradients, and params',
+        study: 'Plain data parallelism wastes memory — every replica stores a full copy of the optimizer states, gradients, and parameters. ZeRO, and PyTorch’s FSDP, shard those across the data-parallel ranks and gather each piece only when needed, cutting memory roughly by the number of ranks.',
+        note: 'ZeRO stage 1 shards optimizer states, stage 2 adds gradients, stage 3 adds the parameters themselves.' },
+      { id: 'activation-checkpoint', term: 'Activation checkpointing',
+        prompt: 'What does activation checkpointing trade', answer: 'compute for memory',
+        study: 'Activations saved during the forward pass dominate training memory. Activation checkpointing, or recomputation, throws most of them away and recomputes them in the backward pass — spending extra compute to fit a bigger model or batch in memory.' },
+      { id: 'grad-accum', term: 'Gradient accumulation',
+        prompt: 'What does gradient accumulation let you emulate', answer: 'a larger batch size',
+        study: 'Gradient accumulation runs several micro-batches and sums their gradients before a single weight update. It emulates a large batch on limited memory — the same math, spread over more steps.' },
+      { id: 'optimizer-memory', term: 'Optimizer memory',
+        prompt: 'Why does Adam roughly triple the memory of the weights', answer: 'it stores two moments per weight',
+        study: 'Adam keeps a running mean and variance for every parameter, so optimizer state is two extra copies of the weights — on top of the gradients and, in mixed precision, a master FP32 copy, about 16 bytes per parameter all told. That memory bloat is exactly why optimizer-state sharding matters so much.' },
+
+      { id: 'all-reduce', section: 'The communication.', term: 'All-reduce',
+        prompt: 'What collective sums the gradients so every device gets the result', answer: 'all-reduce',
+        study: 'All-reduce is the workhorse: it sums a tensor — the gradients — across every device and hands the result back to all of them. It’s the synchronization step of data-parallel training, and often the scaling bottleneck.' },
+      { id: 'collectives', term: 'Collective operations',
+        prompt: 'Name the core collective operations', answer: 'all-reduce, all-gather, reduce-scatter, all-to-all',
+        study: 'The building blocks are collectives: all-reduce sums to all, all-gather collects shards to all, reduce-scatter sums and splits, broadcast copies out, and all-to-all reshuffles. FSDP is built from all-gather and reduce-scatter; MoE routing is an all-to-all.' },
+      { id: 'ring-allreduce', term: 'Ring all-reduce',
+        prompt: 'Why is ring all-reduce bandwidth-optimal', answer: 'each device only sends its share around the ring',
+        study: 'Ring all-reduce arranges devices in a circle and passes chunks neighbor to neighbor, so traffic per device barely grows with the count — bandwidth-optimal. Tree all-reduce instead minimizes latency; libraries like NCCL pick between them by message size and topology.' },
+      { id: 'overlap', term: 'Compute–comm overlap',
+        prompt: 'How do you hide communication cost', answer: 'overlap it with compute',
+        study: 'The key optimization is overlapping communication with computation: start all-reducing the early gradients while later layers are still computing backward, bucketing gradients so the network and the GPUs work at once. Well overlapped, communication becomes nearly free.' },
+      { id: 'interconnect-tiers', term: 'Matching the network',
+        prompt: 'Which parallelism needs the fastest interconnect', answer: 'tensor parallelism',
+        study: 'Tensor parallelism communicates every layer, so it needs intra-node NVLink bandwidth; pipeline and data parallelism exchange far less and tolerate slower inter-node InfiniBand. Mapping each parallelism dimension to the right network tier is how you keep utilization high.' },
+
+      { id: 'mfu', section: 'Measuring efficiency.', term: 'MFU',
+        prompt: 'What does Model FLOPs Utilization measure', answer: 'achieved FLOPs over peak FLOPs',
+        study: 'Model FLOPs Utilization is the honest efficiency number: the useful FLOPs your model actually achieved divided by the hardware’s peak. Real large-scale training lands around thirty to fifty percent — PaLM reported about 46% — and the rest is lost to communication, pipeline bubbles, and memory stalls.' },
+      { id: 'comm-ratio', term: 'The scaling wall',
+        prompt: 'Why does efficiency fall as you add more devices', answer: 'communication grows faster than compute',
+        study: 'Scaling out adds communication that eventually outpaces the extra compute — the communication-to-computation ratio rises and MFU falls. Fighting that, with bigger local work, better overlap, and topology-aware placement, is the whole game of scaling training.' },
+      { id: 'straggler', term: 'Stragglers & fault tolerance',
+        prompt: 'In synchronous training, what gates each step', answer: 'the slowest worker',
+        study: 'Synchronous training moves in lockstep, so every step waits on the slowest worker — one straggler or one failed node stalls thousands of GPUs. At scale this makes checkpointing and fault tolerance first-class concerns, not afterthoughts.' },
+    ],
+  },
+
+  numerics: {
+    id: 'numerics',
+    title: 'Numbers & precision',
+    kind: 'pairs',
+    studyLead: 'Why the bits a model computes in matter as much as how many. Float formats, the precision-versus-range tradeoff, and how low you can go. Read each idea, then say the answer aloud.',
+    facts: [
+      { id: 'float-anatomy', section: 'How a float is built.', term: 'Anatomy of a float',
+        prompt: 'A floating-point number splits into which three parts', answer: 'sign, exponent, mantissa',
+        study: 'A float is three fields: a sign bit, an exponent, and a mantissa, the fraction. The exponent sets the range — how big or small a number — and the mantissa sets the precision — how many significant digits. Every format is a budget split between those two.',
+        note: 'Bit splits — sign / exponent / mantissa: FP32 1/8/23, TF32 1/8/10, FP16 1/5/10, BF16 1/8/7, FP8 as E4M3 1/4/3 or E5M2 1/5/2, FP4 as E2M1 1/2/1.' },
+      { id: 'exp-vs-mantissa', term: 'Range vs precision',
+        prompt: 'Exponent bits buy range; mantissa bits buy what', answer: 'precision',
+        study: 'More exponent bits widen the dynamic range you can represent; more mantissa bits sharpen precision within it. Low-precision ML formats spend their scarce bits deliberately — usually protecting range over precision.' },
+      { id: 'fp32', term: 'FP32',
+        prompt: 'What is FP32', answer: 'the 32-bit full-precision baseline',
+        study: 'FP32 is 32 bits — 1 sign, 8 exponent, 23 mantissa. It’s the classic full-precision format and the reference everything else is compared against: accurate, but bandwidth- and compute-hungry.' },
+      { id: 'tf32', term: 'TF32',
+        prompt: 'What is TF32', answer: 'FP32 range with a shorter mantissa',
+        study: 'TF32, NVIDIA’s tensor-core format, keeps FP32’s 8 exponent bits but trims the mantissa to 10 — FP32’s range at lower precision. Frameworks use it transparently to speed up matmuls with little accuracy loss.' },
+      { id: 'fp16', section: 'The formats that train models.', term: 'FP16',
+        prompt: 'What is FP16’s weakness for training', answer: 'narrow dynamic range',
+        study: 'FP16 is 16 bits — 5 exponent, 10 mantissa — so its range is narrow, topping out near 65,504; gradients easily underflow to zero or overflow to infinity. Training in FP16 needs loss scaling to stay in range.' },
+      { id: 'bf16', term: 'BF16',
+        prompt: 'Why did BF16 win for training', answer: 'FP32’s range in 16 bits',
+        study: 'BF16 keeps all 8 exponent bits of FP32 but only 7 mantissa bits — same range, less precision. That range is what gradients need, so BF16 trains stably without loss scaling. It’s why BF16 became the default training format.',
+        note: 'FP16 and BF16 are both 16 bits — the whole difference is the split: FP16 favors precision, BF16 favors range.' },
+      { id: 'loss-scaling', term: 'Loss scaling',
+        prompt: 'What does loss scaling fix in FP16 training', answer: 'gradient underflow',
+        study: 'Loss scaling multiplies the loss by a large factor before the backward pass, lifting tiny gradients into FP16’s representable range, then divides it back out before the update. BF16’s wider range makes it unnecessary.' },
+      { id: 'mixed-precision', term: 'Mixed precision',
+        prompt: 'What is mixed-precision training', answer: 'low-precision math, an FP32 master copy',
+        study: 'Mixed precision runs the heavy matmuls in BF16 or FP16 for speed and memory, while keeping a master FP32 copy of the weights and accumulating in FP32 for stability. Low-precision throughput, high-precision accuracy.' },
+      { id: 'fp8', section: 'Going lower for inference.', term: 'FP8',
+        prompt: 'What does FP8 come in two flavors of', answer: 'E4M3 for precision, E5M2 for range',
+        study: 'FP8 is standardized as two types whose names encode the split — E4M3 (4 exponent, 3 mantissa) leans to precision, E5M2 (5 exponent, 2 mantissa) to range. It halves memory and roughly doubles tensor-core throughput versus 16-bit, and is now used in training as well as inference on Hopper and Blackwell.' },
+      { id: 'fp4', term: 'FP4',
+        prompt: 'What is FP4 mainly for', answer: 'maximum inference throughput',
+        study: 'FP4 packs a number into four bits — typically E2M1, just sixteen representable values — so quadruple the throughput of 16-bit and a fourfold memory cut. Blackwell’s headline numbers are FP4; it’s an inference format kept usable by careful scaling.' },
+      { id: 'quantization', term: 'Quantization',
+        prompt: 'What is quantization', answer: 'storing weights in fewer bits',
+        study: 'Quantization converts trained weights and activations to lower precision — FP16 to FP8 to INT4 — shrinking the model and speeding inference. Because decode is memory-bound, smaller weights are often directly faster.' },
+      { id: 'quant-methods', term: 'PTQ vs QAT',
+        prompt: 'Post-training quantization versus quantization-aware training', answer: 'quantize after vs quantize during',
+        study: 'Post-training quantization converts an already-trained model — cheap, with some accuracy loss. Quantization-aware training simulates low precision during training so the model adapts — more accurate, more expensive. Outlier-aware methods protect the few large values that matter most.' },
+      { id: 'dynamic-range', term: 'Scaling factors',
+        prompt: 'Why do low-precision formats need scaling factors', answer: 'to keep values in representable range',
+        study: 'Low-precision formats have tiny dynamic range, so tensors are multiplied by per-tensor or per-block scaling factors to fit into the representable window, then unscaled after. Getting scaling right is most of what makes FP8 and FP4 work.' },
+    ],
+  },
+
+  memory: {
+    id: 'memory',
+    title: 'Memory & roofline',
+    kind: 'pairs',
+    studyLead: 'Most of the time, chips aren’t waiting on math — they’re waiting on memory. The hierarchy, the bandwidth wall, and the model that predicts which one binds you. Read each idea, then say the answer aloud.',
+    facts: [
+      { id: 'hierarchy', section: 'The memory hierarchy.', term: 'Memory hierarchy',
+        prompt: 'Order the GPU memory hierarchy fast to slow', answer: 'registers, SRAM, HBM',
+        study: 'A GPU’s memory is a hierarchy: registers and on-chip SRAM (shared memory and cache) are tiny but blazing fast; HBM — the tens of gigabytes of high-bandwidth memory — is large but far slower per byte. Performance is largely about keeping data in the fast tiers.' },
+      { id: 'hbm', term: 'HBM',
+        prompt: 'What is HBM', answer: 'the GPU’s high-bandwidth main memory',
+        study: 'HBM is the stacked DRAM beside the GPU die: an H100 holds 80GB at about 3.35 TB/s, an H200 141GB at about 4.8 TB/s, a B200 192GB at 8 TB/s. It’s where weights and the KV cache live, and its bandwidth caps how fast you can feed the compute.' },
+      { id: 'sram', term: 'On-chip SRAM',
+        prompt: 'Why is on-chip SRAM the target of kernel optimization', answer: 'far faster than HBM',
+        study: 'On-chip SRAM is orders of magnitude faster than HBM but only kilobytes per core. Fast kernels — FlashAttention is the classic — restructure the math to reuse data in SRAM and touch HBM as little as possible.' },
+      { id: 'arithmetic-intensity', section: 'The roofline model.', term: 'Arithmetic intensity',
+        prompt: 'What is arithmetic intensity', answer: 'FLOPs per byte moved',
+        study: 'Arithmetic intensity is the ratio of compute to memory traffic — FLOPs performed per byte read from memory. It’s the single number that decides whether an operation is limited by the chip’s math or by its memory bandwidth.' },
+      { id: 'roofline', term: 'The roofline',
+        prompt: 'What does the roofline model predict', answer: 'compute-bound or memory-bound',
+        study: 'The roofline plots achievable performance against arithmetic intensity: a slanted memory-bandwidth roof rises until it meets the flat peak-compute ceiling. Low intensity sits under the slope — memory-bound; high intensity hits the ceiling — compute-bound.',
+        note: 'The ridge point where the slope meets the ceiling is peak FLOPS ÷ bandwidth — for an H100, roughly 989 TFLOPS ÷ 3.35 TB/s ≈ 300 FLOPs per byte. Below that intensity you’re memory-bound; above it, compute-bound.' },
+      { id: 'compute-bound', term: 'Compute-bound',
+        prompt: 'What kind of operation is compute-bound', answer: 'high intensity, like big matmuls',
+        study: 'Compute-bound operations — large dense matmuls, training prefill — do lots of math per byte, saturate the tensor cores, and scale with FLOPS. These are the ops where a faster chip directly helps.' },
+      { id: 'memory-bound', term: 'Memory-bound',
+        prompt: 'What kind of operation is memory-bound', answer: 'low intensity, like decode',
+        study: 'Memory-bound operations — attention decode, elementwise ops, small batches — move lots of data per FLOP, wait on HBM, and leave the tensor cores idle. A faster chip barely helps; faster memory does.',
+        note: 'This is why the H200 (same FLOPS as H100, more and faster HBM) speeds up inference — decode is memory-bound.' },
+      { id: 'batch-intensity', term: 'Batching raises intensity',
+        prompt: 'How does batching raise arithmetic intensity', answer: 'it reuses each weight-load across more tokens',
+        study: 'Load a weight once and use it for many tokens, and arithmetic intensity climbs. That’s why bigger batches push memory-bound decode toward compute-bound — the same weights amortize over more work, lifting throughput.' },
+      { id: 'training-memory', section: 'Where the memory goes.', term: 'Training memory',
+        prompt: 'What are the main consumers of training memory', answer: 'weights, gradients, optimizer states, activations',
+        study: 'Training memory splits four ways: the weights, their gradients, the optimizer states (Adam’s two moments), and the activations saved for backprop. Activations and optimizer states usually dominate — exactly what checkpointing and ZeRO attack.',
+        note: 'In mixed-precision Adam, weights + gradients + optimizer state run about 16 bytes per parameter — so a 1-billion-parameter model needs ~16 GB before activations. That’s why large models can’t sit on one GPU.' },
+      { id: 'kv-cache-memory', term: 'KV cache growth',
+        prompt: 'What grows the KV cache at inference', answer: 'batch size times context length',
+        study: 'The KV cache stores keys and values for every token, so it grows with batch size times sequence length times layers. At long context and high concurrency it can rival the weights themselves — the main memory pressure in serving.' },
+      { id: 'bandwidth-wall', term: 'The memory wall',
+        prompt: 'Why is memory called the wall', answer: 'bandwidth grows slower than compute',
+        study: 'Compute has grown far faster than memory bandwidth across GPU generations, so more workloads become memory-bound over time — the memory wall. It’s why HBM capacity and bandwidth, not just FLOPS, increasingly drive hardware value.' },
+    ],
+  },
+
+  interconnect: {
+    id: 'interconnect',
+    title: 'Interconnect & networking',
+    kind: 'pairs',
+    studyLead: 'A frontier model lives across thousands of chips, so how they talk decides how fast they learn. The links, the fabrics, the topologies, and the collectives that ride them. Read each idea, then say the answer aloud.',
+    facts: [
+      { id: 'nvlink', section: 'Inside the node.', term: 'NVLink',
+        prompt: 'What is NVLink', answer: 'NVIDIA’s fast GPU-to-GPU link',
+        study: 'NVLink is NVIDIA’s direct GPU-to-GPU interconnect inside a server — about 900 GB/s per GPU on Hopper, 1.8 TB/s on Blackwell, far faster than PCIe. It’s what makes tensor parallelism, with its every-layer communication, viable within a node.' },
+      { id: 'nvswitch', term: 'NVSwitch',
+        prompt: 'What does NVSwitch add over NVLink', answer: 'all-to-all GPU connectivity',
+        study: 'NVSwitch is the crossbar joining many NVLinks, so every GPU in a node — or an NVL72 rack — talks to every other at full bandwidth, not just its neighbors. It turns a box of GPUs into one tightly-coupled unit.' },
+      { id: 'pcie', term: 'PCIe',
+        prompt: 'Where does PCIe sit', answer: 'the slower host-to-device link',
+        study: 'PCIe connects GPUs to the CPU, and to each other when NVLink is absent — PCIe 5.0 by sixteen lanes is about 64 GB/s, an order of magnitude below NVLink. Data loading rides PCIe; heavy GPU-to-GPU traffic avoids it.' },
+      { id: 'infiniband', section: 'Across the cluster.', term: 'InfiniBand / RoCE',
+        prompt: 'What connects nodes in a GPU cluster', answer: 'InfiniBand or RoCE',
+        study: 'Between servers, GPUs talk over InfiniBand or RoCE (RDMA over Ethernet) — high-bandwidth, low-latency fabrics with RDMA; current InfiniBand NDR runs 400 gigabits per second per port. This inter-node tier is slower than NVLink, so you keep the chattiest parallelism inside the node.' },
+      { id: 'rdma', term: 'RDMA',
+        prompt: 'What does RDMA let a GPU do', answer: 'write remote memory, bypassing the CPU',
+        study: 'RDMA — remote direct memory access — lets a network card move data straight into another machine’s memory without the CPU or OS in the path. GPUDirect extends it GPU-to-GPU across the network, cutting collective latency.' },
+      { id: 'topology', term: 'Fat-tree topology',
+        prompt: 'What is a rail-optimized fat-tree', answer: 'a non-blocking cluster network',
+        study: 'Large clusters wire nodes in a fat-tree — a multi-level switch hierarchy with equal bandwidth at every level, so any pair can communicate without contention. Rail-optimized layouts align each GPU to its own network rail, matching the all-reduce pattern.' },
+      { id: 'tpu-ici', term: 'TPU ICI & pods',
+        prompt: 'How are TPUs interconnected in a pod', answer: 'ICI links in a torus',
+        study: 'TPUs connect over Inter-Chip Interconnect directly chip-to-chip, wired as a 2D or 3D torus with no switches. A TPU v4 pod is 4,096 chips in one such mesh — a different philosophy from NVIDIA’s switched fabric.' },
+      { id: 'collectives', section: 'Moving the data.', term: 'Collectives',
+        prompt: 'What collective operations ride the fabric', answer: 'all-reduce, all-gather, all-to-all',
+        study: 'Distributed training is built from collectives — all-reduce, all-gather, reduce-scatter, broadcast, all-to-all — run by NCCL on NVIDIA and the XLA runtime on TPU. Their speed is set by the slowest link in the path.' },
+      { id: 'ring-vs-tree', term: 'Ring vs tree',
+        prompt: 'Ring all-reduce optimizes bandwidth; tree optimizes what', answer: 'latency',
+        study: 'A ring all-reduce passes fixed-size chunks around a circle — bandwidth-optimal, independent of node count, but higher latency. A tree reduces up and broadcasts down — lower latency for small messages. NCCL switches by message size and topology.' },
+      { id: 'bw-latency', term: 'Bandwidth vs latency',
+        prompt: 'The two numbers that characterize any link', answer: 'bandwidth and latency',
+        study: 'Every interconnect has bandwidth — bytes per second, capping big transfers — and latency — the fixed per-message delay, dominating small ones. Big gradient all-reduces are bandwidth-bound; frequent small syncs are latency-bound.' },
+      { id: 'overlap-net', term: 'Overlap',
+        prompt: 'How do you keep the network from stalling compute', answer: 'overlap communication with computation',
+        study: 'The fabric is only free if it runs behind the math: start all-reducing each gradient bucket as it’s ready while later layers still compute backward. Perfect overlap keeps scaling near-linear; broken overlap caps your speedup.' },
+    ],
+  },
+
+  scaling: {
+    id: 'scaling',
+    title: 'Scaling & economics',
+    kind: 'pairs',
+    studyLead: 'How much compute a model needs, where to spend it, and what it costs. The laws that guide the spend and the numbers that measure the return. Read each idea, then say the answer aloud.',
+    facts: [
+      { id: 'scaling-laws', section: 'The scaling laws.', term: 'Scaling laws',
+        prompt: 'What do neural scaling laws describe', answer: 'loss falls as a power law in compute',
+        study: 'Scaling laws say a model’s loss drops predictably — as a power law — with more parameters, data, and compute. Smooth curves across many orders of magnitude are what let labs forecast a big model’s quality before training it.' },
+      { id: 'six-nd', term: 'The 6ND rule',
+        prompt: 'What does the 6ND rule estimate', answer: 'training FLOPs',
+        study: 'Training compute is roughly six times parameters times tokens: C ≈ 6·N·D. The six covers the forward and backward pass per parameter per token. Worked example: GPT-3, 175 billion parameters over 300 billion tokens, is about 3×10^23 FLOPs — the back-of-envelope every compute discussion starts from.',
+        note: 'Inference is about 2ND — just the forward pass — per pass over the parameters.' },
+      { id: 'chinchilla', term: 'Chinchilla',
+        prompt: 'What did Chinchilla show about compute-optimal training', answer: 'scale data and params together',
+        study: 'The Chinchilla result found earlier models were undertrained: for a fixed compute budget, parameters and training tokens should grow in proportion — roughly twenty tokens per parameter. Chinchilla itself, 70B parameters on 1.4 trillion tokens, beat the 280B-parameter Gopher — a smaller model on more data winning.' },
+      { id: 'compute-optimal', term: 'Compute-optimal',
+        prompt: 'Compute-optimal minimizes loss for a fixed what', answer: 'training budget',
+        study: 'Compute-optimal is the point that minimizes loss for a fixed training budget. But it ignores serving: a model that will run trillions of tokens is often worth training past Chinchilla-optimal to make it smaller and cheaper to run.' },
+      { id: 'inference-aware', term: 'Inference-aware scaling',
+        prompt: 'What does inference-aware scaling optimize for', answer: 'total cost including serving',
+        study: 'Because a deployed model’s lifetime inference cost can dwarf its training cost, labs deliberately train smaller models on more tokens than compute-optimal — trading extra training for a lighter model. Scaling is decided on total cost, not training loss alone.' },
+      { id: 'mfu', section: 'Measuring the compute.', term: 'MFU',
+        prompt: 'What does MFU, model FLOPs utilization, measure', answer: 'achieved FLOPs over peak',
+        study: 'Model FLOPs Utilization is the useful FLOPs a run achieves divided by the hardware’s theoretical peak. Thirty to fifty percent is good at scale — Google’s PaLM reported about 46% — and it’s the headline efficiency number for any large training run.' },
+      { id: 'mfu-hfu', term: 'MFU vs HFU',
+        prompt: 'How does HFU differ from MFU', answer: 'it counts recomputation',
+        study: 'Hardware FLOPs Utilization counts every FLOP the hardware did, including activation recomputation; Model FLOPs Utilization counts only the FLOPs the model logically needs. HFU is always higher — the gap is the recompute tax.' },
+      { id: 'gpu-hours', term: 'GPU-hours',
+        prompt: 'How is a training run’s compute cost usually quoted', answer: 'GPU-hours',
+        study: 'Training cost is quoted in GPU-hours or TPU-hours — chips times wall-clock time — which convert to dollars and energy. A frontier run is millions of GPU-hours; utilization sets how many you burn.' },
+      { id: 'cost-per-token', section: 'The economics.', term: 'Cost per token',
+        prompt: 'What is the key unit of inference cost', answer: 'cost per token',
+        study: 'Inference economics reduce to cost per token — dollars per million tokens in and out. It’s set by model size, precision, batch efficiency, and utilization, and it’s what pricing and margins are built on.',
+        note: 'Rough order of magnitude (moves fast): frontier models are priced a few dollars per million output tokens, small models cents. Output usually costs several times input — decode is the expensive phase.' },
+      { id: 'throughput-latency', term: 'Throughput vs latency',
+        prompt: 'The core serving tradeoff is between', answer: 'throughput and latency',
+        study: 'Serving trades throughput — total tokens per second, which sets cost — against latency, one user’s speed. Bigger batches cut cost per token but can slow each user; the operating point balances margin against experience.' },
+      { id: 'tco', term: 'TCO',
+        prompt: 'What does GPU-fleet TCO include beyond the chips', answer: 'power, cooling, networking, datacenter',
+        study: 'Total cost of ownership runs well past the accelerators: power and cooling, networking, servers, datacenter space, and depreciation over a few years. The chip is often under half of TCO — which is why utilization and power efficiency matter so much.' },
+      { id: 'power-pue', term: 'Power & PUE',
+        prompt: 'What does PUE measure', answer: 'datacenter energy overhead',
+        study: 'Power Usage Effectiveness is total facility power divided by the power reaching the compute — 1.0 is perfect, hyperscalers hit about 1.1. With gigawatt-scale AI datacenters, power is now the binding constraint on how much compute you can deploy.' },
+    ],
+  },
+
+  kernels: {
+    id: 'kernels',
+    title: 'Kernels & performance',
+    kind: 'pairs',
+    studyLead: 'The gap between a chip’s peak and what you actually get is closed in the kernels. How the math is compiled, fused, and tuned to the hardware. Read each idea, then say the answer aloud.',
+    facts: [
+      { id: 'kernel', section: 'What a kernel is.', term: 'GPU kernel',
+        prompt: 'What is a GPU kernel', answer: 'a function run across many threads',
+        study: 'A kernel is one function launched across thousands of GPU threads at once, each on a slice of the data; threads run in lockstep groups of 32 called warps. Training and inference are ultimately sequences of kernel launches — matmuls, attention, normalizations, elementwise ops.' },
+      { id: 'occupancy', term: 'Occupancy',
+        prompt: 'What is occupancy', answer: 'active threads versus the maximum',
+        study: 'Occupancy is the fraction of a GPU’s thread capacity a kernel keeps busy. Higher occupancy hides memory latency by having other threads ready to run — though registers and shared memory cap it. It’s a first-look tuning metric.' },
+      { id: 'coalescing', term: 'Memory coalescing',
+        prompt: 'What is memory coalescing', answer: 'threads reading contiguous addresses together',
+        study: 'When neighboring threads read neighboring addresses, the hardware coalesces them into one wide 128-byte transaction — full bandwidth. Strided or scattered access wastes most of each transaction, so data layout is a core performance lever.' },
+      { id: 'fusion', section: 'Making it fast.', term: 'Kernel fusion',
+        prompt: 'What does kernel fusion save', answer: 'round-trips to HBM',
+        study: 'Kernel fusion merges several operations — a matmul, a bias add, an activation — into one kernel, so intermediates stay in registers or SRAM instead of bouncing to HBM and back. For memory-bound chains it’s the biggest win available.' },
+      { id: 'flashattention', term: 'FlashAttention',
+        prompt: 'How does FlashAttention speed up attention', answer: 'it never materializes the full score matrix',
+        study: 'FlashAttention computes attention in tiles that stay in on-chip SRAM, streaming through the sequence and never writing the full N-by-N score matrix to HBM. It turns attention from memory-bound to compute-bound and cuts its memory from quadratic to linear in sequence length — often a two-to-four-times speedup.' },
+      { id: 'tiling', term: 'Tiling',
+        prompt: 'What does tiling, or blocking, exploit', answer: 'data reuse in fast memory',
+        study: 'Tiling breaks a big matmul into blocks sized to fit in SRAM, so each loaded tile is reused for many multiply-adds before eviction. It’s the classic way to raise arithmetic intensity and hit peak compute.' },
+      { id: 'cuda', section: 'The tools.', term: 'CUDA',
+        prompt: 'What is CUDA', answer: 'NVIDIA’s low-level GPU programming model',
+        study: 'CUDA is NVIDIA’s C++-based platform for writing GPU kernels directly — maximum control and performance, but hardware-specific and labor-intensive. The fastest libraries — cuBLAS, cuDNN, CUTLASS — are hand-tuned CUDA, and its ecosystem is NVIDIA’s moat.' },
+      { id: 'triton', term: 'Triton',
+        prompt: 'What does Triton make easier than raw CUDA', answer: 'fast custom kernels in Python',
+        study: 'Triton lets you write fused GPU kernels in Python, handling much of the tiling and memory scheduling automatically. It reaches near-CUDA performance with far less effort — FlashAttention and many custom kernels are written in it.' },
+      { id: 'compiler', term: 'Graph compilers',
+        prompt: 'What do XLA and torch.compile do', answer: 'compile and fuse the whole graph',
+        study: 'Graph compilers — XLA for JAX and TensorFlow, torch.compile for PyTorch — take the model’s operation graph and automatically fuse, schedule, and optimize it for the target hardware, generating kernels you’d otherwise hand-write. It’s how JAX gets TPU performance almost for free.' },
+      { id: 'profiling', term: 'Profiling',
+        prompt: 'What is the first step to speeding up a model', answer: 'profile to find the bottleneck',
+        study: 'Optimization starts with a profiler — Nsight, the PyTorch profiler, XLA traces — to see where time actually goes and whether each kernel is compute- or memory-bound. You optimize the measured bottleneck, not the guessed one; the roofline tells you the ceiling.' },
+    ],
+  },
+
+  datacenter: {
+    id: 'datacenter',
+    title: 'Datacenter & scale',
+    kind: 'pairs',
+    studyLead: 'A training run is only as strong as the building around it: power, cooling, and the failures you survive. How compute is housed, scheduled, and kept alive at fleet scale. Read each idea, then say the answer aloud.',
+    facts: [
+      { id: 'power-constraint', section: 'Power and cooling.', term: 'Power is the constraint',
+        prompt: 'What is now the binding constraint on AI compute', answer: 'power',
+        study: 'At frontier scale the limit isn’t buying chips — it’s powering them. AI datacenters are planned in tens to hundreds of megawatts, now gigawatts, and grid capacity and power contracts increasingly gate how much compute can come online.' },
+      { id: 'pue', term: 'PUE',
+        prompt: 'What does PUE measure', answer: 'facility power over compute power',
+        study: 'Power Usage Effectiveness is total facility power divided by the power reaching the IT gear — 1.0 is ideal, well-run sites hit around 1.1. The overhead is mostly cooling, so cooling technology directly sets how much compute a megawatt buys.' },
+      { id: 'liquid-cooling', term: 'Liquid cooling',
+        prompt: 'Why are dense AI racks moving to liquid cooling', answer: 'air can’t remove the heat',
+        study: 'Racks now draw tens of kilowatts — a GB200 NVL72 about 120 — far past what air can handle. Direct-to-chip liquid cooling, and immersion, carry heat away far more efficiently, lowering PUE and enabling the density modern accelerators need.' },
+      { id: 'failure-rate', section: 'Keeping it alive.', term: 'Failures at scale',
+        prompt: 'Why do failures dominate at fleet scale', answer: 'thousands of GPUs make rare failures frequent',
+        study: 'A single GPU rarely fails, but across tens of thousands over months, something is always failing — GPUs, links, power, hosts. Meta’s Llama 3 405B run on 16,384 H100s averaged an unexpected interruption every three hours — 419 over 54 days — so the system must expect and absorb failures, not just hope to avoid them.' },
+      { id: 'checkpointing', term: 'Checkpointing',
+        prompt: 'What is the primary defense against training failures', answer: 'checkpointing',
+        study: 'Checkpointing periodically saves the full training state — weights, optimizer, data position — so a crash resumes from the last save instead of the start. The interval trades lost work against overhead; asynchronous checkpointing hides most of the cost.' },
+      { id: 'straggler-dc', term: 'Stragglers',
+        prompt: 'What is a straggler', answer: 'the slowest worker holding up a sync step',
+        study: 'In synchronous training every step waits for the slowest worker, so one degraded GPU or hot link — a straggler — throttles the whole cluster. Detecting and evicting stragglers keeps utilization from quietly bleeding away.' },
+      { id: 'fault-tolerance', term: 'Fault tolerance',
+        prompt: 'How do large runs survive a failed node mid-training', answer: 'restart from checkpoint, often with spares',
+        study: 'Fault tolerance means detecting a failure, isolating the bad node, and restarting from the last checkpoint — increasingly with hot spares swapped in to avoid a full restart. Elastic, self-healing training minimizes the goodput lost per failure.' },
+      { id: 'scheduler', section: 'Running the fleet.', term: 'Cluster scheduler',
+        prompt: 'What does a scheduler like Borg or Kubernetes do', answer: 'place jobs onto machines',
+        study: 'A scheduler — Google’s Borg, or Kubernetes — decides which jobs run on which machines, packing them to keep utilization high while respecting priorities and limits. Gang scheduling launches all of a distributed job’s workers together, since they’re useless apart.' },
+      { id: 'goodput', term: 'Goodput',
+        prompt: 'What is goodput', answer: 'useful work, excluding waste and redo',
+        study: 'Goodput is the compute that actually advances training — total capacity minus idle time, failures, restarts, and recomputation. Fleet economics live on goodput; high nominal utilization with frequent restarts still wastes the fleet.' },
+      { id: 'capacity-planning', term: 'Capacity planning',
+        prompt: 'What is capacity planning', answer: 'matching future compute demand to supply',
+        study: 'Capacity planning forecasts how much compute training and serving will need, then secures the chips, power, and space — with lead times of a year or more. Get it wrong and you get idle capital or throttled research; it’s a core compute-org function.' },
+    ],
+  },
+
+  accelerators: {
+    id: 'accelerators',
+    title: 'Inside the accelerator',
+    kind: 'pairs',
+    studyLead: 'What actually makes an AI chip fast: the units that do the math and the memory that feeds them. GPU and TPU, side by side. Read each idea, then say the answer aloud. (Companion to the NVIDIA FLOPs deck.)',
+    facts: [
+      { id: 'sm', section: 'Inside a GPU.', term: 'Streaming multiprocessor',
+        prompt: 'What is a streaming multiprocessor, an SM', answer: 'a GPU’s core compute unit',
+        study: 'A GPU is built from many streaming multiprocessors — an H100 has 132, an A100 108 — each with its own schedulers, registers, shared memory, and execution units. Thousands of threads run across them at once; parallelism is the whole design.' },
+      { id: 'tensor-core', term: 'Tensor core',
+        prompt: 'What do tensor cores accelerate', answer: 'matrix multiply-accumulate',
+        study: 'Tensor cores are dedicated units that do a small matrix multiply-and-accumulate in one operation, at far higher throughput than general cores. They’re why a modern GPU’s low-precision matmul FLOPS dwarf its FP32 rate — and where nearly all model compute runs.' },
+      { id: 'cuda-core', term: 'CUDA core',
+        prompt: 'What do CUDA cores handle versus tensor cores', answer: 'general scalar and vector math',
+        study: 'CUDA cores are the general-purpose lanes for scalar and vector work — activations, normalizations, anything that isn’t a big matmul. Tensor cores handle the matmuls; a real kernel uses both, and keeping the tensor cores fed is the performance game.' },
+      { id: 'gpu-memory', term: 'GPU memory tiers',
+        prompt: 'What feeds a GPU’s compute units', answer: 'registers, shared memory, L2, then HBM',
+        study: 'Each SM has registers and configurable shared memory and L1, backed by a shared L2 cache, backed by HBM. Data cascades down from HBM into the fast tiers; a good kernel maximizes reuse up high so the compute units never starve.' },
+      { id: 'systolic-array', section: 'Inside a TPU.', term: 'Systolic array',
+        prompt: 'What is a systolic array', answer: 'a grid of MACs that pumps data through',
+        study: 'A TPU’s heart is a systolic array — a 2D grid of multiply-accumulate cells where operands flow in rhythmically and partial sums accumulate as they pass. It does an enormous matmul with minimal memory movement, very power-efficiently, but is specialized for dense matrix math.' },
+      { id: 'mxu', term: 'MXU',
+        prompt: 'What is the TPU’s MXU', answer: 'its matrix multiply unit',
+        study: 'The MXU — Matrix Multiply Unit — is the TPU’s systolic-array matmul engine, e.g. a 128-by-128 grid doing tens of thousands of multiply-accumulates per cycle. It’s the TPU analogue of the GPU’s tensor cores, and the source of its training throughput.' },
+      { id: 'gpu-vs-tpu', term: 'GPU vs TPU',
+        prompt: 'The core philosophy difference, GPU versus TPU', answer: 'flexible many-core vs specialized matmul',
+        study: 'A GPU is a flexible, massively-parallel processor good at almost anything; a TPU is an ASIC purpose-built for dense matrix math and wired directly into a torus for scale. GPUs win on generality and ecosystem; TPUs win on efficiency and tight pod-scale coupling.' },
+      { id: 'hbm-feeds', section: 'What sets the ceiling.', term: 'Memory feeds the math',
+        prompt: 'What most often limits a matmul’s real speed', answer: 'HBM bandwidth, not FLOPS',
+        study: 'Peak FLOPS is a marketing ceiling; real throughput is usually capped by how fast HBM can feed the tensor cores or MXU. That’s why each generation grows memory bandwidth alongside compute — starve the array and the FLOPS are wasted.' },
+      { id: 'sparsity', term: 'Structured sparsity',
+        prompt: 'What does structured sparsity buy on tensor cores', answer: 'up to double the throughput',
+        study: 'Modern tensor cores can skip a structured pattern of zeros — 2:4 sparsity, two of every four values zero — to roughly double matmul throughput. It’s why some spec sheets quote a sparse number twice the dense one; real gains depend on the model tolerating the pattern.' },
+      { id: 'precision-modes', term: 'The FLOPS ladder',
+        prompt: 'Why does one chip list many different FLOPS numbers', answer: 'one per precision, dense vs sparse',
+        study: 'A chip’s tensor cores run many formats — FP16, BF16, FP8, FP4 — each roughly doubling throughput as precision halves, and doubling again for sparsity. So a single GPU has a whole ladder of FLOPS numbers; always ask which precision, and whether it’s dense.',
+        note: 'This is the ladder behind the NVIDIA FLOPs deck: the B200’s 2250 TFLOPS is dense FP16 — its FP4 figure is roughly four times that.' },
+    ],
+  },
+};
+
+let TOPIC_LIST = Object.values(TOPICS);
+const BUILTIN_IDS = Object.keys(TOPICS);
+
+// ---------- custom topics (user-authored term↔answer pairs, persisted) ----------
+const CUSTOM_KEY = 'ingrain:topics';
+function customStore() {
+  try { return JSON.parse(localStorage.getItem(CUSTOM_KEY)) || {}; } catch (e) { return {}; }
+}
+function saveCustomStore(obj) {
+  try { localStorage.setItem(CUSTOM_KEY, JSON.stringify(obj)); } catch (e) {}
+}
+/** Merge persisted custom topics into TOPICS; drop any that were deleted. */
+function loadCustomTopics() {
+  for (const id of Object.keys(TOPICS)) if (!BUILTIN_IDS.includes(id)) delete TOPICS[id];
+  for (const t of Object.values(customStore())) {
+    if (t && t.id && Array.isArray(t.facts) && t.facts.length) TOPICS[t.id] = t;
+  }
+  TOPIC_LIST = Object.values(TOPICS);
+}
+/** "prompt = answer" lines → pair facts. Accepts = :: | — – or a tab as separator. */
+function parsePairsInput(text) {
+  const out = [];
+  String(text || '').split('\n').forEach(line => {
+    const m = line.match(/^\s*(.+?)\s*(?:=|::|\||—|–|\t)\s*(.+?)\s*$/);
+    if (!m) return;
+    const prompt = m[1].trim(), answer = m[2].trim();
+    if (prompt && answer) out.push({ id: 'f' + out.length, prompt, answer, note: null });
+  });
+  return out;
+}
+loadCustomTopics();
+
+let topicId = localStorage.getItem('ingrain:topic') || 'gpu';
+if (!TOPICS[topicId]) topicId = 'gpu';
+const topic = () => TOPICS[topicId];
+const FACTS = () => topic().facts;
+
+function closeStepMenus() {
+  $('topicMenu').classList.remove('open');
+  $('topicTitle').setAttribute('aria-expanded', 'false');
+}
+function fillTopicMenu() {
+  const menu = $('topicMenu');
+  menu.innerHTML = '';
+  TOPIC_LIST.forEach(item => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('role', 'option');
+    b.textContent = item.title;
+    b.classList.toggle('active', item.id === topicId);
+    b.onclick = () => { topicId = item.id; persistTopic(); closeStepMenus(); startSession(); };
+    menu.appendChild(b);
+  });
+  const extra = document.createElement('button');
+  extra.type = 'button';
+  extra.textContent = '＋ New topic';
+  extra.style.marginTop = '4px';
+  extra.style.borderTop = '1px solid rgba(255,255,255,.08)';
+  extra.onclick = () => { closeStepMenus(); openEditor(null); };
+  menu.appendChild(extra);
+}
+function syncTopicNav() {
+  $('topicTitle').textContent = topic().title;
+  if ($('topicMenu').classList.contains('open')) fillTopicMenu();
+}
+function persistTopic() {
+  try { localStorage.setItem('ingrain:topic', topicId); } catch (e) {}
+}
+function stepTopic(dir) {
+  const i = TOPIC_LIST.findIndex(t => t.id === topicId);
+  topicId = TOPIC_LIST[(i < 0 ? 0 : i + dir + TOPIC_LIST.length) % TOPIC_LIST.length].id;
+  persistTopic();
+  startSession();
+}
+
+const ONES = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine',
+  'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
+const TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+
+function numberWords(n) {
+  n = Math.floor(Math.abs(n));
+  if (n < 20) return ONES[n] || 'zero';
+  if (n < 100) {
+    const t = Math.floor(n / 10), o = n % 10;
+    return TENS[t] + (o ? ' ' + ONES[o] : '');
+  }
+  if (n < 1000) {
+    const h = Math.floor(n / 100), rest = n % 100;
+    return ONES[h] + ' hundred' + (rest ? ' ' + numberWords(rest) : '');
+  }
+  if (n < 10000) {
+    const th = Math.floor(n / 1000), rest = n % 1000;
+    return ONES[th] + ' thousand' + (rest ? ' ' + numberWords(rest) : '');
+  }
+  return String(n);
+}
+
+function colloquialNumber(n) {
+  // "nine eighty-nine" for 989; "three twelve" for 312; "two two fifty" for 2250
+  const s = String(n);
+  if (s.length === 3) {
+    const a = +s[0], b = +s.slice(1);
+    if (b < 10) return numberWords(a) + ' oh ' + numberWords(b);
+    return numberWords(a) + ' ' + numberWords(b);
+  }
+  if (s.length === 4) {
+    const a = +s.slice(0, 1), b = +s.slice(1);
+    // 2250 → "twenty two fifty" / "two thousand…" handled elsewhere; colloquial: first + rest
+    if (b >= 100) {
+      const mid = Math.floor(b / 100), end = b % 100;
+      return numberWords(a) + ' ' + numberWords(mid) + (end ? ' ' + numberWords(end) : '');
+    }
+    return numberWords(+s.slice(0, 2)) + ' ' + numberWords(+s.slice(2));
+  }
+  return numberWords(n);
+}
+
+function digitForms(n) {
+  const spoken = numberWords(n);
+  const colloq = colloquialNumber(n);
+  const forms = new Set([String(n), spoken, colloq]);
+  // also accept fact.spoken override if provided separately at call site
+  return [...forms];
+}
+
+function ratioSpoken(r) {
+  const whole = Math.floor(r);
+  const tenths = Math.round((r - whole) * 10);
+  if (tenths === 0) return numberWords(whole);
+  return numberWords(whole) + ' point ' + numberWords(tenths);
+}
+
+// ---------- 2. Card types from FACTS ----------
+let _uid = 0;
+function makeCard(partial) {
+  return { uid: 'c' + (++_uid), shadow: false, revealed: false, matched: false, ...partial };
+}
+
+function yearAbs(fact) {
+  // Astronomical-style: 60 BCE → -60, 14 CE → 14
+  return fact.era === 'BCE' ? -fact.year : fact.year;
+}
+
+/** Years between two historical dates (no year 0). */
+function yearsBetween(a, b) {
+  let d = yearAbs(b) - yearAbs(a);
+  if (yearAbs(a) < 0 && yearAbs(b) > 0) d -= 1;
+  return d;
+}
+
+function yearAccept(fact) {
+  const y = String(fact.year);
+  const sp = fact.spoken || numberWords(fact.year);
+  const era = fact.era;
+  const eraSpoken = era === 'BCE' ? ['bce', 'bc', 'before christ'] : ['ce', 'ad', 'common era'];
+  const forms = new Set([
+    y, sp,
+    `${y} ${era}`, `${y} ${era.toLowerCase()}`,
+    `${sp} ${era}`, `${sp} ${era.toLowerCase()}`,
+    `${y} bc`, `${sp} bc`, `${y} bce`, `${sp} bce`,
+    `${y} ad`, `${sp} ad`, `${y} ce`, `${sp} ce`,
+  ]);
+  if (era === 'BCE') {
+    forms.add(`${y} bc`); forms.add(`${sp} bc`);
+  } else {
+    forms.add(`${y} ad`); forms.add(`${sp} ad`);
+  }
+  return [...forms, ...eraSpoken.map(e => `${y} ${e}`), ...eraSpoken.map(e => `${sp} ${e}`)];
+}
+
+function toCardsFlops(fact) {
+  const cards = [];
+  const note = fact.note;
+  const numForms = [...digitForms(fact.tflops), fact.spoken].filter(Boolean);
+
+  cards.push(makeCard({
+    type: 'forward',
+    factId: fact.id,
+    cue: `${fact.chip} — ${fact.arch}`,
+    note,
+    answerKind: 'number',
+    answerValue: fact.tflops,
+    answerDisplay: String(fact.tflops),
+    answerUnit: 'teraflops',
+    accept: numForms,
+  }));
+
+  cards.push(makeCard({
+    type: 'reverse',
+    factId: fact.id,
+    cue: `${fact.tflops} teraflops`,
+    note,
+    answerKind: 'chip',
+    answerValue: fact.chip,
+    answerDisplay: fact.chip,
+    answerUnit: '',
+    accept: [fact.chip, fact.chip.toLowerCase(), normWord(fact.chip)],
+  }));
+
+  if (LANDMARK_CARDS && fact.landmark) {
+    cards.push(makeCard({
+      type: 'landmark',
+      factId: fact.id,
+      cue: `${fact.chip} in petaflops`,
+      note,
+      answerKind: 'phrase',
+      answerValue: fact.landmark,
+      answerDisplay: fact.landmark,
+      answerUnit: '',
+      accept: [fact.landmark],
+    }));
+  }
+  return cards;
+}
+
+function toCardsDates(fact) {
+  const display = `${fact.year} ${fact.era}`;
+  const labelAccept = [
+    fact.label,
+    fact.label.toLowerCase(),
+    speakNorm(fact.label),
+  ];
+  // Short aliases for speech
+  if (fact.id === 'ides') labelAccept.push('ides', 'assassination', 'caesar assassinated', 'death of caesar');
+  if (fact.id === 'rubicon') labelAccept.push('rubicon', 'civil war', 'crosses the rubicon');
+  if (fact.id === 'augustus') labelAccept.push('augustus', 'principate', 'octavian becomes augustus');
+  if (fact.id === 'augustus-death') labelAccept.push('death of augustus', 'augustus dies', 'end of augustus');
+  if (fact.id === 'first-triumvirate') labelAccept.push('first triumvirate', 'triumvirate');
+  if (fact.id === 'second-triumvirate') labelAccept.push('second triumvirate');
+  if (fact.id === 'carrhae') labelAccept.push('carrhae', 'crassus', 'crassus killed', 'crassus dies');
+
+  return [
+    makeCard({
+      type: 'forward',
+      factId: fact.id,
+      cue: `${fact.label} — ${fact.context}`,
+      note: fact.note,
+      answerKind: 'year',
+      answerValue: fact.year,
+      answerEra: fact.era,
+      answerDisplay: display,
+      answerUnit: '',
+      accept: yearAccept(fact),
+    }),
+    makeCard({
+      type: 'reverse',
+      factId: fact.id,
+      cue: display,
+      note: fact.note,
+      answerKind: 'label',
+      answerValue: fact.label,
+      answerDisplay: fact.label,
+      answerUnit: '',
+      accept: labelAccept,
+    }),
+  ];
+}
+
+function toCardsPairs(fact) {
+  const ans = fact.answer;
+  const accept = new Set([ans, speakNorm(ans)]);
+  // lenient fallback: accept the single most distinctive word (STT rarely nails long phrases)
+  const words = speakNorm(ans).split(' ').filter(w => w.length > 3).sort((a, b) => b.length - a.length);
+  if (words[0]) accept.add(words[0]);
+  return [makeCard({
+    type: 'forward',
+    factId: fact.id,
+    cue: fact.prompt,
+    note: fact.note,
+    answerKind: 'phrase',
+    answerValue: ans,
+    answerDisplay: ans,
+    answerUnit: '',
+    accept: [...accept],
+  })];
+}
+
+function toCards(fact) {
+  if (topic().kind === 'dates') return toCardsDates(fact);
+  if (topic().kind === 'pairs') return toCardsPairs(fact);
+  return toCardsFlops(fact);
+}
+
+function relationCardsFlops() {
+  const sorted = [...FACTS()].sort((a, b) => a.tflops - b.tflops || a.id.localeCompare(b.id));
+  const out = [];
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const a = sorted[i], b = sorted[i + 1];
+    const raw = b.tflops / a.tflops;
+    const ratio = Math.round(raw * 10) / 10;
+    const spoken = ratioSpoken(ratio);
+    const accept = [
+      String(ratio), ratio.toFixed(1), spoken, spoken + ' x', spoken + ' times',
+      'about ' + spoken, 'about ' + spoken + ' x',
+    ];
+    if (ratio === Math.floor(ratio)) accept.push(String(Math.floor(ratio)));
+    const nearest = Math.round(ratio);
+    if (Math.abs(ratio - nearest) <= 0.3) {
+      const w = numberWords(nearest);
+      accept.push(w, w + ' x', 'about ' + w, 'about ' + w + ' x');
+    }
+    out.push(makeCard({
+      type: 'relation',
+      factId: a.id + ':' + b.id,
+      factKeys: [a.id, b.id],
+      cue: `${a.chip} → ${b.chip}`,
+      note: null,
+      answerKind: 'ratio',
+      answerValue: ratio,
+      answerDisplay: ratio.toFixed(1) + '×',
+      answerUnit: '',
+      accept,
+      ratioTol: 0.3,
+    }));
+  }
+  return out;
+}
+
+function relationCardsDates() {
+  const sorted = [...FACTS()].sort((a, b) => yearAbs(a) - yearAbs(b) || a.id.localeCompare(b.id));
+  const out = [];
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const a = sorted[i], b = sorted[i + 1];
+    const span = yearsBetween(a, b);
+    const spoken = numberWords(span);
+    const accept = [
+      String(span), spoken, spoken + ' years', spoken + ' year',
+      'about ' + spoken, 'about ' + spoken + ' years',
+      String(span) + ' years',
+    ];
+    out.push(makeCard({
+      type: 'relation',
+      factId: a.id + ':' + b.id,
+      factKeys: [a.id, b.id],
+      cue: `${a.label} → ${b.label}`,
+      note: null,
+      answerKind: 'span',
+      answerValue: span,
+      answerDisplay: `${span} ${span === 1 ? 'year' : 'years'}`,
+      answerUnit: '',
+      accept,
+      ratioTol: 0, // exact year counts; still allow ±1 via matcher
+    }));
+  }
+  return out;
+}
+
+function relationCards() {
+  if (topic().kind === 'dates') return relationCardsDates();
+  if (topic().kind === 'pairs') return []; // pairs have no intrinsic ordering to relate
+  return relationCardsFlops();
+}
+
+function buildDeck() {
+  _uid = 0;
+  const base = FACTS().flatMap(toCards);
+  return base.concat(relationCards());
+}
+
+function withDigits(spoken, n) {
+  return `${spoken} (${n})`;
+}
+
+/** @returns {{ text: string, factId: string|null }[]} */
+function buildStudySentencesFlops() {
+  const sorted = [...FACTS()].sort((a, b) => a.tflops - b.tflops || a.id.localeCompare(b.id));
+  // The pattern is the point: ~2x (sometimes 3x) per generation, with the H200 as the exception.
+  const lines = [{ text: 'These are NVIDIA’s data-center GPUs. Each generation roughly doubles — sometimes triples — the dense FP16 tensor compute of the last, with one exception. Teraflops. Say each aloud.', factId: null }];
+  for (const fact of sorted) {
+    // Spaces not hyphens — STT / numberWords use "twenty five", not "twentyfive"
+    const spoken = (fact.spoken || numberWords(fact.tflops)).replace(/-/g, ' ');
+    const flops = withDigits(spoken, fact.tflops);
+    const yr = fact.year ? ` (${fact.year})` : ''; // year seen, not spoken
+    let text;
+    if (fact.id === 'v100') text = `The V100 on Volta${yr} delivers ${flops} teraflops — the baseline.`;
+    else if (fact.id === 'a100') text = `The A100 on Ampere${yr} steps up to ${flops} teraflops.`;
+    else if (fact.id === 'h100') text = `The H100 on Hopper${yr} reaches ${flops} teraflops, just under one petaflop.`;
+    else if (fact.id === 'h200') {
+      text = `The H200${yr} stays on Hopper at ${flops} teraflops — the exception: same compute as the H100. What changed is memory, ${withDigits('one hundred forty one', 141)} gigabytes of HBM3e versus ${withDigits('eighty', 80)}.`;
+    } else if (fact.id === 'b200') text = `The B200 on Blackwell${yr} jumps to ${flops} teraflops.`;
+    else if (fact.id === 'rubin') text = `The Rubin GPU${yr} roughly doubles Blackwell to ${flops} teraflops — NVIDIA’s own figures, still preliminary.`;
+    else text = `The ${fact.chip} on ${fact.arch}${yr} delivers ${flops} teraflops.`;
+    lines.push({ text, factId: fact.id });
+  }
+  lines.push({ text: 'Now the jumps between neighbors — each roughly a doubling, except the H200.', factId: null });
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const a = sorted[i], b = sorted[i + 1];
+    const ratio = Math.round((b.tflops / a.tflops) * 10) / 10;
+    const spoken = ratioSpoken(ratio);
+    const text = ratio === 1
+      ? `From the ${a.chip} to the ${b.chip} the compute is the same — ${withDigits(spoken, ratio)} times: a memory refresh, not a new engine.`
+      : `From the ${a.chip} to the ${b.chip} is about ${withDigits(spoken, ratio)} times the compute.`;
+    lines.push({ text, factId: b.id });
+  }
+  lines.push({ text: 'One caveat: these are dense FP16 numbers. Drop to FP8 and they double; to FP4 on Blackwell and they quadruple — which is why the headline slides quote far larger figures.', factId: null });
+  lines.push({ text: 'And it keeps going: Rubin Ultra follows in 2027. NVIDIA now ships a new architecture about every year, so the top number climbs on a roughly yearly clock.', factId: null });
+  return lines;
+}
+
+/** @returns {{ text: string, factId: string|null }[]} */
+function buildStudySentencesDates() {
+  const sorted = [...FACTS()].sort((a, b) => yearAbs(a) - yearAbs(b) || a.id.localeCompare(b.id));
+  const lines = [
+    { text: 'The Republic doesn’t fall in a day — it dies by degrees over thirty years, war by war, until one man holds it all. Say each date aloud.', factId: null },
+  ];
+  for (const fact of sorted) {
+    lines.push({ text: fact.study, factId: fact.id });
+    if (fact.note) lines.push({ text: fact.note, factId: fact.id });
+  }
+  lines.push({ text: 'Now the spans between neighboring events.', factId: null });
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const a = sorted[i], b = sorted[i + 1];
+    const span = yearsBetween(a, b);
+    const spoken = numberWords(span);
+    const unit = span === 1 ? 'year' : 'years';
+    lines.push({
+      text: `From the ${a.label} to ${b.label} is ${withDigits(spoken, span)} ${unit}.`,
+      factId: b.id,
+    });
+  }
+  return lines;
+}
+
+/** @returns {{ text: string, factId: string|null }[]} */
+function buildStudySentencesPairs() {
+  const lead = topic().studyLead || 'Say each pair aloud — the prompt, then the answer.';
+  const lines = [{ text: lead, factId: null }];
+  let lastSection = null;
+  for (const fact of FACTS()) {
+    if (fact.section && fact.section !== lastSection) {
+      lines.push({ text: fact.section, factId: null }); // section header, read aloud
+      lastSection = fact.section;
+    }
+    // Curated topics teach with a rich `study` line; quick user topics fall back to the pair.
+    lines.push({ text: fact.study || `${fact.prompt} — ${fact.answer}.`, factId: fact.id });
+    if (fact.note) lines.push({ text: fact.note, factId: fact.id });
+  }
+  return lines;
+}
+
+function buildStudySentences() {
+  if (topic().kind === 'dates') return buildStudySentencesDates();
+  if (topic().kind === 'pairs') return buildStudySentencesPairs();
+  return buildStudySentencesFlops();
+}
+
+/** STT often splits "H100" into "h" + "100" — rejoin before matching. */
+function coalesceGpuTokens(words) {
+  const letterName = { vee: 'v', ay: 'a', aitch: 'h', bee: 'b' };
+  const out = [];
+  for (let i = 0; i < words.length; i++) {
+    const a = words[i], b = words[i + 1];
+    if (b && /^[abhv]$/.test(a) && /^\d{3,4}$/.test(b)) {
+      out.push(a + b);
+      i++;
+      continue;
+    }
+    const letter = letterName[a];
+    if (letter && b && /^\d{3,4}$/.test(b)) {
+      out.push(letter + b);
+      i++;
+      continue;
+    }
+    out.push(a);
+  }
+  return out;
+}
+
+/**
+ * Study voice tokens for read-along.
+ * STT often emits "125" / "3.2" instead of spoken forms — expand digits into
+ * number-words so the follow can advance. Chip ids (v100) stay coalesced first
+ * so bare "100" is not what we get from "H100".
+ */
+function studySpeechTokens(text) {
+  // "3.2" → "3 point 2" before stripping punctuation
+  const cleaned = String(text || '')
+    .replace(/(\d+)\.(\d+)/g, '$1 point $2')
+    .replace(/-/g, ' ');
+  const raw = coalesceGpuTokens(normWords(cleaned));
+  const out = [];
+  for (const w of raw) {
+    if (/^\d+$/.test(w)) {
+      const n = parseInt(w, 10);
+      if (n >= 1 && n <= 99999) {
+        out.push(...normWords(numberWords(n)));
+        continue;
+      }
+    }
+    out.push(w);
+  }
+  return out;
+}
+
+/** If STT said a digit, skip a whole spoken-number run at `from` when it equals that value. */
+function tryConsumeSpokenNumber(from, n) {
+  for (let len = 1; len <= 8; len++) {
+    if (from + len > studyWords.length) break;
+    const slice = studyWords.slice(from, from + len).map(w => w.norm).join(' ');
+    // Don't swallow non-number words (chip names, "teraflops", …)
+    if (wordToInt(slice) === n) return from + len;
+  }
+  return from;
+}
+
+function studyWordMatch(scriptNorm, heard) {
+  if (!scriptNorm || !heard) return false;
+  // Chip ids: exact only (prevents "100" ⊆ "v100")
+  if (/^[a-z]\d{2,4}$/.test(scriptNorm) || /^[a-z]\d{2,4}$/.test(heard)) {
+    return scriptNorm === heard;
+  }
+  if (scriptNorm === heard) return true;
+  // Short words: exact only — stops "in"/"to"/"of" from leaping ahead
+  if (scriptNorm.length <= 3 || heard.length <= 3) return false;
+  // Prefix only (no .includes) — STT partials OK, random substring jumps not
+  return (scriptNorm.length > 4 && heard.length > 3 &&
+    (scriptNorm.startsWith(heard) || heard.startsWith(scriptNorm)));
+}
+
+function factKeysOf(card) {
+  if (card.factKeys) return card.factKeys;
+  return [card.factId];
+}
+
+function sharesFact(a, b) {
+  const ka = factKeysOf(a), kb = factKeysOf(b);
+  return ka.some(k => kb.includes(k));
+}
+
+// ---------- 9. Constrained shuffle ----------
+function shuffleArray(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function adjacencyOk(arr) {
+  for (let i = 1; i < arr.length; i++) if (sharesFact(arr[i - 1], arr[i])) return false;
+  return true;
+}
+
+function constrainedShuffle(deck) {
+  for (let attempt = 0; attempt < 800; attempt++) {
+    const a = shuffleArray(deck);
+    if (adjacencyOk(a)) return a;
+  }
+  // Backtracking placement (deck is small)
+  const remaining = deck.slice();
+  const out = [];
+  function bt() {
+    if (!remaining.length) return true;
+    // Try least-constrained candidates first (fewest fact overlaps with last)
+    const order = remaining.map((c, i) => i);
+    if (out.length) {
+      order.sort((i, j) => {
+        const si = sharesFact(out[out.length - 1], remaining[i]) ? 1 : 0;
+        const sj = sharesFact(out[out.length - 1], remaining[j]) ? 1 : 0;
+        return si - sj;
+      });
+    }
+    for (const i of order) {
+      const c = remaining[i];
+      if (out.length && sharesFact(out[out.length - 1], c)) continue;
+      remaining.splice(i, 1);
+      out.push(c);
+      if (bt()) return true;
+      out.pop();
+      remaining.splice(i, 0, c);
+    }
+    return false;
+  }
+  if (bt() && adjacencyOk(out)) return out;
+  // Last resort: return best-effort shuffle (should be rare)
+  return shuffleArray(deck);
+}
+
+/** Stable session order when Shuffle is off (adjacency-safe). Reshuffled each loop when on. */
+let sessionOrderTemplate = null;
+
+function fixedOrConstrained(sourceDeck, doShuffle) {
+  if (doShuffle) return constrainedShuffle(sourceDeck);
+  const srs = srsOrder(sourceDeck);
+  if (srs) return srs;
+  if (!sessionOrderTemplate) {
+    let ok = true;
+    for (let i = 1; i < sourceDeck.length; i++) {
+      if (sharesFact(sourceDeck[i - 1], sourceDeck[i])) { ok = false; break; }
+    }
+    sessionOrderTemplate = ok ? sourceDeck.slice() : constrainedShuffle(sourceDeck);
+  }
+  // Remap template fact/type sequence onto fresh clones from sourceDeck
+  const pool = sourceDeck.slice();
+  const out = [];
+  for (const t of sessionOrderTemplate) {
+    const idx = pool.findIndex(c => c.type === t.type && c.factId === t.factId && !c.shadow);
+    if (idx >= 0) out.push(pool.splice(idx, 1)[0]);
+  }
+  return out.concat(pool);
+}
+
+// ---------- 3. Phase + fade ----------
+let phase = 'study';     // study | handoff | recall | done
+let shuffleOn = false;
+let totalLoops = 3;      // recall passes only
+let recallLoop = 0;      // 1-based during recall
+let deck = [];           // full interleaved deck (for recall)
+let queue = [];
+let queueIndex = 0;
+let sessionDone = false;
+let studyWords = [];     // [{ norm, el }] current study answer line
+let matchedIndex = 0;
+let utterAnchor = 0;
+
+function fadeLevelFor() {
+  if (phase === 'study' || phase === 'handoff') return 0;
+  if (recallLoop <= 1) return 1;
+  return 2;
+}
+
+function updatePhaseUI() {
+  const lens = $('lensline');
+  const reveal = $('revealBtn');
+  const skip = $('skipQuizBtn');
+  if (phase === 'study') {
+    lens.textContent = '▲ STUDY — READ THE MAP';
+    reveal.style.display = 'none';
+    skip.style.display = '';
+  } else if (phase === 'recall') {
+    lens.textContent = `▲ QUIZ — SAY THE ANSWER · ${recallLoop}/${totalLoops}`;
+    reveal.style.display = '';
+    skip.style.display = 'none';
+  } else {
+    reveal.style.display = 'none';
+    skip.style.display = 'none';
+  }
+  // Timeline only in study — it has the answers, so hide in quiz
+  if (phase === 'study') renderTimeline();
+  else {
+    $('timeline').classList.remove('show');
+    document.body.classList.remove('timeline-on');
+  }
+}
+
+function maskDigits(display, fade) {
+  // display like "989" or "3.2×" — mask alnum, keep punctuation spacing
+  const chars = [...display];
+  if (fade <= 0) return display;
+  let firstKept = false;
+  return chars.map(ch => {
+    if (!/[0-9A-Za-z]/.test(ch)) return ch;
+    if (fade === 1 && !firstKept) { firstKept = true; return ch; }
+    return '_';
+  }).join(' ').replace(/ +/g, ' ');
+}
+
+function placeholderFor(card, fade) {
+  if (card.matched || card.revealed) return card.answerDisplay + (card.answerUnit ? ' ' + card.answerUnit : '');
+  const base = card.answerDisplay;
+  if (fade <= 0) {
+    // Study / loop1: show digits/text but recognition guard still forbids putting
+    // "the answer" as the matchable secret — for fade 0 the cue IS visible study text.
+    // Spec: loop 1 fade 0 all digits shown. Real value may be shown at fade 0.
+    return base + (card.answerUnit ? ' ' + card.answerUnit : '');
+  }
+  // fade ≥ 1: placeholder only — never the real string as contiguous answer
+  const masked = maskDigits(base, fade);
+  return masked + (card.answerUnit ? ' ' + card.answerUnit : '');
+}
+
+// Real answer held only in card object; DOM gets placeholder until reveal/match.
+function answerTextForDom(card, fade) {
+  if (card.matched || card.revealed) {
+    return card.answerDisplay + (card.answerUnit ? ' ' + card.answerUnit : '');
+  }
+  if (fade <= 0) {
+    // Visible study text is intentional at fade 0; still speech-gated to advance.
+    return card.answerDisplay + (card.answerUnit ? ' ' + card.answerUnit : '');
+  }
+  return placeholderFor(card, fade);
+}
+
+// ---------- 8. Matching ----------
+const normWord = (s) => String(s).toLowerCase().replace(/[^a-z0-9']/g, '');
+const normWords = (s) => String(s).toLowerCase().split(/\s+/).map(normWord).filter(Boolean);
+
+function speakNorm(s) {
+  return normWords(s).join(' ');
+}
+
+function parseSpokenRatio(text) {
+  // pull a number like 3.2 or "three point two" from heard text
+  const raw = text.toLowerCase();
+  const m = raw.match(/(\d+\.?\d*)/);
+  if (m) return parseFloat(m[1]);
+  const n = speakNorm(raw).replace(/\b(about|times|x|ex)\b/g, ' ').replace(/\s+/g, ' ').trim();
+  // three point two
+  const pm = n.match(/^(.+?)\s+point\s+(.+)$/);
+  if (pm) {
+    const whole = wordToInt(pm[1]);
+    const frac = wordToInt(pm[2]);
+    if (whole != null && frac != null) return whole + frac / 10;
+  }
+  const wholeOnly = wordToInt(n);
+  if (wholeOnly != null) return wholeOnly;
+  return null;
+}
+
+function wordToInt(phrase) {
+  const map = {
+    zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9,
+    ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15,
+    sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19,
+    twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90,
+    hundred: 100, thousand: 1000,
+  };
+  // Hyphens → spaces ("twenty-five" from FACTS.spoken / STT variants)
+  const parts = speakNorm(String(phrase).replace(/-/g, ' ')).split(' ').filter(Boolean);
+  if (!parts.length) return null;
+  let total = 0, current = 0, saw = false;
+  for (const p of parts) {
+    if (!(p in map)) continue; // skip filler ("teraflops", "the", …)
+    saw = true;
+    const v = map[p];
+    if (v === 100) { current = (current || 1) * 100; }
+    else if (v === 1000) { total += (current || 1) * 1000; current = 0; }
+    else current += v;
+  }
+  return saw ? total + current : null;
+}
+
+function heardHasAccept(heard, acceptList) {
+  const heardSpaced = heard.replace(/-/g, ' ');
+  for (const a of acceptList) {
+    const na = speakNorm(String(a).replace(/-/g, ' '));
+    if (!na) continue;
+    if (heardSpaced === na) return true;
+    if (na.includes(' ')) {
+      if (heardSpaced.includes(na)) return true;
+    } else if (heardSpaced.split(' ').includes(na)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function answerMatches(card, heardText) {
+  const raw = String(heardText || '');
+  const heard = speakNorm(raw.replace(/-/g, ' '));
+  if (!heard) return false;
+
+  if (card.answerKind === 'ratio') {
+    const n = parseSpokenRatio(raw);
+    if (n != null && Math.abs(n - card.answerValue) <= (card.ratioTol || 0.3)) return true;
+    return heardHasAccept(heard, card.accept);
+  }
+
+  if (card.answerKind === 'span') {
+    // Years between events — accept exact or ±1 (year-0 edge cases)
+    if (new RegExp('\\b' + card.answerValue + '\\b').test(raw.replace(/,/g, ''))) return true;
+    if (heardHasAccept(heard, card.accept)) return true;
+    const n = wordToInt(raw);
+    return n != null && Math.abs(n - card.answerValue) <= 1;
+  }
+
+  if (card.answerKind === 'year') {
+    const hasYear =
+      new RegExp('\\b' + card.answerValue + '\\b').test(raw.replace(/,/g, '')) ||
+      wordToInt(raw) === card.answerValue ||
+      heardHasAccept(heard, card.accept);
+    if (!hasYear) return false;
+    // If speaker names an era, it must agree (bare "49" is OK)
+    const saidBce = /\b(bce|bc)\b/.test(heard);
+    const saidCe = /\b(ce|ad)\b/.test(heard);
+    if (saidBce && card.answerEra === 'CE') return false;
+    if (saidCe && card.answerEra === 'BCE') return false;
+    return true;
+  }
+
+  if (card.answerKind === 'number') {
+    if (new RegExp('\\b' + card.answerValue + '\\b').test(raw.replace(/,/g, ''))) return true;
+    if (heardHasAccept(heard, card.accept)) return true;
+    const asNum = wordToInt(raw);
+    return asNum === card.answerValue;
+  }
+
+  if (card.answerKind === 'chip') {
+    const target = normWord(card.answerValue);
+    const words = coalesceGpuTokens(normWords(raw));
+    return words.some(w => w === target || studyWordMatch(target, w));
+  }
+
+  if (card.answerKind === 'label') {
+    return heardHasAccept(heard, card.accept);
+  }
+
+  return heardHasAccept(heard, card.accept);
+}
+
+const fuzzy = (a, b) => !a || !b ? false :
+  (a === b || (a.length > 3 && b.length > 3 && (a.startsWith(b) || b.startsWith(a) || a.includes(b) || b.includes(a))));
+
+// ---------- 7. Latency ----------
+const latencyLog = [];
+let presentation = null; // current presentation record
+
+function beginPresentation(card) {
+  const fade = fadeLevelFor();
+  presentation = {
+    cardId: card.factId,
+    type: card.type,
+    uid: card.uid,
+    loopIndex: phase === 'study' ? 0 : recallLoop,
+    phase,
+    fadeLevel: fade,
+    tCue: performance.now(),
+    tFirstSpeech: null,
+    tMatch: null,
+    revealed: !!card.revealed,
+    attempts: 0,
+  };
+  matchedIndex = 0;
+  utterAnchor = 0;
+}
+
+function noteSpeech() {
+  if (!presentation) return;
+  if (presentation.tFirstSpeech == null) presentation.tFirstSpeech = performance.now();
+}
+
+function finishPresentation(matched) {
+  if (!presentation) return;
+  if (matched) presentation.tMatch = performance.now();
+  presentation.revealed = presentation.revealed || !!(queue[queueIndex] && queue[queueIndex].revealed);
+  latencyLog.push({ ...presentation });
+  presentation = null;
+}
+
+function dumpLatency() {
+  console.table(latencyLog.map(r => ({
+    cardId: r.cardId,
+    type: r.type,
+    loopIndex: r.loopIndex,
+    fadeLevel: r.fadeLevel,
+    msToSpeech: r.tFirstSpeech != null ? Math.round(r.tFirstSpeech - r.tCue) : null,
+    msToMatch: r.tMatch != null ? Math.round(r.tMatch - r.tCue) : null,
+    revealed: r.revealed,
+    attempts: r.attempts,
+  })));
+  try {
+    localStorage.setItem('ingrain:lastSession', JSON.stringify({
+      endedAt: Date.now(),
+      records: latencyLog,
+    }));
+  } catch (e) {}
+}
+
+// ---------- spaced repetition — persists across sessions ----------
+// Leitner boxes. Box index → days until the fact is due again.
+// Box 0 = new or just-lapsed (due now); higher box = better known, longer rest.
+const SRS_KEY = 'ingrain:mem:v1';
+const SRS_INTERVALS = [0, 1, 3, 7, 16, 35, 90];
+const DAY = 86400000;
+
+function srsLoad() {
+  try { return JSON.parse(localStorage.getItem(SRS_KEY)) || {}; } catch (e) { return {}; }
+}
+function srsSave(store) {
+  try { localStorage.setItem(SRS_KEY, JSON.stringify(store)); } catch (e) {}
+}
+function srsKey(tid, fid) { return tid + '::' + fid; }
+function srsGet(store, tid, fid) {
+  return store[srsKey(tid, fid)] || { box: 0, reps: 0, lapses: 0, lastSeen: 0, dueAt: 0, ms: null };
+}
+function srsDue(rec, now) { return (rec.dueAt || 0) <= now; }
+
+// grade: 'good' promote · 'hold' keep box · 'lapse' demote
+function srsApply(rec, grade, now, matchMs) {
+  const r = { ...rec };
+  if (grade === 'good') r.box = Math.min(SRS_INTERVALS.length - 1, r.box + 1);
+  else if (grade === 'lapse') { r.box = Math.max(0, r.box - 1); r.lapses = (r.lapses || 0) + 1; }
+  r.reps = (r.reps || 0) + 1;
+  r.lastSeen = now;
+  r.dueAt = now + SRS_INTERVALS[r.box] * DAY;
+  if (matchMs != null) r.ms = r.ms == null ? Math.round(matchMs) : Math.round(r.ms * 0.6 + matchMs * 0.4);
+  return r;
+}
+
+/** Roll this session's recall results into per-fact strength and persist. */
+function commitSrsGrades() {
+  const now = Date.now();
+  const store = srsLoad();
+  const byFact = new Map();
+  for (const r of latencyLog) {
+    if (r.phase !== 'recall') continue;
+    if (r.type !== 'forward' && r.type !== 'reverse') continue; // relations are derived
+    let g = byFact.get(r.cardId);
+    if (!g) { g = { revealed: false, attempts: 0, times: [] }; byFact.set(r.cardId, g); }
+    if (r.revealed) g.revealed = true;
+    g.attempts += r.attempts || 0;
+    if (r.tMatch != null) g.times.push(r.tMatch - r.tCue);
+  }
+  for (const [fid, g] of byFact) {
+    const matched = g.times.length > 0;
+    const med = median(g.times);
+    let grade;
+    if (g.revealed || !matched) grade = 'lapse';        // needed the answer, or never got it
+    else if (g.attempts > 0) grade = 'hold';            // got it, but stumbled first
+    else if (med != null && med > 6000) grade = 'hold'; // clean but slow
+    else grade = 'good';                                // clean and quick
+    store[srsKey(topicId, fid)] = srsApply(srsGet(store, topicId, fid), grade, now, med);
+  }
+  srsSave(store);
+}
+
+function srsPriority(card, store, now) {
+  let p = -1;
+  for (const fid of factKeysOf(card)) {
+    const rec = srsGet(store, topicId, fid);
+    const due = srsDue(rec, now) ? 100 : 0;
+    const weak = (SRS_INTERVALS.length - 1 - rec.box) * 10;
+    const overdueDays = Math.max(0, Math.min(50, (now - (rec.dueAt || 0)) / DAY));
+    p = Math.max(p, due + weak + overdueDays);
+  }
+  return p;
+}
+
+/** Weakest / most-overdue fact leads, then fill keeping the no-same-fact-adjacent
+ *  rule. Places the most-constrained card first (standard reorganize-string greedy);
+ *  falls back to the proven constrained shuffle if spacing still can't hold.
+ *  Returns null when this topic has no history yet (first-run order unchanged). */
+function srsOrder(sourceDeck) {
+  const store = srsLoad();
+  const now = Date.now();
+  if (!FACTS().some(f => (store[srsKey(topicId, f.id)] || {}).reps)) return null;
+  const pri = c => srsPriority(c, store, now);
+  const lead = sourceDeck.reduce((best, c) => pri(c) > pri(best) ? c : best, sourceDeck[0]);
+  const remaining = sourceDeck.filter(c => c !== lead);
+  const out = [lead];
+  const remCount = card => remaining.reduce((n, c) => n + (c !== card && sharesFact(c, card) ? 1 : 0), 0);
+  while (remaining.length) {
+    const prev = out[out.length - 1];
+    let pool = remaining.filter(c => !sharesFact(prev, c));
+    if (!pool.length) pool = remaining.slice(); // forced repeat (rare) — handled by fallback below
+    pool.sort((a, b) => remCount(b) - remCount(a) || pri(b) - pri(a));
+    const pick = pool[0];
+    remaining.splice(remaining.indexOf(pick), 1);
+    out.push(pick);
+  }
+  return adjacencyOk(out) ? out : constrainedShuffle(sourceDeck);
+}
+
+function relDay(ts, now) {
+  const d = Math.round((ts - now) / DAY);
+  if (d <= 0) return 'today';
+  if (d === 1) return 'tomorrow';
+  return 'in ' + d + ' days';
+}
+
+function srsSchedule() {
+  const now = Date.now();
+  const store = srsLoad();
+  let dueNow = 0, nextDue = Infinity;
+  for (const f of FACTS()) {
+    const rec = srsGet(store, topicId, f.id);
+    if (!rec.reps) continue;
+    if (srsDue(rec, now)) dueNow++;
+    else nextDue = Math.min(nextDue, rec.dueAt);
+  }
+  return { dueNow, nextDue: nextDue === Infinity ? null : nextDue };
+}
+
+function masteryRows() {
+  const store = srsLoad();
+  const now = Date.now();
+  const max = SRS_INTERVALS.length - 1;
+  return FACTS().map(f => {
+    const rec = srsGet(store, topicId, f.id);
+    const label = f.chip || f.label || f.term || f.prompt || f.id;
+    const pips = '●'.repeat(rec.box) + '○'.repeat(max - rec.box);
+    return `<tr><td>${label}</td><td class="pips">${pips}</td><td>${rec.reps ? relDay(rec.dueAt, now) : '—'}</td></tr>`;
+  }).join('');
+}
+
+// ---------- render / scroll ----------
+let cardEls = new Map(); // uid -> { root, answerEl, cueWords }
+const ANCHOR = 0.45;
+
+function fitFont() {
+  const w = prompter.clientWidth;
+  scrollEl.style.fontSize = Math.max(20, Math.min(46, w / 24)) + 'px';
+  const h = prompter.clientHeight;
+  scrollEl.style.paddingTop = Math.round(h * ANCHOR) + 'px';
+  scrollEl.style.paddingBottom = Math.round(h * (1 - ANCHOR)) + 'px';
+}
+addEventListener('resize', fitFont);
+
+let scrollY = 0, scrollTargetY = 0, lastTs = 0;
+let snapScrollOnSpeech = true; // after mouse browse, speech snaps back to current word
+function scrollMax() {
+  return Math.max(0, scrollEl.scrollHeight - prompter.clientHeight * 0.45);
+}
+function resetScroll() { scrollY = 0; scrollTargetY = 0; scrollEl.style.transform = 'translateY(0px)'; }
+function scrollToCard(uid) {
+  const entry = cardEls.get(uid);
+  if (!entry) return;
+  const wr = entry.root.getBoundingClientRect(), pr = prompter.getBoundingClientRect();
+  const offset = (wr.top - pr.top) + scrollY;
+  scrollTargetY = Math.max(0, offset - prompter.clientHeight * ANCHOR);
+}
+function tickScroll(ts) {
+  const dt = lastTs ? (ts - lastTs) / 1000 : 0; lastTs = ts;
+  scrollY += (scrollTargetY - scrollY) * Math.min(1, dt * 6);
+  scrollEl.style.transform = `translateY(${-scrollY}px)`;
+  requestAnimationFrame(tickScroll);
+}
+requestAnimationFrame(tickScroll);
+
+// Mouse wheel: free browse; talking snaps back to the active word
+prompter.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  snapScrollOnSpeech = false;
+  scrollTargetY = Math.min(scrollMax(), Math.max(0, scrollTargetY + e.deltaY));
+  scrollY = scrollTargetY;
+}, { passive: false });
+
+function appendLineWords(el, line) {
+  // Split so "(125)" stays one token for visual-only digits
+  String(line).split(/(\s+|\(\d+\))/).forEach(tok => {
+    if (!tok) return;
+    if (/^\s+$/.test(tok)) { el.appendChild(document.createTextNode(tok)); return; }
+    const span = document.createElement('span');
+    // Bracket digits are seen, not spoken — skip voice-follow tracking
+    if (/^\(\d+\)$/.test(tok)) {
+      span.className = 'study-num';
+      span.textContent = tok;
+      el.appendChild(span);
+      return;
+    }
+    span.className = 'w';
+    span.textContent = tok;
+    el.appendChild(span);
+    const norm = normWord(tok);
+    if (norm) studyWords.push({ norm, el: span });
+  });
+}
+
+let studySegments = []; // { factId, start, end } word ranges for timeline sync
+
+function updateStudyWordStyles() {
+  studyWords.forEach((w, i) => {
+    w.el.classList.toggle('done', i < matchedIndex);
+    w.el.classList.toggle('cur', i === matchedIndex && i < studyWords.length);
+  });
+  updateTimelineHighlight();
+}
+
+function scrollToStudyWord(i) {
+  const w = studyWords[i];
+  if (!w) return;
+  const wr = w.el.getBoundingClientRect(), pr = prompter.getBoundingClientRect();
+  const offset = (wr.top - pr.top) + scrollY;
+  scrollTargetY = Math.max(0, Math.min(scrollMax(), offset - prompter.clientHeight * ANCHOR));
+  snapScrollOnSpeech = true;
+}
+
+/** Call when speech advances — snap viewport back to the live word. */
+function snapToSpeechWord() {
+  if (phase !== 'study') return;
+  const i = matchedIndex < studyWords.length ? matchedIndex : Math.max(0, studyWords.length - 1);
+  scrollToStudyWord(i);
+}
+
+function currentStudyFactId() {
+  if (!studySegments.length) return null;
+  const i = Math.min(Math.max(0, matchedIndex), Math.max(0, studyWords.length - 1));
+  for (const seg of studySegments) {
+    if (seg.factId && i >= seg.start && i < seg.end) return seg.factId;
+  }
+  let last = null;
+  for (const seg of studySegments) {
+    if (seg.factId && seg.end <= matchedIndex) last = seg.factId;
+  }
+  return last;
+}
+
+function timelineItems() {
+  if (topic().kind === 'dates') {
+    return [...FACTS()]
+      .sort((a, b) => yearAbs(a) - yearAbs(b) || a.id.localeCompare(b.id))
+      .map(f => ({ id: f.id, year: `${f.year} ${f.era}`, label: f.label }));
+  }
+  return [...FACTS()]
+    .sort((a, b) => a.tflops - b.tflops || a.id.localeCompare(b.id))
+    .map(f => ({ id: f.id, year: String(f.tflops), label: f.chip }));
+}
+
+function renderTimeline() {
+  const el = $('timeline');
+  const rail = $('timelineRail');
+  const show = phase === 'study' && topic().kind !== 'pairs';
+  el.classList.toggle('show', show);
+  document.body.classList.toggle('timeline-on', show);
+  if (!show) { rail.innerHTML = ''; return; }
+  rail.innerHTML = '';
+  timelineItems().forEach(item => {
+    const node = document.createElement('div');
+    node.className = 'tl-node';
+    node.dataset.id = item.id;
+    node.innerHTML = `<div class="tl-year">${item.year}</div><div class="tl-label">${item.label}</div>`;
+    rail.appendChild(node);
+  });
+  updateTimelineHighlight();
+}
+
+function updateTimelineHighlight() {
+  const rail = $('timelineRail');
+  if (!$('timeline').classList.contains('show')) return;
+  let curId = null;
+  if (phase === 'study') curId = currentStudyFactId();
+  const nodes = [...rail.querySelectorAll('.tl-node')];
+  const curIdx = nodes.findIndex(n => n.dataset.id === curId);
+  nodes.forEach((node, idx) => {
+    node.classList.toggle('cur', node.dataset.id === curId);
+    node.classList.toggle('done', curIdx >= 0 && idx < curIdx);
+  });
+  const curNode = rail.querySelector('.tl-node.cur');
+  if (curNode) {
+    const r = curNode.getBoundingClientRect(), tr = $('timeline').getBoundingClientRect();
+    if (r.top < tr.top + 20 || r.bottom > tr.bottom - 20) {
+      curNode.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }
+}
+
+/** Study: one connected prose script — speak every word including chip names. */
+function renderStudyScript() {
+  scrollEl.innerHTML = '';
+  cardEls = new Map();
+  studyWords = [];
+  studySegments = [];
+  matchedIndex = 0;
+  utterAnchor = 0;
+  const wrap = document.createElement('div');
+  wrap.className = 'study-prose';
+  const sentences = buildStudySentences();
+  sentences.forEach((sentence, i) => {
+    const line = document.createElement('div');
+    line.className = i === 0 ? 'study-line study-lead' : 'study-line';
+    const start = studyWords.length;
+    appendLineWords(line, sentence.text);
+    studySegments.push({ factId: sentence.factId, start, end: studyWords.length });
+    wrap.appendChild(line);
+  });
+  scrollEl.appendChild(wrap);
+  fitFont();
+  renderTimeline();
+  updateStudyWordStyles();
+  resetScroll();
+}
+
+function renderQueue() {
+  // Recall card queue only
+  const fade = fadeLevelFor();
+  scrollEl.innerHTML = '';
+  cardEls = new Map();
+  studyWords = [];
+  queue.forEach((card, i) => {
+    const root = document.createElement('div');
+    root.className = 'card';
+    if (i === queueIndex) root.classList.add('cur');
+    if (card.matched && i !== queueIndex) root.classList.add('done');
+
+    const cue = document.createElement('div');
+    cue.className = 'cue';
+    cue.textContent = card.cue;
+    root.appendChild(cue);
+
+    if (card.note) {
+      const note = document.createElement('div');
+      note.className = 'note';
+      note.textContent = card.note;
+      root.appendChild(note);
+    }
+
+    const ans = document.createElement('div');
+    ans.className = 'answer';
+    const showReal = card.matched || card.revealed;
+    ans.textContent = answerTextForDom(card, fade);
+    if (!showReal && fade >= 1) ans.classList.add('masked');
+    if (card.revealed && !card.matched) ans.classList.add('revealed');
+    if (card.matched) ans.classList.add('matched');
+    root.appendChild(ans);
+    scrollEl.appendChild(root);
+    cardEls.set(card.uid, { root, answerEl: ans });
+  });
+  fitFont();
+  const cur = queue[queueIndex];
+  if (cur) scrollToCard(cur.uid);
+  updateTimelineHighlight();
+}
+
+function updateCurrentDom() {
+  if (phase === 'study') {
+    updateStudyWordStyles();
+    return;
+  }
+  const fade = fadeLevelFor();
+  queue.forEach((card, i) => {
+    const entry = cardEls.get(card.uid);
+    if (!entry) return;
+    entry.root.classList.toggle('cur', i === queueIndex);
+    entry.root.classList.toggle('done', card.matched && i !== queueIndex);
+    const showReal = card.matched || card.revealed;
+    entry.answerEl.textContent = answerTextForDom(card, fade);
+    entry.answerEl.classList.toggle('masked', !showReal && fade >= 1);
+    entry.answerEl.classList.toggle('revealed', card.revealed && !card.matched);
+    entry.answerEl.classList.toggle('matched', !!card.matched);
+  });
+  const cur = queue[queueIndex];
+  if (cur) scrollToCard(cur.uid);
+  updateTimelineHighlight();
+}
+
+// ---------- session / queue machine ----------
+function cloneCard(card, shadow) {
+  return makeCard({
+    type: card.type,
+    factId: card.factId,
+    factKeys: card.factKeys,
+    cue: card.cue,
+    note: card.note,
+    answerKind: card.answerKind,
+    answerValue: card.answerValue,
+    answerEra: card.answerEra,
+    answerDisplay: card.answerDisplay,
+    answerUnit: card.answerUnit,
+    spokenLine: card.spokenLine,
+    accept: (card.accept || []).slice(),
+    ratioTol: card.ratioTol,
+    shadow: !!shadow,
+    revealed: false,
+    matched: false,
+  });
+}
+
+function currentCard() {
+  return queue[queueIndex] || null;
+}
+
+function startStudy() {
+  phase = 'study';
+  recallLoop = 0;
+  queue = [];
+  queueIndex = 0;
+  resetScroll();
+  updatePhaseUI();
+  renderStudyScript();
+  beginPresentation({
+    factId: 'study-script',
+    type: 'study',
+    uid: 'study',
+    revealed: false,
+    matched: false,
+  });
+}
+
+function startRecallLoop() {
+  phase = 'recall';
+  sessionOrderTemplate = shuffleOn ? null : sessionOrderTemplate;
+  shadowedFacts = new Set();
+  // Full interleaved deck every recall loop — no retirement
+  const ordered = fixedOrConstrained(deck.map(c => cloneCard(c, false)), shuffleOn);
+  queue = ordered;
+  queueIndex = 0;
+  resetScroll();
+  updatePhaseUI();
+  renderQueue();
+  const cur = queue[0];
+  if (cur) beginPresentation(cur);
+}
+
+function showHandoff() {
+  phase = 'handoff';
+  updatePhaseUI();
+  $('handoff').classList.add('show');
+}
+
+function hideHandoff() {
+  $('handoff').classList.remove('show');
+}
+
+function beginRecallFromHandoff() {
+  hideHandoff();
+  sessionOrderTemplate = null;
+  recallLoop = 1;
+  startRecallLoop();
+}
+
+/** Jump straight into quiz from study (or cold start). */
+function skipToQuiz() {
+  hideHandoff();
+  $('summary').classList.remove('show');
+  sessionDone = false;
+  sessionOrderTemplate = null;
+  if (!deck.length) deck = buildDeck();
+  recallLoop = 1;
+  startRecallLoop();
+  setHeard('🎙 quiz — say the blank');
+}
+
+function flashMiss() {
+  const card = currentCard();
+  const entry = card && cardEls.get(card.uid);
+  if (entry) {
+    entry.answerEl.classList.remove('miss');
+    void entry.answerEl.offsetWidth;
+    entry.answerEl.classList.add('miss');
+    setTimeout(() => entry.answerEl.classList.remove('miss'), 500);
+  }
+  const h = $('heard');
+  h.classList.add('miss');
+  setTimeout(() => h.classList.remove('miss'), 500);
+}
+
+function onStudyComplete() {
+  if (phase !== 'study') return;
+  phase = 'handoff'; // lock out further study speech immediately
+  finishPresentation(true);
+  showHandoff();
+}
+
+/** One shadow per fact per loop — stops Actium (etc.) from coming back 4× */
+let shadowedFacts = new Set();
+
+function onMatch() {
+  const card = currentCard();
+  if (!card || card.matched || phase !== 'recall') return;
+  card.matched = true;
+  updateCurrentDom();
+  finishPresentation(true);
+  setHeard('✓ ' + card.answerDisplay + (card.answerUnit ? ' ' + card.answerUnit : ''));
+
+  // Within-loop spacing: one reappearance max, and only for forward/reverse (not relations)
+  const canShadow = !card.shadow
+    && (card.type === 'forward' || card.type === 'reverse')
+    && !shadowedFacts.has(card.factId);
+  if (canShadow) {
+    shadowedFacts.add(card.factId);
+    const insertAt = Math.min(queueIndex + 1 + 5, queue.length);
+    queue.splice(insertAt, 0, cloneCard(card, true));
+  }
+  advanceAfterRecallMatch();
+}
+
+function advanceAfterRecallMatch() {
+  queueIndex++;
+  while (queueIndex < queue.length && queue[queueIndex].matched) queueIndex++;
+
+  if (queueIndex >= queue.length) {
+    if (recallLoop >= totalLoops) {
+      endSession();
+      return;
+    }
+    recallLoop++;
+    startRecallLoop();
+    return;
+  }
+  beginPresentation(queue[queueIndex]);
+  renderQueue();
+}
+
+function revealCurrent() {
+  if (phase !== 'recall') return;
+  const card = currentCard();
+  if (!card || card.matched || sessionDone) return;
+  card.revealed = true;
+  if (presentation) presentation.revealed = true;
+  queue.splice(queueIndex, 1);
+  queue.push(card);
+  queueIndex = queue.length - 1;
+  renderQueue();
+  setHeard('revealed — now speak it');
+}
+
+function endSession() {
+  sessionDone = true;
+  phase = 'done';
+  hideHandoff();
+  updatePhaseUI();
+  dumpLatency();
+  commitSrsGrades();
+  showSummary();
+}
+
+function median(nums) {
+  if (!nums.length) return null;
+  const a = nums.slice().sort((x, y) => x - y);
+  const m = Math.floor(a.length / 2);
+  return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
+}
+
+function showSummary() {
+  const matched = latencyLog.filter(r => r.tMatch != null);
+  const revealedCount = latencyLog.filter(r => r.revealed).length;
+  const groups = new Map();
+  for (const r of matched) {
+    const key = r.cardId + ' · ' + r.type;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(r.tMatch - r.tCue);
+  }
+  let latencyRows = '';
+  for (const [key, times] of groups) {
+    const med = median(times);
+    latencyRows += `<tr><td>${key}</td><td>${med != null ? Math.round(med) + ' ms' : '—'}</td><td>${times.length}</td></tr>`;
+  }
+  $('summaryMeta').textContent = `${revealedCount} revealed · ${matched.length} matched presentations`;
+  $('summaryBody').innerHTML =
+    `<div class="sec-h">Memory strength</div>` +
+    `<table><thead><tr><th>fact</th><th>strength</th><th>next review</th></tr></thead>` +
+    `<tbody>${masteryRows()}</tbody></table>` +
+    (latencyRows
+      ? `<div class="sec-h" style="margin-top:14px">This session's recall speed</div>` +
+        `<table><thead><tr><th>card</th><th>median match</th><th>n</th></tr></thead>` +
+        `<tbody>${latencyRows}</tbody></table>`
+      : '');
+
+  // Honest scheduler — replaces the old hardcoded "come back tomorrow"
+  const sched = srsSchedule();
+  const tEl = document.querySelector('#summary .tomorrow');
+  if (tEl) {
+    if (sched.dueNow > 0) {
+      tEl.textContent = `${sched.dueNow} ${sched.dueNow === 1 ? 'fact is' : 'facts are'} still shaky — run another pass now, or come back soon.`;
+    } else if (sched.nextDue) {
+      tEl.textContent = `Next review: ${relDay(sched.nextDue, Date.now())}.`;
+    } else {
+      tEl.textContent = 'Come back tomorrow for one pass.';
+    }
+  }
+  $('summary').classList.add('show');
+}
+
+function startSession() {
+  sessionDone = false;
+  hideHandoff();
+  $('summary').classList.remove('show');
+  latencyLog.length = 0;
+  presentation = null;
+  sessionOrderTemplate = null;
+  studyWords = [];
+  matchedIndex = 0;
+  utterAnchor = 0;
+  if (!TOPICS[topicId]) topicId = 'gpu';
+  persistTopic();
+  syncTopicNav();
+  deck = buildDeck();
+  startStudy();
+}
+
+// Study word-follow — tight window so STT can't leap ahead
+const WIN = 4;
+function advanceFrom(from, words) {
+  let p = from;
+  for (let wi = 0; wi < words.length; wi++) {
+    const h = words[wi];
+    // Whole-number shortcut: "989" already expanded upstream; if a digit slips
+    // through, jump the matching spoken run in one step
+    if (/^\d+$/.test(h)) {
+      const next = tryConsumeSpokenNumber(p, parseInt(h, 10));
+      if (next > p) { p = next; continue; }
+    }
+    const end = Math.min(studyWords.length, p + WIN);
+    let hit = -1;
+    for (let i = p; i < end; i++) if (studyWordMatch(studyWords[i].norm, h)) { hit = i; break; }
+    if (hit < 0) continue;
+    // Any skip farther than one word needs the next heard word to confirm
+    if (hit - p > 1) {
+      const nxt = words[wi + 1];
+      const confirmed = nxt && studyWords[hit + 1] && studyWordMatch(studyWords[hit + 1].norm, nxt);
+      if (!confirmed) continue;
+    }
+    p = hit + 1;
+  }
+  return p;
+}
+
+// ---------- voice ----------
+let voiceOn = false, rec = null;
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const SPEECH_ID = 'ingrain';
+let micStream = null;
+let stream = null;
+
+async function ensureMic() {
+  if (micStream && micStream.active) return true;
+  if (HubClient.embedded) {
+    const m = HubClient.mic();
+    if (m && m.active) { micStream = m; return true; }
+    if (HubClient.micError()) {
+      setHeard('hub mic unavailable: ' + HubClient.micError());
+      return false;
+    }
+  }
+  if (stream && stream.active && stream.getAudioTracks().length) {
+    micStream = stream; return true;
+  }
+  try { micStream = await navigator.mediaDevices.getUserMedia({ audio: true }); return true; }
+  catch (e) {
+    setHeard('🎙 mic unavailable: ' + (e.name || e));
+    return false;
+  }
+}
+
+function setHeard(msg, retry) {
+  const el = $('heard');
+  el.textContent = msg || '';
+  el.classList.toggle('retry', !!retry);
+}
+
+function onSpeech(e) {
+  if (sessionDone || phase === 'handoff' || phase === 'done') return;
+  let finals = '', interim = '';
+  for (let i = e.resultIndex; i < e.results.length; i++) {
+    const r = e.results[i];
+    if (r.isFinal) finals += r[0].transcript + ' '; else interim += r[0].transcript + ' ';
+  }
+  const text = (finals + ' ' + interim).trim();
+  if (!text) return;
+  noteSpeech();
+
+  if (phase === 'study') {
+    // Prose read-along — ignore bare digits; commit only on finals (interim can't race ahead)
+    const fw = studySpeechTokens(finals);
+    const iw = studySpeechTokens(interim);
+    setHeard('🎙 ' + (fw.length || iw.length ? fw.concat(iw).slice(-7).join(' ') : studySpeechTokens(text).slice(-7).join(' ')));
+    if (fw.length) {
+      utterAnchor = advanceFrom(utterAnchor, fw);
+      matchedIndex = utterAnchor;
+      updateStudyWordStyles();
+      snapToSpeechWord();
+    } else if (iw.length) {
+      // Peek at most one word ahead from committed anchor — no leaping on partials
+      const peek = Math.min(advanceFrom(utterAnchor, iw), utterAnchor + 1);
+      matchedIndex = Math.max(utterAnchor, peek);
+      updateStudyWordStyles();
+      snapToSpeechWord();
+    }
+    if (utterAnchor >= studyWords.length && studyWords.length) {
+      onStudyComplete();
+      return;
+    }
+    if (finals.trim() && presentation) presentation.attempts++;
+    return;
+  }
+
+  if (phase === 'recall') {
+    const card = currentCard();
+    if (!card || card.matched) return;
+    const heardBits = coalesceGpuTokens(normWords(text)).slice(-7).join(' ');
+    setHeard('🎙 ' + heardBits);
+
+    // Prefer finals for commit; also accept a strong interim so blanks fill promptly
+    const tryFinal = finals.trim();
+    const tryInterim = interim.trim();
+    if (tryFinal && answerMatches(card, tryFinal)) {
+      onMatch();
+      return;
+    }
+    if (!tryFinal && tryInterim && answerMatches(card, tryInterim)) {
+      onMatch();
+      return;
+    }
+    // Wrong final guess — stay blank, flash red
+    if (tryFinal) {
+      if (presentation) presentation.attempts++;
+      flashMiss();
+      setHeard('✗ ' + heardBits + ' — try again');
+    }
+    return;
+  }
+
+  setHeard('🎙 ' + coalesceGpuTokens(normWords(text)).slice(-7).join(' '));
+}
+
+function killVoice(msg) {
+  voiceOn = false;
+  stopVoice();
+  syncVoiceBtn();
+  const canRetry = !HubClient.isElectron();
+  if (msg) setHeard(msg + (canRetry ? ' · click to retry' : ''), canRetry);
+}
+
+async function startVoice() {
+  if (!SR) { setHeard('no speech recognition — use Chrome'); voiceOn = false; syncVoiceBtn(); return; }
+  if (HubClient.isElectron()) {
+    voiceOn = false; syncVoiceBtn();
+    setHeard(HubClient.speechHint());
+    return;
+  }
+  if (HubClient.embedded && !HubClient.isActive()) return;
+  if (document.visibilityState === 'hidden') return;
+  stopVoice();
+  if (!await ensureMic()) { voiceOn = false; syncVoiceBtn(); return; }
+  if (!voiceOn) return;
+  if (HubClient.embedded && !HubClient.isActive()) return;
+  HubClient.claimSpeech(SPEECH_ID, () => { stopVoice(); });
+  rec = new SR(); rec.continuous = true; rec.interimResults = true; rec.lang = 'en-US';
+  rec.onresult = onSpeech;
+  rec.onerror = (e) => {
+    if (e.error === 'no-speech' || e.error === 'aborted') return;
+    if (e.error === 'network') { killVoice(HubClient.speechHint()); return; }
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+      killVoice('mic blocked — check permission'); return;
+    }
+    killVoice('speech error: ' + e.error);
+  };
+  rec.onend = () => {
+    if (!voiceOn || !rec || document.visibilityState === 'hidden') return;
+    if (HubClient.embedded && !HubClient.isActive()) return;
+    try { rec.start(); } catch (e) {}
+  };
+  try { rec.start(); } catch (e) {}
+  setHeard('🎙 listening…');
+}
+
+function stopVoice() {
+  HubClient.releaseSpeech(SPEECH_ID);
+  if (rec) {
+    try { rec.onend = null; rec.onerror = null; rec.onresult = null; rec.stop(); } catch (e) {}
+    rec = null;
+  }
+  setHeard('');
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    if (rec) { try { rec.onend = null; rec.onerror = null; rec.onresult = null; rec.stop(); } catch (e) {} rec = null; }
+    HubClient.releaseSpeech(SPEECH_ID);
+  } else if (voiceOn && !rec && (!HubClient.embedded || HubClient.isActive())) {
+    startVoice();
+  }
+});
+$('heard').onclick = () => {
+  if (!$('heard').classList.contains('retry')) return;
+  voiceOn = true; syncVoiceBtn(); startVoice();
+};
+
+function syncVoiceBtn() {
+  const b = $('voiceBtn');
+  b.classList.toggle('primary', voiceOn);
+  b.textContent = voiceOn ? '🎙 Voice on' : '🎙 Voice';
+}
+async function toggleVoice() {
+  voiceOn = !voiceOn;
+  if (voiceOn) await startVoice();
+  else stopVoice();
+  syncVoiceBtn();
+}
+
+HubClient.onActive(on => {
+  if (!on) {
+    if (rec) { try { rec.onend = null; rec.onerror = null; rec.onresult = null; rec.stop(); } catch (e) {} rec = null; }
+    HubClient.releaseSpeech(SPEECH_ID);
+  } else if (voiceOn) {
+    startVoice();
+  }
+});
+
+async function initCam() {
+  const hubCam = HubClient.embedded && HubClient.camera(), hubMic = HubClient.embedded && HubClient.mic();
+  if (hubCam && hubCam.active) {
+    stream = new MediaStream([...hubCam.getVideoTracks(), ...(hubMic && hubMic.active ? hubMic.getAudioTracks() : [])]);
+  } else {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { width: 1280, height: 720, facingMode: 'user' }, audio: true });
+  }
+  self.srcObject = stream; await self.play();
+}
+
+// ---------- wiring ----------
+$('voiceBtn').onclick = toggleVoice;
+$('revealBtn').onclick = revealCurrent;
+$('resetBtn').onclick = () => startSession();
+$('prevTopic').onclick = () => stepTopic(-1);
+$('nextTopic').onclick = () => stepTopic(1);
+$('topicTitle').onclick = (e) => {
+  e.stopPropagation();
+  const open = $('topicMenu').classList.contains('open');
+  closeStepMenus();
+  if (!open) {
+    fillTopicMenu();
+    $('topicMenu').classList.add('open');
+    $('topicTitle').setAttribute('aria-expanded', 'true');
+  }
+};
+addEventListener('click', (e) => {
+  if (!$('topicNav').contains(e.target)) closeStepMenus();
+});
+$('beginRecallBtn').onclick = () => beginRecallFromHandoff();
+$('skipQuizBtn').onclick = () => skipToQuiz();
+$('skipHandoffBtn').onclick = () => {
+  hideHandoff();
+  endSession();
+};
+$('againBtn').onclick = () => startSession();
+$('closeSummary').onclick = () => $('summary').classList.remove('show');
+
+// ---------- topic editor ----------
+let editingId = null;
+function renderEdList() {
+  const store = customStore();
+  const ids = Object.keys(store);
+  const el = $('edList');
+  if (!ids.length) { el.innerHTML = ''; return; }
+  el.innerHTML = '<div class="sec-h">Your topics — click to edit</div>';
+  ids.forEach(id => {
+    const b = document.createElement('button');
+    b.className = 'btn edchip';
+    b.textContent = store[id].title || id;
+    b.onclick = () => openEditor(id);
+    el.appendChild(b);
+  });
+}
+function openEditor(id) {
+  editingId = id || null;
+  const t = id ? customStore()[id] : null;
+  $('editorTitle').textContent = t ? 'Edit topic' : 'New topic';
+  $('edTitle').value = t ? (t.title || '') : '';
+  $('edPairs').value = t ? t.facts.map(f => `${f.prompt} = ${f.answer}`).join('\n') : '';
+  $('edDelete').style.display = t ? '' : 'none';
+  renderEdList();
+  $('editor').classList.add('show');
+  $('edTitle').focus();
+}
+function closeEditor() { $('editor').classList.remove('show'); editingId = null; }
+function saveEditor() {
+  const title = $('edTitle').value.trim() || 'Untitled';
+  const facts = parsePairsInput($('edPairs').value);
+  if (!facts.length) { $('edPairs').focus(); setHeard('add at least one "prompt = answer" line'); return; }
+  const store = customStore();
+  const id = editingId || ('u' + Date.now().toString(36));
+  store[id] = { id, title, kind: 'pairs', facts };
+  saveCustomStore(store);
+  loadCustomTopics();
+  closeEditor();
+  topicId = id;
+  persistTopic();
+  startSession();
+}
+function deleteEditor() {
+  if (!editingId) return;
+  const store = customStore();
+  delete store[editingId];
+  saveCustomStore(store);
+  const wasCurrent = topicId === editingId;
+  loadCustomTopics();
+  closeEditor();
+  if (wasCurrent) { topicId = 'gpu'; persistTopic(); }
+  startSession();
+}
+$('edSave').onclick = saveEditor;
+$('edCancel').onclick = closeEditor;
+$('edDelete').onclick = deleteEditor;
+
+addEventListener('keydown', (e) => {
+  if ($('editor').classList.contains('show')) {
+    if (e.key === 'Escape') closeEditor();
+    else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); saveEditor(); }
+    return; // don't fire study/quiz shortcuts while authoring
+  }
+  const tag = (e.target && e.target.tagName || '').toLowerCase();
+  if (tag === 'input' || tag === 'textarea') return;
+  if (e.key === 'Escape' && $('topicMenu').classList.contains('open')) {
+    closeStepMenus();
+    return;
+  }
+  if ($('summary').classList.contains('show')) {
+    if (e.key === 'Escape') $('summary').classList.remove('show');
+    return;
+  }
+  if ($('handoff').classList.contains('show')) {
+    if (e.code === 'Space' || e.key === 'Enter') {
+      e.preventDefault();
+      beginRecallFromHandoff();
+    }
+    if (e.key === 'Escape') {
+      hideHandoff();
+      endSession();
+    }
+    return;
+  }
+  if (e.code === 'Space') {
+    e.preventDefault();
+    if (phase === 'recall') revealCurrent();
+  }
+  if (e.key.toLowerCase() === 'v') toggleVoice();
+  if (e.key.toLowerCase() === 'f') document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+  if ((e.key === '[' || e.key === ']') && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    e.preventDefault();
+    stepTopic(e.key === '[' ? -1 : 1);
+  }
+});
+
+// ---------- boot ----------
+(async () => {
+  try { await initCam(); } catch (err) { alert('Camera/mic needed.\n' + err.message); }
+  startSession();
+  if (SR && !HubClient.isElectron()) {
+    voiceOn = true;
+    if (!HubClient.embedded || HubClient.isActive()) await startVoice();
+  } else {
+    voiceOn = false;
+    setHeard(HubClient.isElectron() ? HubClient.speechHint() : 'no speech recognition — use Chrome');
+  }
+  syncVoiceBtn();
+})();
+</script>
+</body>
+</html>

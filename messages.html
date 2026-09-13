@@ -7,35 +7,62 @@
 <title>Messages</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
+  :root, html[data-theme="dark"] {
+    --bg: #05060a;
+    --bg-elev: #070910;
+    --bg-card: #14161f;
+    --ink: #e2e8f0;
+    --mute: #64748b;
+    --faint: #4b5566;
+    --line: rgba(255,255,255,.08);
+    --line-mid: rgba(255,255,255,.1);
+    --chip-bg: rgba(255,255,255,.04);
+    --accent: #7dd3fc;
+    --accent-soft: rgba(125,211,252,.14);
+  }
+  html[data-theme="light"] {
+    --bg: #f8fafc;
+    --bg-elev: #ffffff;
+    --bg-card: #f1f5f9;
+    --ink: #0f172a;
+    --mute: #64748b;
+    --faint: #94a3b8;
+    --line: rgba(15,23,42,.1);
+    --line-mid: rgba(15,23,42,.14);
+    --chip-bg: rgba(15,23,42,.04);
+    --accent: #0284c7;
+    --accent-soft: rgba(2,132,199,.12);
+  }
+
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { width: 100%; height: 100%; background: #05060a; overflow: hidden;
-    font-family: Lato, sans-serif; color: #e2e8f0; }
+  html, body { width: 100%; height: 100%; background: var(--bg); overflow: hidden;
+    font-family: Lato, sans-serif; color: var(--ink); }
   button { font-family: inherit; }
   textarea, input { font-family: inherit; }
 
-  #app { position: fixed; inset: 0; padding-top: 44px; display: flex; }
+  #app { position: fixed; inset: 0; padding-top: var(--hub-pad-top, 44px); padding-left: var(--hub-pad-left, 0px); display: flex; }
 
   /* ---- sidebar: picker ---- */
-  #side { width: 300px; flex: none; border-right: 1px solid rgba(255,255,255,.08);
-    display: flex; flex-direction: column; background: #070910; }
+  #side { width: 300px; flex: none; border-right: 1px solid var(--line);
+    display: flex; flex-direction: column; background: var(--bg-elev); }
   #sideTabs { display: flex; gap: 6px; padding: 14px 14px 0; }
   .sideTab { flex: 1; padding: 7px 0; text-align: center; font: 700 11px Lato, sans-serif; letter-spacing: .05em;
-    color: #64748b; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08);
+    color: var(--mute); background: var(--chip-bg); border: 1px solid var(--line);
     border-radius: 999px; cursor: pointer; }
-  .sideTab.on { color: #7dd3fc; background: rgba(125,211,252,.14); border-color: #7dd3fc; }
-  #search { margin: 12px 14px; padding: 9px 13px; font: 400 13px Lato, sans-serif; color: #e2e8f0;
-    background: #14161f; border: 1px solid rgba(255,255,255,.1); border-radius: 999px; outline: none; }
+  .sideTab.on { color: var(--accent); background: var(--accent-soft); border-color: var(--accent); }
+  #search { margin: 12px 14px; padding: 9px 13px; font: 400 13px Lato, sans-serif; color: var(--ink);
+    background: var(--bg-card); border: 1px solid var(--line-mid); border-radius: 999px; outline: none; }
   #search:focus { border-color: rgba(125,211,252,.5); }
-  #search::placeholder { color: #4b5566; }
+  #search::placeholder { color: var(--faint); }
   #list { flex: 1; overflow-y: auto; padding: 0 8px 10px; }
   .pRow { padding: 9px 10px; border-radius: 9px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; }
   .pRow:hover { background: rgba(255,255,255,.05); }
   .pRow.on { background: rgba(125,211,252,.12); }
-  .pRow .pName { font-size: 13px; font-weight: 700; color: #e2e8f0; }
-  .pRow .pMeta { font-size: 11px; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pRow .pName { font-size: 13px; font-weight: 700; color: var(--ink); }
+  .pRow .pMeta { font-size: 11px; color: var(--mute); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #freeformRow { margin: 6px 14px 14px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.08); }
-  #freeformRow input { width: 100%; padding: 8px 12px; font-size: 12.5px; color: #e2e8f0;
-    background: #14161f; border: 1px solid rgba(255,255,255,.1); border-radius: 8px; outline: none; }
+  #freeformRow input { width: 100%; padding: 8px 12px; font-size: 12.5px; color: var(--ink);
+    background: var(--bg-card); border: 1px solid var(--line-mid); border-radius: 8px; outline: none; }
   #freeformRow input:focus { border-color: rgba(125,211,252,.5); }
   #freeformRow .hint { font-size: 10.5px; color: #475569; margin-top: 6px; }
 
@@ -43,24 +70,24 @@
   .evCard { padding: 10px; border-radius: 9px; margin-bottom: 6px; background: rgba(255,255,255,.03);
     border: 1px solid rgba(255,255,255,.07); cursor: pointer; }
   .evCard:hover { border-color: rgba(125,211,252,.3); }
-  .evCard .evName { font-size: 12.5px; font-weight: 700; color: #e2e8f0; }
-  .evCard .evMeta { font-size: 10.5px; color: #64748b; margin-top: 2px; }
+  .evCard .evName { font-size: 12.5px; font-weight: 700; color: var(--ink); }
+  .evCard .evMeta { font-size: 10.5px; color: var(--mute); margin-top: 2px; }
   .evAttendees { display: none; flex-direction: column; gap: 2px; margin-top: 8px; padding-top: 8px;
     border-top: 1px solid rgba(255,255,255,.07); }
   .evCard.open .evAttendees { display: flex; }
   .evAttendee { font-size: 11.5px; color: #94a3b8; padding: 4px 6px; border-radius: 6px; cursor: pointer; }
-  .evAttendee:hover { background: rgba(125,211,252,.1); color: #7dd3fc; }
+  .evAttendee:hover { background: rgba(125,211,252,.1); color: var(--accent); }
 
   /* graph mode: sidebar becomes a legend; canvas fills main */
   #graphLegend { display: none; flex: 1; overflow-y: auto; padding: 10px 14px 18px; flex-direction: column; gap: 8px; }
   #graphLegend.show { display: flex; }
-  #graphLegend .gHint { font-size: 11.5px; color: #64748b; line-height: 1.5; }
+  #graphLegend .gHint { font-size: 11.5px; color: var(--mute); line-height: 1.5; }
   #graphLegend .gStat { font-size: 11px; color: #94a3b8; }
   .gEvChip { font: 600 11px Lato, sans-serif; padding: 7px 11px; border-radius: 9px; cursor: pointer;
-    color: #94a3b8; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); text-align: left; }
-  .gEvChip:hover { color: #e2e8f0; }
-  .gEvChip.on { color: #7dd3fc; background: rgba(125,211,252,.12); border-color: rgba(125,211,252,.45); }
-  #graphView { display: none; position: absolute; inset: 0; background: #05060a; }
+    color: #94a3b8; background: var(--chip-bg); border: 1px solid var(--line); text-align: left; }
+  .gEvChip:hover { color: var(--ink); }
+  .gEvChip.on { color: var(--accent); background: rgba(125,211,252,.12); border-color: rgba(125,211,252,.45); }
+  #graphView { display: none; position: absolute; inset: 0; background: var(--bg); }
   #graphView.show { display: block; }
   #graphView canvas { width: 100%; height: 100%; display: block; cursor: grab; }
   #graphView canvas.dragging { cursor: grabbing; }
@@ -76,7 +103,7 @@
   #start { max-width: 720px; margin: 0 auto; padding: 44px 32px 100px; display: flex; flex-direction: column; gap: 13px; }
   #start.hide { display: none; }
   .startHead h1 { font-size: 26px; font-weight: 700; color: #f1f5f9; letter-spacing: -.015em; }
-  .startHead p { font-size: 13px; color: #64748b; margin-top: 6px; line-height: 1.55; }
+  .startHead p { font-size: 13px; color: var(--mute); margin-top: 6px; line-height: 1.55; }
   textarea.field.tall { min-height: 92px; font-size: 15px; }
   textarea.field.small { min-height: 54px; font-size: 13px; }
   .startActions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
@@ -88,45 +115,45 @@
   #shortlistWrap { display: none; flex-direction: column; gap: 9px; margin-top: 10px; }
   #shortlistWrap.show { display: flex; }
   .slHead { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
-  #slMeta { font-size: 11.5px; color: #64748b; }
+  #slMeta { font-size: 11.5px; color: var(--mute); }
   #shortlist { display: flex; flex-direction: column; gap: 8px; }
   .slCard { display: flex; gap: 11px; padding: 12px 14px; border-radius: 11px; cursor: pointer;
-    background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08); }
+    background: rgba(255,255,255,.03); border: 1px solid var(--line); }
   .slCard:hover { border-color: rgba(125,211,252,.35); }
   .slCard.on { background: rgba(125,211,252,.09); border-color: rgba(125,211,252,.55); }
-  .slCard input[type=checkbox] { margin-top: 3px; accent-color: #7dd3fc; cursor: pointer; flex: none; }
+  .slCard input[type=checkbox] { margin-top: 3px; accent-color: var(--accent); cursor: pointer; flex: none; }
   .slBody { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   .slTop { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
   .slName { font-size: 14.5px; font-weight: 700; color: #f1f5f9; }
-  .slMetaLine { font-size: 11.5px; color: #64748b; }
+  .slMetaLine { font-size: 11.5px; color: var(--mute); }
   .slWhy { font-size: 12.5px; color: #b9c2d0; line-height: 1.5; margin-top: 3px; }
   .warm { font: 700 10px Lato, sans-serif; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
   .warm.hot { color: #4ade80; background: rgba(74,222,128,.12); }
-  .warm.mid { color: #7dd3fc; background: rgba(125,211,252,.12); }
+  .warm.mid { color: var(--accent); background: rgba(125,211,252,.12); }
   .warm.cold { color: #fbbf24; background: rgba(251,191,36,.12); }
-  .warm.dead { color: #64748b; background: rgba(255,255,255,.05); }
+  .warm.dead { color: var(--mute); background: rgba(255,255,255,.05); }
   #slGap { display: none; font-size: 12px; color: #fde68a; line-height: 1.5; padding: 9px 12px;
     border-radius: 9px; background: rgba(251,191,36,.07); border: 1px solid rgba(251,191,36,.2); }
   #slFooter { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
   #draftToBtn:disabled { opacity: .4; cursor: default; }
-  #reSuggestBtn { font: 600 11px Lato, sans-serif; color: #64748b; background: transparent;
-    border: 1px solid rgba(255,255,255,.1); border-radius: 999px; padding: 8px 14px; cursor: pointer; }
-  #reSuggestBtn:hover { color: #e2e8f0; }
+  #reSuggestBtn { font: 600 11px Lato, sans-serif; color: var(--mute); background: transparent;
+    border: 1px solid var(--line-mid); border-radius: 999px; padding: 8px 14px; cursor: pointer; }
+  #reSuggestBtn:hover { color: var(--ink); }
 
   /* ---- fan-out: one intent, several recipients ---- */
   #queueBar { display: none; align-items: center; gap: 10px; flex-wrap: wrap; padding: 9px 12px;
     border-radius: 10px; background: rgba(125,211,252,.06); border: 1px solid rgba(125,211,252,.2); }
   #queueBar.show { display: flex; }
-  #queuePos { font: 700 10.5px Lato, sans-serif; letter-spacing: .06em; color: #7dd3fc; text-transform: uppercase; }
+  #queuePos { font: 700 10.5px Lato, sans-serif; letter-spacing: .06em; color: var(--accent); text-transform: uppercase; }
   #queueChips { display: flex; gap: 5px; flex-wrap: wrap; }
   .qChip { font: 600 11px Lato, sans-serif; padding: 4px 10px; border-radius: 999px; cursor: pointer;
     color: #94a3b8; background: rgba(255,255,255,.05); }
-  .qChip:hover { color: #e2e8f0; }
+  .qChip:hover { color: var(--ink); }
   .qChip.on { color: #05060a; background: #7dd3fc; }
   .qChip.done { color: #4ade80; background: rgba(74,222,128,.12); }
-  #newAskBtn { font: 600 10.5px Lato, sans-serif; color: #64748b; background: transparent;
+  #newAskBtn { font: 600 10.5px Lato, sans-serif; color: var(--mute); background: transparent;
     border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 6px 12px; cursor: pointer; white-space: nowrap; }
-  #newAskBtn:hover { color: #e2e8f0; }
+  #newAskBtn:hover { color: var(--ink); }
   #nextPersonBtn { display: none; padding: 9px 16px; font: 700 12px Lato, sans-serif; color: #05060a;
     background: #fbbf24; border: none; border-radius: 999px; cursor: pointer; }
   #nextPersonBtn:hover { background: #fcd34d; }
@@ -140,33 +167,33 @@
   .badge.none { color: #475569; background: rgba(255,255,255,.03); }
   .tagRow { display: flex; flex-wrap: wrap; gap: 6px; }
   .tagChip { font: 600 10.5px Lato, sans-serif; padding: 3px 9px; border-radius: 999px;
-    color: #7dd3fc; background: rgba(125,211,252,.1); }
+    color: var(--accent); background: rgba(125,211,252,.1); }
 
   #resumeBanner { display: none; padding: 10px 14px; border-radius: 10px; background: rgba(251,191,36,.08);
     border: 1px solid rgba(251,191,36,.3); font-size: 12.5px; color: #fde68a; align-items: center;
     justify-content: space-between; gap: 10px; }
   #resumeBanner button { font: 700 11px Lato, sans-serif; padding: 5px 11px; border-radius: 7px; cursor: pointer;
-    border: 1px solid rgba(255,255,255,.15); background: rgba(255,255,255,.06); color: #e2e8f0; }
+    border: 1px solid rgba(255,255,255,.15); background: rgba(255,255,255,.06); color: var(--ink); }
   #resumeBanner button:hover { background: rgba(255,255,255,.14); }
 
   .section { display: flex; flex-direction: column; gap: 8px; }
-  .section > label.lbl { font-size: 10.5px; font-weight: 700; letter-spacing: .09em; color: #64748b; text-transform: uppercase; }
+  .section > label.lbl { font-size: 10.5px; font-weight: 700; letter-spacing: .09em; color: var(--mute); text-transform: uppercase; }
 
   .ctxRow { display: flex; align-items: flex-start; gap: 9px; padding: 8px 10px; border-radius: 8px;
     background: rgba(255,255,255,.025); font-size: 12.5px; color: #b9c2d0; line-height: 1.5; }
-  .ctxRow input[type=checkbox] { margin-top: 2px; accent-color: #7dd3fc; cursor: pointer; }
+  .ctxRow input[type=checkbox] { margin-top: 2px; accent-color: var(--accent); cursor: pointer; }
   .ctxRow .ck { flex: none; }
-  .ctxRow .ctxLabel { color: #64748b; font-weight: 700; margin-right: 5px; }
+  .ctxRow .ctxLabel { color: var(--mute); font-weight: 700; margin-right: 5px; }
   .ctxRow.off { opacity: .35; }
   .bubbles { display: flex; flex-direction: column; gap: 5px; margin-top: 2px; }
   .bubble { font-size: 12.5px; line-height: 1.5; padding: 6px 11px; border-radius: 0 8px 8px 0;
     max-width: 92%; white-space: pre-wrap; }
-  .bubble.them { color: #b9c2d0; background: rgba(255,255,255,.04); border-left: 2px solid rgba(148,163,184,.4); }
+  .bubble.them { color: #b9c2d0; background: var(--chip-bg); border-left: 2px solid rgba(148,163,184,.4); }
   .bubble.me { color: #cbe8fb; background: rgba(125,211,252,.06); border-left: 2px solid rgba(125,211,252,.5);
     align-self: flex-end; border-radius: 8px 0 0 8px; text-align: right; }
 
   textarea.field { width: 100%; min-height: 64px; padding: 11px 13px; font-size: 13.5px; line-height: 1.45;
-    color: #e2e8f0; background: #12141d; border: 1px solid rgba(255,255,255,.1); border-radius: 10px;
+    color: var(--ink); background: var(--bg-card); border: 1px solid var(--line-mid); border-radius: 10px;
     outline: none; resize: vertical; }
   textarea.field:focus { border-color: rgba(125,211,252,.45); }
   textarea.field::placeholder { color: #475569; }
@@ -179,9 +206,9 @@
 
   .presetRow { display: flex; flex-wrap: wrap; gap: 7px; }
   .presetChip { font: 700 11px Lato, sans-serif; padding: 7px 13px; border-radius: 999px; cursor: pointer;
-    color: #94a3b8; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); }
+    color: #94a3b8; background: var(--chip-bg); border: 1px solid var(--line); }
   .presetChip:hover { color: #cbd5e1; }
-  .presetChip.on { color: #7dd3fc; background: rgba(125,211,252,.14); border-color: #7dd3fc; }
+  .presetChip.on { color: var(--accent); background: var(--accent-soft); border-color: var(--accent); }
 
   #draftBtn, .primaryBtn { padding: 11px 20px; font: 700 13px Lato, sans-serif; color: #05060a;
     background: #7dd3fc; border: none; border-radius: 999px; cursor: pointer; align-self: flex-start; }
@@ -190,9 +217,9 @@
 
   #draftArea { display: none; flex-direction: column; gap: 12px; }
   #draftArea.show { display: flex; }
-  #draftBox { padding: 16px 18px; background: #12141d; border: 1px solid rgba(125,211,252,.25); border-radius: 12px;
+  #draftBox { padding: 16px 18px; background: var(--bg-card); border: 1px solid rgba(125,211,252,.25); border-radius: 12px;
     font-size: 14.5px; line-height: 1.55; color: #f1f5f9; white-space: pre-wrap; min-height: 30px; }
-  #draftBox.streaming::after { content: '▍'; color: #7dd3fc; animation: blink 1s step-start infinite; }
+  #draftBox.streaming::after { content: '▍'; color: var(--accent); animation: blink 1s step-start infinite; }
   @keyframes blink { 50% { opacity: 0; } }
   .draftActions { display: flex; gap: 8px; align-items: center; }
   #copyBtn { padding: 9px 18px; font: 700 12px Lato, sans-serif; color: #05060a; background: #4ade80;
@@ -201,27 +228,27 @@
   #copyBtn:disabled { opacity: .4; cursor: default; }
   #copiedNote { font-size: 12px; color: #4ade80; display: none; }
   #newMsgBtn { font: 700 11px Lato, sans-serif; color: #94a3b8; background: rgba(255,255,255,.05);
-    border: 1px solid rgba(255,255,255,.1); border-radius: 999px; padding: 8px 14px; cursor: pointer; }
-  #newMsgBtn:hover { color: #e2e8f0; background: rgba(255,255,255,.1); }
+    border: 1px solid var(--line-mid); border-radius: 999px; padding: 8px 14px; cursor: pointer; }
+  #newMsgBtn:hover { color: var(--ink); background: rgba(255,255,255,.1); }
 
   .chipRow { display: flex; flex-wrap: wrap; gap: 7px; }
 .refineChip { font: 600 11.5px Lato, sans-serif; padding: 6px 12px; border-radius: 999px; cursor: pointer;
-           color: #b9c2d0; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); }
+           color: #b9c2d0; background: rgba(255,255,255,.05); border: 1px solid var(--line-mid); }
          .refineChip:hover { color: #fff; background: rgba(255,255,255,.12); }
          .refineChip.disabled { opacity: .35; pointer-events: none; }
          .refineFree { display: flex; gap: 8px; }
-         .refineFree input { flex: 1; padding: 9px 13px; font-size: 12.5px; color: #e2e8f0; background: #12141d;
-           border: 1px solid rgba(255,255,255,.1); border-radius: 999px; outline: none; }
+         .refineFree input { flex: 1; padding: 9px 13px; font-size: 12.5px; color: var(--ink); background: var(--bg-card);
+           border: 1px solid var(--line-mid); border-radius: 999px; outline: none; }
          .refineFree input:focus { border-color: rgba(125,211,252,.4); }
          .refineFree input:disabled, .refineFree button:disabled { opacity: .4; cursor: default; }
          .refineFree button { padding: 9px 16px; font: 700 11.5px Lato, sans-serif; color: #05060a; background: #7dd3fc;
            border: none; border-radius: 999px; cursor: pointer; }
 
   #footer { position: fixed; bottom: 14px; right: 18px; display: flex; align-items: center; gap: 10px; z-index: 5; }
-  #footer button { font: 600 10.5px Lato, sans-serif; color: #64748b; background: rgba(8,10,18,.8);
-    border: 1px solid rgba(255,255,255,.1); border-radius: 999px; padding: 7px 13px; cursor: pointer; }
-  #footer button:hover { color: #e2e8f0; }
-  #profileStatus { font-size: 10.5px; color: #4b5566; max-width: 320px; text-align: right; }
+  #footer button { font: 600 10.5px Lato, sans-serif; color: var(--mute); background: rgba(8,10,18,.8);
+    border: 1px solid var(--line-mid); border-radius: 999px; padding: 7px 13px; cursor: pointer; }
+  #footer button:hover { color: var(--ink); }
+  #profileStatus { font-size: 10.5px; color: var(--faint); max-width: 320px; text-align: right; }
   #errBanner { display: none; padding: 9px 14px; border-radius: 9px; background: rgba(248,113,113,.1);
     border: 1px solid rgba(248,113,113,.3); color: #fca5a5; font-size: 12px; }
 </style>
@@ -259,7 +286,7 @@
           <p>Dump the raw thought — I'll work out who in your network is worth asking, then draft it for each of them.</p>
         </div>
         <div class="fieldRow">
-          <textarea class="field tall" id="askIntentField" placeholder="e.g. need honest feedback on my project from a few people who have actually shipped consumer products"></textarea>
+          <textarea class="field tall" id="askIntentField" placeholder="e.g. need honest feedback on justbuildapps from a few people who've actually shipped consumer products"></textarea>
           <button class="dictBtn" data-target="askIntentField" title="dictate">🎤</button>
         </div>
         <div class="fieldRow">

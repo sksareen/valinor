@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 OPENROUTER_API_KEY = os.getenv('OPENROUTER_API_KEY')
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
-# Default model for Savar AI - using Claude 3.5 Sonnet for quality
+# Default model for the Loopkeeper coach - using Claude Sonnet for quality
 DEFAULT_MODEL = "anthropic/claude-sonnet-4"
 
 def _read_file_if_exists(path: str) -> str:
@@ -79,7 +79,7 @@ def load_system_prompt():
         logger.warning(f"Could not load system prompt: {e}")
 
     # Fallback prompt
-    return "You are Savar AI, a helpful and concise AI assistant."
+    return "You are a loop coach inside Valinor, a helpful and concise AI assistant."
 
 class OpenRouterClient:
     def __init__(self):

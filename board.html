@@ -6,9 +6,16 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 <title>Board — spatial notes</title>
 <style>
+  :root, html[data-theme="dark"] {
+    --bg: #070910; --bg-elev: #14161f; --ink: #e2e8f0; --mute: #64748b; --accent: #7dd3fc;
+  }
+  html[data-theme="light"] {
+    --bg: #f4f5f7; --bg-elev: #ffffff; --ink: #0f172a; --mute: #64748b; --accent: #0284c7;
+  }
+
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { width: 100%; height: 100%; overflow: hidden; background: #070910;
-    font-family: Lato, sans-serif; color: #e2e8f0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
+    font-family: Lato, sans-serif; color: var(--ink); }
   #board { position: fixed; inset: 0; overflow: hidden; }
   /* the world layer carries the zoom/pan transform; notes live inside it */
   #world { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; }
@@ -67,12 +74,12 @@
   @keyframes agentpulse { 0%,100% { transform: scale(1); opacity: .95; } 50% { transform: scale(1.08); opacity: .55; } }
 
   /* hint sits top-LEFT and caps its width so it can never slide under the controls */
-  #hint { position: fixed; top: 50px; left: 14px; z-index: 60;
+  #hint { position: fixed; top: calc(var(--hub-pad-top, 44px) + 6px); left: 14px; z-index: 60;
     font: 12px/1.5 Lato, sans-serif; color: #64748b; background: rgba(8,10,18,.6);
     padding: 6px 14px; border-radius: 14px; border: 1px solid rgba(255,255,255,.07);
     max-width: clamp(220px, calc(100vw - 620px), 620px); }
   #hint b { color: #94a3b8; }
-  #controls { position: fixed; top: 50px; right: 14px; z-index: 60; display: flex; gap: 6px; }
+  #controls { position: fixed; top: calc(var(--hub-pad-top, 44px) + 6px); right: 14px; z-index: 60; display: flex; gap: 6px; }
   #controls button { height: 30px; padding: 0 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,.14);
     background: rgba(8,10,18,.75); color: #e2e8f0; font: 600 12px Lato, sans-serif; cursor: pointer; }
   #controls button:hover { background: rgba(255,255,255,.14); }
@@ -84,7 +91,7 @@
     max-width: 60vw; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; display: none; }
 
   #start { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center;
-    justify-content: center; gap: 18px; text-align: center; background: #070910; }
+    justify-content: center; gap: 18px; text-align: center; background: var(--bg); }
   #start h1 { font-size: 30px; font-weight: 700; color: #7dd3fc; }
   #start p { color: #94a3b8; max-width: 460px; line-height: 1.5; }
   #go { padding: 12px 28px; font-weight: 600; color: #05060a; background: #7dd3fc;
@@ -309,7 +316,13 @@ function makeEl(n) {
     iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen';
     iframe.allowFullscreen = true;
     if (n.kind === 'video') {
-      iframe.src = `https://www.youtube.com/embed/${encodeURIComponent(n.data?.videoId || '')}?rel=0`;
+      const u = new URL('https://www.youtube.com/embed/' + encodeURIComponent(n.data?.videoId || ''));
+      u.searchParams.set('rel', '0');
+      u.searchParams.set('enablejsapi', '1');
+      u.searchParams.set('origin', location.origin);
+      iframe.src = u.toString();
+      iframe.dataset.yt = '1';
+      iframe.addEventListener('load', () => pingYoutubeIframe(iframe));
     } else {
       iframe.src = n.data?.url || 'about:blank';
       iframe.addEventListener('error', () => {
@@ -383,6 +396,7 @@ function removeNote(id) {
   pushUndo();
   const el = els.get(id); if (el) el.remove(); els.delete(id);
   notes = notes.filter(n => n.id !== id); persist();
+  forgetYtIframes();
 }
 function removeCards({ ids, all, undo = true } = {}) {
   if (undo) pushUndo();
@@ -395,6 +409,7 @@ function removeCards({ ids, all, undo = true } = {}) {
     } else keep.push(n);
   }
   notes = keep; persist();
+  forgetYtIframes();
 }
 
 // ================= mouse: note drag, marquee multi-select, pan =================
@@ -1167,10 +1182,72 @@ async function boot({ hands = true } = {}) {
   // live mini-embed skips camera — LIVE already owns it
   if (hands && !EMBED) startCam();
 }
+function pingYoutubeIframe(iframe) {
+  if (!iframe || !iframe.contentWindow) return;
+  try {
+    iframe.contentWindow.postMessage(JSON.stringify({ event: 'listening', id: 1, channel: 'widget' }), '*');
+    iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'addEventListener', args: ['onStateChange'] }), '*');
+  } catch (e) {}
+}
+
+const ytPlayingSources = new Set();
+function notifyParentVideo() {
+  try { parent.postMessage({ type: 'hub-video', playing: ytPlayingSources.size > 0 }, location.origin); } catch (e) {}
+}
+function forgetYtIframes() {
+  const live = new Set();
+  document.querySelectorAll('iframe[data-yt]').forEach((ifr) => {
+    try { if (ifr.contentWindow) live.add(ifr.contentWindow); } catch (e) {}
+  });
+  for (const src of [...ytPlayingSources]) {
+    if (!live.has(src)) ytPlayingSources.delete(src);
+  }
+  notifyParentVideo();
+}
+function ytPlayerStatePlaying(state) { return state === 1 || state === 3; }
+function parseYtPlayerState(raw) {
+  let data = raw;
+  if (typeof data === 'string') {
+    try { data = JSON.parse(data); } catch { return null; }
+  }
+  if (!data || typeof data !== 'object') return null;
+  if (data.event === 'onStateChange' && typeof data.info === 'number') return data.info;
+  if (data.info && typeof data.info.playerState === 'number') return data.info.playerState;
+  return null;
+}
+function isYoutubeHost(origin) {
+  try {
+    const h = new URL(origin).hostname;
+    return h === 'www.youtube.com' || h === 'youtube.com' || h === 'www.youtube-nocookie.com';
+  } catch { return false; }
+}
+
 function notifyParentSpeech(on) {
   if (!EMBED) return;
   try { parent.postMessage({ type: 'board-speech', on: !!on }, location.origin); } catch (e) {}
 }
+function notifyParentAgent(state) {
+  if (!EMBED) return;
+  try { parent.postMessage({ type: 'board-agent', state }, location.origin); } catch (e) {}
+}
+// Parent (Live tab) can drive the board agent by voice: {type:'agent-ask', transcript}.
+// Reuses askAgent → /api/agent → web/video cards, then reports progress back up.
+addEventListener('message', (e) => {
+  if (isYoutubeHost(e.origin)) {
+    const st = parseYtPlayerState(e.data);
+    if (st == null) return;
+    const src = e.source;
+    if (ytPlayerStatePlaying(st)) ytPlayingSources.add(src);
+    else ytPlayingSources.delete(src);
+    notifyParentVideo();
+    return;
+  }
+  if (e.origin !== location.origin || !e.data || e.data.type !== 'agent-ask') return;
+  const transcript = String(e.data.transcript || '').trim();
+  if (!transcript) return;
+  notifyParentAgent('working');
+  Promise.resolve(askAgent(transcript)).finally(() => notifyParentAgent('done'));
+});
 if (EMBED || HubClient.embedded) boot({ hands: !EMBED });
 else $('go').addEventListener('click', () => boot());
 </script>

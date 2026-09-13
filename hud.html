@@ -6,14 +6,21 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 <title>VALINOR</title>
 <style>
+  :root, html[data-theme="dark"] {
+    --bg: #05060a; --bg-elev: #0b0d14; --ink: #e2e8f0; --mute: #64748b; --accent: #7dd3fc;
+  }
+  html[data-theme="light"] {
+    --bg: #f8fafc; --bg-elev: #ffffff; --ink: #0f172a; --mute: #64748b; --accent: #0284c7;
+  }
+
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { width: 100%; height: 100%; overflow: hidden; background: #05060a; font-family: Lato, sans-serif; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg); font-family: Lato, sans-serif; }
   #stage { display: block; width: 100vw; height: 100vh; }
   #cam { position: fixed; bottom: 12px; right: 12px; width: 170px; height: 128px;
          transform: scaleX(-1); border-radius: 10px; opacity: 0.28; z-index: 5; pointer-events: none; }
   #start { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column;
            align-items: center; justify-content: center; gap: 20px; color: #e2e8f0;
-           background: #05060a; text-align: center; }
+           background: var(--bg); text-align: center; }
   #start h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.01em;
               color: #7dd3fc; }
   #start p { color: #94a3b8; max-width: 460px; font-size: 15px; line-height: 1.5; }
@@ -134,7 +141,7 @@ function draw(now) {
   lastT = now; t += dt;
   stepHand(L, dt); stepHand(R, dt);
 
-  ctx.fillStyle = '#05060a';
+  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#05060a';
   ctx.fillRect(0, 0, W, H);
 
   if (MODE === 'BREATHE') drawBreathe(dt);

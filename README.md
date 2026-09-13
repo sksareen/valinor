@@ -5,7 +5,7 @@
 > for you, a teleprompter that follows your voice, breathe when you're spun up.
 > other apps plug in via a same-origin reverse proxy — valinor as the
 > consolidation screen. built in single sittings.
-> — savar
+> built in single sittings, by Savar Sareen.
 
 Webcam hand-tracking (MediaPipe) drives a breathing pacer, a voice-following
 teleprompter, spatial notes, letters, and a brick-breaker you play with your
@@ -40,7 +40,7 @@ flowchart LR
   FACT --> NEXT["factory/web :3000"]
   NEXT --> ASH["Ashram backend :3777"]
   BOARD <-- "/api/notes" --> SRV
-  SRV <--> FILES[("notes.json<br/>shared state on disk")]
+  SRV <--> FILES[("board-notes.json<br/>+ data-home stores<br/>on disk")]
   SR["speech recognition<br/>Web Speech + OpenRouter STT fallback"]
   BOARD -.->|"dictate / agent"| SR
 ```
@@ -63,8 +63,9 @@ proxies its own APIs to the Ashram backend on `:3777`.
 | `live.html` | Live session / dictate surface |
 | `activity.html` | Machine + activity feed (hw strip, Sauron-aware) |
 | `board.html` | Spatial notes — infinite canvas; voice → agent |
-| `letters.html` | Letters as paper cards (content stays local; `letters/` gitignored) |
-| `rehearse.html` | Voice-following teleprompter + self-view |
+| `letters.html` | Letters as paper cards (content stays local; data-home or gitignored `letters/`) |
+| `rehearse.html` | **REHEARSE** — mock interview partner: voice interviewer + coach debrief + TTS. Persona is config-driven (copy `rehearse.config.example.json` to `rehearse.config.json`); works out of the box with built-in generic defaults |
+| `ingrain.html` | **INGRAIN** — voice spaced-repetition; study prose → quiz, cross-session strength, custom decks |
 | `index.html` | GAME — brick breaker (hand paddle) |
 | `hud.html` | BREATHE + SYSTEM |
 | `agent.html` / `convos.html` | Agent trace + past sessions |
@@ -101,15 +102,51 @@ server (first run may create `loopkeeper/venv`).
 These stay off git (see `.gitignore` + `.env.example`):
 
 - `.env`, `loopkeeper/.env`
-- `crm.json`, `drafts.json`, `message-profile.json`, `live-session.jsonl`, `agent-usage.jsonl`
-- `letters/*` (folder kept via `.gitkeep`)
+- `crm.json`, `drafts.json`, `message-profile.json`, `board-notes.json`,
+  `live-session.jsonl`, `live-conversations.json`, `agent-usage.jsonl`,
+  `rehearse-sessions.jsonl`
+- `letters/*` (legacy repo folder kept via `.gitkeep`; fresh installs write to
+  data-home `letters/`) + letter revision history
+- writing stores (`writing-voice.md`, `writing-*.json`, prompt-run logs)
+- `rehearse.config.json` (per-user persona config)
 - `loopkeeper/*.db`, `loopkeeper/venv/`, design-run artifacts
+- `tts/venv/`, `tts/models/`, `tts/tmp/`
 
 Optional CRM paths (`NETWORK_DB_PATH`, `NETWORK_PEOPLE_DIR`, `CHAT_DB_PATH`) have
 **no machine defaults** — unset means messages degrade empty; `backfill-crm.js`
 exits until you set them.
 
-`notes.json` is the shared board store; keep it empty/`[]` in public trees.
+`notes.json` is legacy and frozen — the server reads it once (one-time import)
+and never writes it. Runtime board state lives in gitignored `board-notes.json`.
+
+## User data & updating
+
+Every server-side store resolves through `data-home.js`:
+
+1. an explicit per-store env var (see `.env.example`) when set;
+2. the repo-local file, when it already exists (backward compat — existing
+   installs keep working exactly where their data is);
+3. `VALINOR_DATA_DIR` (or `~/.valinor/`) for all **new** writes.
+
+So: fresh installs never write state into the repo, and `git pull` is safe —
+updating the code can never touch user data. Browser `localStorage` prefs
+(hub look, INGRAIN SRS, rehearse UI state) live outside git by nature and
+survive updates untouched.
+
+Store-format rule for all future changes: readers stay backward tolerant
+(ignore unknown fields, fill defaults); migrations are additive and
+copy-based, never destructive rewrites; any shape change ships with a version
+note plus migration path.
+
+## Backup
+
+Back up these (everything else is code or caches):
+
+- `~/.valinor/` (or your `VALINOR_DATA_DIR`) — session logs, usage, board notes
+- `.env` — keys + path overrides
+- `letters/` — your letters (legacy repo folder, or data-home `letters/`)
+- repo-local `*.json` / `*.jsonl` stores, if you have them from before data-home
+  (`drafts.json`, `crm.json`, `board-notes.json`, `live-*.json*`, writing stores)
 
 ## Shared state
 
@@ -123,6 +160,125 @@ Apache License 2.0 — see `LICENSE`.
 ## Updates
 
 Newest first. Add a line here with each meaningful push.
+
+### 2026-09-12
+- **REHEARSE — config-driven persona**: interviewer/candidate/role/banks/checklist
+  now resolve `REHEARSE_CONFIG` env → `rehearse.config.json` (gitignored) →
+  built-in generic defaults.
+  Prompt v1.2; picker subtitle renders from `GET /api/rehearse/config`.
+- **DATA-HOME — user data separated from code**: every server-side store resolves
+  explicit env → repo-local-when-present → `VALINOR_DATA_DIR`/`~/.valinor/`
+  (`data-home.js`). Board notes migrate `notes.json` (frozen, legacy import) →
+  `board-notes.json`; generic `POST /api/<name>` writer allowlisted to `drafts`.
+  Fresh installs never write state into the repo; `git pull` is data-safe.
+
+### 2026-09-12
+- **EXECUTE — scrubbed the Wave 1 time-boxed flow**: the "I have N minutes" ranked surface,
+  prestage artifacts, and the three exits (do-now / agent-stub / schedule) never worked
+  end-to-end (stubbed agent, silent prestage failures, empty ranking metadata), so they're
+  out — `execute.html` + `server.js` + `execute-server.js` stripped back to plain
+  Backlog → Active → Review → Done (scan + start + proof + review), `prestage-server.js`
+  deleted. Render still records `action_type` / `duration_bucket` for a future redesign.
+
+### 2026-09-12
+- **WRITING — voice profile system overhaul**: the ghostwriter now sounds like the writer
+  instead of generic "good writing."
+  - **Few-shot rewrites**: the rewrite engine now injects verbatim excerpts of the writer's own
+    writing as the texture to match (research is clear: demonstrations beat descriptions),
+    and is told to trust the excerpts over the distilled profile when they conflict.
+  - **Forensic profile builder**: the build prompt forces quoted, specific observations
+    (rhythm, punctuation, openings/closings, tics) and BANS generic writing-teacher advice;
+    adds a "Signature moves & phrases" section and writer-specific anti-tells.
+  - **Model → `anthropic/claude-opus-4.7`** (from `openai/gpt-4o`) — Claude is far better at
+    nuanced voice. Override with `WRITING_MODEL`; `WRITING_BUILD_MODEL` for the build pass.
+  - Corpus caps raised (40k→120k total, 6k→16k/sample) so long pieces aren't gutted.
+
+### 2026-09-10 (Wave 2)
+- **INGEST → EXECUTE — auto-render on capture**: a capture now renders into an EXECUTE
+  suggestion automatically, in the background (fire-and-forget after the capture response
+  flushes — capture stays instant), killing the manual Enhance → Add to backlog → Scan
+  ingest chain. Render sets `intent`, `outcome`, `action_type`, and `duration_bucket` (so
+  the ranker has what it sorts on). Non-actionable notes are skipped (persisted skip-set,
+  no bare suggestions, no re-billing). The manual "Scan ingest" button stays as the batch
+  backstop. `scanIngest` was refactored into shared render helpers reused by both paths.
+
+### 2026-09-10
+- **EXECUTE — completion engine, Wave 1**: turns the manual task board into the
+  activation-energy loop from the Valinor design spec (stages 3–5).
+  - **Data model**: tasks gain `intent`, `action_type` (draft/reply/transact/schedule/
+    errand/other), `duration_bucket`, `prestaged_ref`, `scheduled_block`, append-only
+    `state_history`, and `outcome_meta` (time-to-completion). Legacy tasks backfill on read.
+  - **Prestage** (`prestage-server.js`): builds the *actual artifact* — a real drafted
+    reply/link/checklist — not a restatement. Reuses the draft-server drafting pattern.
+  - **"I have N minutes" view**: `GET /api/execute/ranked?minutes=N` ranks startable tasks
+    by activation-fit (deterministic, not learned) and lazily prestages the top 3.
+  - **Three exits** (`POST /api/execute/exit`): do-now (opens the prestaged artifact),
+    agent-does (stubbed — never sends/pays/books), schedule (sets a real time block).
+  - Slice archetype is **draft/produce**, chosen from the real ingest store (774 captures).
+
+### 2026-08-13
+- **INGEST — Apple Photos + screenshots, and a big Apple Notes fix**:
+  - **Pull from Apple Photos** (new button + picker modal): scans a recent window (48h
+    default; 3d/7d/14d options), exports + thumbnails each candidate, and shows a
+    preview grid with everything selected by default — untick what you don't want, then
+    ingest. Each chosen photo is captioned by the vision model (title + description +
+    keyword tags) so the agent can find it by content. New `apple-photos.js`; endpoints
+    `/api/ingest/apple-photos/{scan,thumb,ingest}`.
+  - **Screenshots auto-ingest**: recent Mac screenshots from `~/Pictures/Pics/Screenshots`
+    (override `SCREENSHOTS_DIR`) are captioned and pulled in automatically on boot, bounded
+    to a recent window + dedup by path (`SCREENSHOTS_SINCE_HOURS`, default 48; disable with
+    `INGEST_SCREENSHOTS_SYNC=0`). New `screenshots.js`; shared `captionImage()` in
+    `ingest-server.js`.
+  - **Apple Notes pull fixed**: the importer read every property of every note one-by-one
+    and always timed out at 120s (nothing ever imported). Now bulk-reads metadata and
+    fetches bodies (chunked, per-note) only for new/changed notes — first sync ~30s, re-syncs
+    ~0.4s. Ingest list now sorts by real `created` date (was filename order) and shows the
+    year for non-current-year notes.
+- **DRAW tab**: a real Excalidraw canvas (`draw.html`, UMD from CDN — no build step), theme
+  synced to the hub, autosaving to localStorage. Groundwork for server-side, agent-readable
+  drawings next.
+- **Hub UX fixes**: INGEST (and other framed views) now sit below the top bar via a `framed`
+  flag; the hold-to-talk mic hotkey works while any tab has focus (backtick forwarded from
+  embedded views); the cursor-capture toggle no longer overlaps the mic bubble.
+- **INGEST → PLAN → EXECUTE → REVIEW loop**: capture now stays a clean *note* — the
+  tangible-outcome ("plan") step is no longer auto-run on every capture. Instead an
+  **Enhance** button in the ingest detail view generates one tangible outcome on demand
+  and pushes it to a backlog. New **EXECUTE** tab (`execute.html` + `execute-server.js`,
+  private JSON store under the data home (`execute/`)): a Kanban board
+  Backlog → Active → Review → Done. Start a task to run a timer, comment as you go, and
+  close it only by attaching a screenshot proof — which moves it to Review where the agent
+  asks a reflection question. Answering saves on the task and writes a `source: review`
+  note back into INGEST, closing the loop.
+
+### 2026-08-05
+- **INGRAIN — enriched the compute decks**: fact-checked every module and wove in
+  concrete anchor numbers + worked examples where they aid grokking — float bit-splits,
+  the `6ND` GPT-3 example (~3×10²³ FLOPs), Chinchilla 70B/1.4T, ~16 bytes/param, the
+  H100 roofline ridge point (~300 FLOPs/byte), NVLink 900 GB/s→1.8 TB/s, B200 8 TB/s,
+  TPU v4 4096-chip pod, and Meta's Llama 3 405B failure cadence (419 interruptions /
+  54 days on 16,384 H100s). Numbers verified against current sources.
+- **INGRAIN — compute-interview curriculum**: eight new decks for compute roles
+  at frontier labs — **Distributed training** (parallelism), **Numbers &
+  precision**, **Memory & roofline**, **Interconnect & networking**, **Scaling &
+  economics**, **Kernels & performance**, **Datacenter & scale**, and **Inside the
+  accelerator** (GPU/TPU) — alongside the two-part **Training** / **Inference**
+  decks. Curated `pairs` decks with sectioned study prose that cross-reference each
+  other and the NVIDIA FLOPs numbers.
+- **INGRAIN — real spaced repetition**: per-fact strength now persists across
+  sessions (Leitner boxes in `localStorage`); each recall is graded (missed/revealed
+  → demote, slow → hold, clean+fast → promote); sessions lead with your weakest and
+  most-overdue facts; the summary shows a strength table + an honest next-review date
+  instead of a fixed "come back tomorrow".
+- **Topic editor**: **＋ Topic** authors custom `prompt = answer` decks (new generic
+  `pairs` kind), persisted to `localStorage` and merged into the topic list; custom
+  decks inherit the spaced-repetition scheduling.
+- **Content**: GPU deck reframed around the ~2×-per-generation pattern, the
+  H200-as-memory-refresh exception, ship years, an FP16/FP8/FP4 caveat, and **Vera
+  Rubin (2026)**; Rome gains **Carrhae (53 BCE)** as the causal hinge; new
+  two-part **Training** (Part 1: gradient descent, hill climbing, backprop,
+  loss/optimizers, overfitting) and **Inference** (Part 2: tokens, attention,
+  prefill/decode, TTFT, inter-token latency, KV cache, quantization, speculative
+  decoding) decks that cross-reference the GPU numbers.
 
 ### 2026-07-29
 - **Public OSS cut**: published to [sksareen/valinor](https://github.com/sksareen/valinor)

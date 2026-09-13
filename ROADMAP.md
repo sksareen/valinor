@@ -12,6 +12,9 @@ through a same-origin reverse proxy (`server.js` on :4777 · `PROXIED_APPS`).
 - Board voice agent + OpenRouter STT fallback; agent/convos tabs
 - Hub shell: ⌘P tab palette, classic/drawer nav, clock geo+IP tip (copy on click), settings restart
 - Activity / live surfaces; proto-OSS scrub (MIT, `.env.example`, loopback bind, no personal path defaults)
+- Rehearse mock interview partner (voice interviewer + coach + TTS, config-driven persona)
+- Execute / ingest / writing-loop surfaces; Live on the isolated Pi agent
+- User-data separation: `data-home.js` (env → repo-compat → `~/.valinor`); board-notes migration
 
 ## Next
 - [ ] **LEARN mode (Infinite Craft for ideas)** — the big one.

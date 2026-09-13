@@ -6,15 +6,22 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 <title>BrickBreaker — play with your hand</title>
 <style>
+  :root, html[data-theme="dark"] {
+    --bg: #05060a; --bg-elev: #0b0d14; --ink: #e2e8f0; --mute: #64748b; --accent: #7dd3fc;
+  }
+  html[data-theme="light"] {
+    --bg: #f8fafc; --bg-elev: #ffffff; --ink: #0f172a; --mute: #64748b; --accent: #0284c7;
+  }
+
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { width: 100%; height: 100%; overflow: hidden; background: #05060a; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg); }
   #stage { display: block; width: 100vw; height: 100vh; }
   /* tiny webcam preview so you can see the tracking */
   #cam { position: fixed; bottom: 12px; right: 12px; width: 180px; height: 135px;
          transform: scaleX(-1); border-radius: 10px; opacity: 0.25; z-index: 5;
          pointer-events: none; transition: opacity .2s; }
   #cam.show { opacity: 0.75; }
-  #hud { position: fixed; top: 14px; left: 16px; z-index: 10; color: #cbd5e1;
+  #hud { position: fixed; top: calc(var(--hub-pad-top, 44px) + 8px); left: 16px; z-index: 10; color: #cbd5e1;
          font: 13px/1.5 Lato, sans-serif;
          background: rgba(8,10,18,.55); backdrop-filter: blur(8px);
          padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,.08); }
@@ -23,7 +30,7 @@
   #hud kbd { background: #1e293b; padding: 1px 6px; border-radius: 4px; color: #e2e8f0; }
   #start { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column;
            align-items: center; justify-content: center; gap: 20px; color: #e2e8f0;
-           background: #05060a;
+           background: var(--bg);
            font: 16px/1.5 Lato, sans-serif; text-align: center; }
   #start h1 { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; color: #7dd3fc; }
   #start p { color: #94a3b8; max-width: 460px; }
@@ -235,7 +242,7 @@ function draw(now) {
   stepHand(L, dt); stepHand(R, dt);
   update(dt);
 
-  ctx.fillStyle = '#05060a';
+  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#05060a';
   ctx.fillRect(0, 0, W, H);
 
   // bricks

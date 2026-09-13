@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<title>Execute — tangible outcomes</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root { --bg:#05060a; --panel:#0b1120; --card:#0f172a; --line:#1e293b; --ink:#e2e8f0; --dim:#94a3b8; --faint:#64748b; --accent:#7dd3fc; --good:#34d399; }
+  :root[data-theme="light"] { --bg:#f8fafc; --panel:#fff; --card:#fff; --line:#e2e8f0; --ink:#0f172a; --dim:#475569; --faint:#94a3b8; --accent:#0284c7; --good:#059669; }
+  html,body { height:100%; background:var(--bg); color:var(--ink); font-family:Lato,system-ui,sans-serif; }
+  #app { display:flex; flex-direction:column; height:100vh; }
+  #head { display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:14px 18px; border-bottom:1px solid var(--line); background:var(--panel); }
+  #head h1 { font-size:14px; letter-spacing:.08em; font-weight:700; }
+  #head .dir { font-size:11px; color:var(--faint); margin-top:2px; word-break:break-all; }
+  #headActs { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  #scanHint { font-size:11px; color:var(--faint); max-width:220px; }
+  #newBtn, #scanBtn, #selectBtn { border:none; border-radius:7px; font-size:12px; font-weight:650;
+    padding:7px 13px; cursor:pointer; font-family:inherit; }
+  #newBtn { background:var(--accent); color:var(--bg); }
+  #scanBtn, #selectBtn { background:transparent; color:var(--ink); border:1px solid var(--line); }
+  #scanBtn:hover:not(:disabled), #selectBtn:hover { border-color:var(--accent); color:var(--accent); }
+  #scanBtn:disabled { opacity:.55; cursor:wait; }
+  #board { flex:1; display:grid; grid-template-columns:repeat(4,minmax(240px,1fr)); gap:14px;
+    padding:16px 18px; overflow:auto; align-items:start; }
+  .col { background:var(--panel); border:1px solid var(--line); border-radius:12px; min-height:120px;
+    display:flex; flex-direction:column; }
+  .col > h2 { font-size:11px; letter-spacing:.09em; color:var(--dim); font-weight:700;
+    padding:12px 14px 8px; display:flex; justify-content:space-between; }
+  .col > h2 .n { color:var(--faint); }
+  .col .stack { display:flex; flex-direction:column; gap:10px; padding:0 12px 14px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:9px; padding:11px 12px; }
+  .card.suggestion {
+    background: color-mix(in srgb, var(--card) 42%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--line));
+    backdrop-filter: blur(12px);
+    box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 14%, transparent);
+  }
+  :root[data-theme="light"] .card.suggestion {
+    background: color-mix(in srgb, var(--card) 55%, transparent);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.7);
+  }
+  .card .title { font-size:13.5px; font-weight:650; margin-bottom:5px; }
+  .card .outcome { font-size:12.5px; color:var(--dim); line-height:1.45; }
+  .card .why { font-size:11.5px; color:var(--faint); font-style:italic; margin-top:6px; line-height:1.4; }
+  .card .src { font-size:10.5px; color:var(--faint); margin-top:6px; }
+  .card .srclink { color:var(--accent); text-decoration:none; }
+  .card .srclink:hover { text-decoration:underline; }
+  .card .srcdet { margin-top:5px; }
+  .card .srcdet summary { cursor:pointer; font-size:10.5px; color:var(--dim); }
+  .card .srcdet summary:hover { color:var(--accent); }
+  .card .srcbody { white-space:pre-wrap; font-size:11.5px; color:var(--dim); line-height:1.5;
+    max-height:220px; overflow:auto; margin-top:5px; padding:8px 10px;
+    border:1px solid var(--line); border-radius:7px; background:var(--panel); }
+  .card .timer { font-size:15px; font-weight:700; color:var(--good); margin:8px 0 4px; font-variant-numeric:tabular-nums; }
+  .card .elapsed { font-size:11px; color:var(--faint); margin-top:6px; }
+  .card .comments { list-style:none; margin:8px 0 0; padding:0; }
+  .card .comments li { font-size:11.5px; color:var(--dim); padding:4px 0 4px 10px; border-left:2px solid var(--line); margin-top:4px; }
+  .card .q { font-size:12.5px; color:var(--accent); line-height:1.45; margin:8px 0 6px; }
+  .card .a { font-size:12px; color:var(--dim); line-height:1.45; margin-top:6px; }
+  .card .proof { width:100%; border-radius:7px; border:1px solid var(--line); margin:8px 0 4px; display:block; }
+  .card .filechip {
+    display:flex; align-items:center; gap:8px; margin:8px 0 4px; padding:8px 10px;
+    border:1px solid var(--line); border-radius:7px; background:color-mix(in srgb, var(--panel) 70%, transparent);
+    text-decoration:none; color:var(--ink); font-size:12px;
+  }
+  .card .filechip:hover { border-color:var(--accent); color:var(--accent); }
+  .card .filechip .name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .row { display:flex; gap:7px; margin-top:9px; flex-wrap:wrap; }
+  button.act { border:1px solid var(--line); background:transparent; color:var(--ink);
+    border-radius:6px; font-size:11px; padding:5px 9px; cursor:pointer; font-family:inherit; }
+  button.act:hover:not(:disabled) { border-color:var(--accent); color:var(--accent); }
+  button.act:disabled { opacity:.5; cursor:default; }
+  button.primary { background:var(--accent); color:var(--bg); border-color:var(--accent); font-weight:650; }
+  button.primary:hover:not(:disabled) { color:var(--bg); opacity:.9; }
+  button.danger { color:#f87171; border-color:color-mix(in srgb,#f87171 40%,var(--line)); }
+  button.danger:hover:not(:disabled) { background:rgba(248,113,113,.12); color:#f87171; }
+  textarea.inp, input.inp { width:100%; background:var(--panel); color:var(--ink); border:1px solid var(--line);
+    border-radius:7px; padding:7px 9px; font:inherit; font-size:12.5px; margin-top:7px; resize:vertical; }
+  .drop { border:1px dashed var(--line); border-radius:8px; padding:12px; text-align:center; font-size:11.5px;
+    color:var(--faint); cursor:pointer; margin-top:9px; }
+  .drop.over { border-color:var(--accent); color:var(--accent); }
+  .proof-wrap { position:relative; }
+  .proof-wrap .proof { cursor:pointer; }
+  .proof-wrap .hint { font-size:10.5px; color:var(--faint); margin:2px 0 6px; }
+  .empty { color:var(--faint); font-size:12px; padding:14px; text-align:center; }
+  .msg { font-size:11px; color:#f87171; margin-top:6px; }
+  /* ===== multi-select -> instruction prompt ===== */
+  #selectBtn.on { border-color:var(--accent); color:var(--accent); }
+  .seln { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--faint);
+    margin-bottom:7px; cursor:pointer; -webkit-user-select:none; user-select:none; }
+  .seln input { accent-color:var(--accent); width:14px; height:14px; cursor:pointer; }
+  .card.picked { border-color:var(--accent); }
+  #selBar { position:fixed; left:50%; bottom:16px; transform:translateX(-50%); z-index:50;
+    display:none; align-items:center; gap:10px; padding:9px 14px;
+    background:var(--panel); border:1px solid var(--accent); border-radius:10px;
+    box-shadow:0 8px 28px rgba(0,0,0,.5); font-size:12.5px; }
+  #selBar.show { display:flex; }
+  #selBar .cnt { font-weight:650; }
+  #promptPop { position:fixed; inset:0; z-index:60; display:none; align-items:center;
+    justify-content:center; background:rgba(0,0,0,.6); padding:20px; }
+  #promptPop.show { display:flex; }
+  #promptCard { width:680px; max-width:100%; max-height:86vh; display:flex; flex-direction:column;
+    background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  #promptCard .pp-head { display:flex; align-items:center; justify-content:space-between;
+    padding:12px 15px; border-bottom:1px solid var(--line); }
+  #promptCard .pp-head .t { font-size:12px; font-weight:700; letter-spacing:.08em; }
+  #promptCard .pp-head .sub { font-size:11px; color:var(--faint); margin-top:2px; }
+  #promptText { flex:1; min-height:320px; margin:13px 15px 0; padding:11px 12px;
+    font:12px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--ink);
+    background:var(--card); border:1px solid var(--line); border-radius:8px; resize:vertical; }
+  #promptCard .pp-row { display:flex; gap:8px; align-items:center; padding:11px 15px 14px; }
+  #promptCard .pp-note { font-size:11px; color:var(--faint); }
+  .col.done .card { opacity:.85; }
+  .colact { padding:0 12px 10px; }
+  .colact .mini { width:100%; }
+  /* ===== EVALS drawer (far-right slideout) ===== */
+  .ev-sum { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:2px 0 12px; }
+  .ev-stat { border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
+  .ev-stat .v { font-size:18px; font-weight:650; }
+  .ev-stat .k { font-size:10.5px; color:var(--faint); letter-spacing:.05em; margin-top:2px; }
+  .ev-run { border:1px solid var(--line); border-radius:9px; padding:10px 12px; margin-bottom:10px;
+    background:var(--card); }
+  .ev-run .t { font-size:13px; font-weight:650; margin-bottom:3px; }
+  .ev-run .m { font-size:11px; color:var(--faint); margin-bottom:6px; }
+  .ev-run .q { font-size:12px; color:var(--accent); line-height:1.45; margin:6px 0 2px; }
+  .ev-run .a { font-size:12px; color:var(--dim); line-height:1.45; }
+  .ev-run .flags { display:flex; gap:6px; flex-wrap:wrap; margin-top:7px; }
+  .ev-flag { font-size:10.5px; color:var(--dim); border:1px solid var(--line); border-radius:20px;
+    padding:2px 8px; }
+  .ev-flag.warn { color:#fbbf24; border-color:color-mix(in srgb,#fbbf24 40%,var(--line)); }
+  .ev-link { font-size:11px; color:var(--accent); text-decoration:none; }
+  .ev-link:hover { text-decoration:underline; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="head">
+    <div>
+      <h1>EXECUTE</h1>
+      <div class="dir" id="dir"></div>
+    </div>
+    <div id="headActs">
+      <span id="scanHint"></span>
+      <button type="button" id="scanBtn">Scan ingest</button>
+      <button type="button" id="selectBtn" title="Select multiple cards to build one instruction prompt">Select</button>
+      <button type="button" id="newBtn">+ New task</button>
+    </div>
+  </div>
+  <div id="board"><div class="empty">loading…</div></div>
+  <div id="selBar" aria-hidden="true">
+    <span class="cnt" id="selCount">0 selected</span>
+    <button type="button" class="act primary" id="selCopy">Copy prompt</button>
+    <button type="button" class="act" id="selClear">Clear</button>
+  </div>
+  <div id="promptPop" aria-hidden="true">
+    <div id="promptCard">
+      <div class="pp-head">
+        <div>
+          <div class="t">INSTRUCTION PROMPT</div>
+          <div class="sub" id="promptSub">Paste into the agent of your choice.</div>
+        </div>
+        <button type="button" class="act" id="promptClose">✕</button>
+      </div>
+      <textarea id="promptText" readonly spellcheck="false"></textarea>
+      <div class="pp-row">
+        <button type="button" class="act primary" id="promptCopy">Copy</button>
+        <span class="pp-note" id="promptNote"></span>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="hub-client.js"></script>
+<script src="slideout.js"></script>
+<script src="ingest-drawer.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+if (window.HubClient) { HubClient.forwardNavKeys?.(); HubClient.onTheme?.((t) => document.documentElement.dataset.theme = t); }
+if (window.IngestDrawer) IngestDrawer.attach(); // global left-edge ingest tab (⌘I)
+
+const COLUMNS = [
+  { key: 'backlog', label: 'BACKLOG' },
+  { key: 'active',  label: 'ACTIVE' },
+  { key: 'review',  label: 'REVIEW' },
+  { key: 'done',    label: 'DONE' },
+];
+let tasks = [];
+let composing = false; // new-task form open
+let tick = null;
+// multi-select -> instruction prompt
+let selecting = false;
+const selected = new Set(); // task ids, survives re-renders/polls
+function selnHtml(t){
+  if (!selecting) return '';
+  const on = selected.has(t.id) ? ' checked' : '';
+  return `<label class="seln"><input type="checkbox" data-seln="${esc(t.id)}"${on} /> select</label>`;
+}
+function pickedCls(t){ return selecting && selected.has(t.id) ? ' picked' : ''; }
+
+function esc(s){ const d=document.createElement('div'); d.textContent=String(s==null?'':s); return d.innerHTML; }
+function fmtClock(ms){
+  const s = Math.max(0, Math.floor(ms/1000));
+  const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
+  const p = (n)=>String(n).padStart(2,'0');
+  return (h?`${h}:`:'') + `${p(m)}:${p(sec)}`;
+}
+function liveElapsed(t){
+  let ms = t.elapsedMs || 0;
+  if (t.status === 'active' && t.startedAt) ms += Date.now() - Date.parse(t.startedAt);
+  return ms;
+}
+
+async function api(path, opts){
+  const r = await fetch(path, opts);
+  const j = await r.json().catch(()=>({}));
+  if (!r.ok) throw new Error(j.error || `${r.status}`);
+  return j;
+}
+async function load(){
+  try {
+    const j = await api('/api/execute');
+    tasks = j.tasks || [];
+    $('dir').textContent = j.dir || '';
+    render();
+    renderEvals().catch(() => {});
+  } catch(e){ $('board').innerHTML = `<div class="empty">${esc(e.message||e)}</div>`; }
+}
+
+function proofHtml(t, { replaceable } = {}){
+  if (!t.proofUrl) return '';
+  if (t.proofIsImage) {
+    const hint = replaceable ? `<div class="hint">click to replace</div>` : '';
+    return `<div class="proof-wrap"><img class="proof"${replaceable?' data-do="proof"':''} src="${esc(t.proofUrl)}" alt="proof" />${hint}</div>`;
+  }
+  const label = t.proofName || 'attached file';
+  return `<a class="filechip" href="${esc(t.proofUrl)}" target="_blank" rel="noopener" download="${esc(label)}" title="open or download">
+    <span>file</span><span class="name">${esc(label)}</span>
+  </a>`;
+}
+
+// Link back to the originating capture + its snapshotted original text.
+// Old tasks without a snapshot still link out (ingest.html?id= opens the note).
+function sourceHtml(t){
+  if (!t.sourceIngestId) return '';
+  const title = t.sourceTitle || 'captured note';
+  const link = `<a class="srclink" href="/ingest.html?id=${encodeURIComponent(t.sourceIngestId)}" target="_blank" rel="noopener" title="Open the original capture">from: ${esc(title)}</a>`;
+  if (!t.sourceBody) return `<div class="src">${link}</div>`;
+  return `<div class="src">${link}<details class="srcdet"><summary>original note</summary><div class="srcbody">${esc(t.sourceBody)}</div></details></div>`;
+}
+
+function cardHtml(t){
+  const src = sourceHtml(t);
+  const comments = (t.comments||[]).length
+    ? `<ul class="comments">${t.comments.map(c=>`<li>${esc(c.text)}</li>`).join('')}</ul>` : '';
+  if (t.kind === 'suggestion') {
+    const why = t.why ? `<div class="why">${esc(t.why)}</div>` : '';
+    return `<div class="card suggestion${pickedCls(t)}" data-id="${esc(t.id)}">${selnHtml(t)}
+      <div class="title">${esc(t.title)}</div>
+      <div class="outcome">${esc(t.outcome||'')}</div>${why}${src}
+      <div class="row">
+        <button class="act primary" data-do="promote">Keep</button>
+        <button class="act" data-do="archive">Dismiss</button>
+      </div>
+    </div>`;
+  }
+  if (t.status === 'backlog') {
+    return `<div class="card${pickedCls(t)}" data-id="${esc(t.id)}">${selnHtml(t)}
+      <div class="title">${esc(t.title)}</div>
+      <div class="outcome">${esc(t.outcome||'')}</div>${src}${comments}
+      <div class="row">
+        <button class="act primary" data-do="start">Start</button>
+        <button class="act" data-do="comment">Comment</button>
+        <button class="act danger" data-do="del">Delete</button>
+      </div>
+    </div>`;
+  }
+  if (t.status === 'active') {
+    return `<div class="card${pickedCls(t)}" data-id="${esc(t.id)}">${selnHtml(t)}
+      <div class="title">${esc(t.title)}</div>
+      <div class="outcome">${esc(t.outcome||'')}</div>${src}
+      <div class="timer" data-timer>${fmtClock(liveElapsed(t))}</div>${comments}
+      <div class="row">
+        <button class="act primary" data-do="proof">Attach file</button>
+        <button class="act" data-do="comment">Comment</button>
+        <button class="act" data-do="back" title="send back to Backlog">↩ Backlog</button>
+      </div>
+      <div class="drop" data-drop>drop / paste / click to attach a file</div>
+    </div>`;
+  }
+  if (t.status === 'review') {
+    const proof = proofHtml(t, { replaceable: true });
+    const q = t.review?.question ? `<div class="q">${esc(t.review.question)}</div>` : '';
+    return `<div class="card${pickedCls(t)}" data-id="${esc(t.id)}">${selnHtml(t)}
+      <div class="title">${esc(t.title)}</div>${proof}${q}${src}
+      <textarea class="inp" data-ans placeholder="Your answer…" rows="2"></textarea>
+      <div class="row">
+        <button class="act primary" data-do="complete">Complete</button>
+        <button class="act" data-do="proof">Change file</button>
+        <button class="act" data-do="back" title="send back to Active">↩ Active</button>
+      </div>
+      <div class="drop" data-drop>drop / paste / click to replace file</div>
+    </div>`;
+  }
+  // done
+  const proof = proofHtml(t);
+  const q = t.review?.question ? `<div class="q">${esc(t.review.question)}</div>` : '';
+  const a = t.review?.answer ? `<div class="a">${esc(t.review.answer)}</div>` : '';
+  return `<div class="card${pickedCls(t)}" data-id="${esc(t.id)}">${selnHtml(t)}
+    <div class="title">${esc(t.title)}</div>${proof}${q}${a}
+    <div class="elapsed">${fmtClock(t.elapsedMs||0)} spent</div>
+    <div class="row">
+      <button class="act" data-do="back" title="send back to Review">↩ Review</button>
+      <button class="act danger" data-do="del">Delete</button>
+    </div>
+  </div>`;
+}
+
+function newFormHtml(){
+  return `<div class="card">
+    <input class="inp" id="ntTitle" placeholder="Task title" />
+    <textarea class="inp" id="ntOutcome" placeholder="Tangible outcome" rows="2"></textarea>
+    <textarea class="inp" id="ntComment" placeholder="A comment (optional)" rows="1"></textarea>
+    <div class="row">
+      <button class="act primary" id="ntSave">Add</button>
+      <button class="act" id="ntCancel">Cancel</button>
+    </div>
+  </div>`;
+}
+
+function render(){
+  const byStatus = { backlog:[], active:[], review:[], done:[] };
+  for (const t of tasks) {
+    if (t.status === 'archived') continue;
+    (byStatus[t.status] || byStatus.backlog).push(t);
+  }
+  $('board').innerHTML = COLUMNS.map(col => {
+    const list = byStatus[col.key] || [];
+    const compose = (col.key === 'backlog' && composing) ? newFormHtml() : '';
+    const cards = list.map(cardHtml).join('');
+    const archBtn = (col.key === 'done' && list.length)
+      ? `<div class="colact"><button class="act mini" data-archive-all title="Archive all completed runs">Archive all</button></div>` : '';
+    return `<div class="col ${col.key}">
+      <h2>${col.label}<span class="n">${list.length}</span></h2>
+      ${archBtn}
+      <div class="stack">${compose}${cards || (compose?'':'<div class="empty">—</div>')}</div>
+    </div>`;
+  }).join('');
+  wire();
+  const archAll = document.querySelector('[data-archive-all]');
+  if (archAll) archAll.onclick = archiveAllDone;
+  if (typeof updateSelBar === 'function') updateSelBar();
+}
+
+async function archiveAllDone(){
+  const done = tasks.filter(t => t.status === 'done');
+  if (!done.length) return;
+  if (!confirm(`Archive all ${done.length} completed run${done.length === 1 ? '' : 's'}? They stay in the EVALS drawer.`)) return;
+  try {
+    const j = await api('/api/execute/archive-done', { method:'POST' });
+    await load();
+    await renderEvals();
+  } catch(e){ alert(String(e.message||e)); }
+}
+
+function wire(){
+  if (composing) {
+    const save = $('ntSave'), cancel = $('ntCancel');
+    if (save) save.onclick = createTask;
+    if (cancel) cancel.onclick = () => { composing = false; render(); };
+    if ($('ntTitle')) $('ntTitle').focus();
+  }
+  document.querySelectorAll('.card[data-id]').forEach(card => {
+    const id = card.dataset.id;
+    card.querySelectorAll('[data-do]').forEach(btn => {
+      btn.onclick = () => onAction(btn.dataset.do, id, card, btn);
+    });
+    const box = card.querySelector('[data-seln]');
+    if (box) box.onchange = () => {
+      if (box.checked) selected.add(id); else selected.delete(id);
+      card.classList.toggle('picked', box.checked);
+      updateSelBar();
+    };
+    const drop = card.querySelector('[data-drop]');
+    if (drop) attachDrop(drop, id);
+  });
+}
+
+// ================= multi-select -> instruction prompt =================
+function updateSelBar(){
+  // drop ids that no longer exist (deleted tasks)
+  for (const id of [...selected]) if (!tasks.some(t => t.id === id)) selected.delete(id);
+  const bar = $('selBar');
+  $('selCount').textContent = `${selected.size} selected`;
+  bar.classList.toggle('show', selecting && selected.size > 0);
+  bar.setAttribute('aria-hidden', String(!(selecting && selected.size > 0)));
+}
+$('selectBtn').onclick = () => {
+  selecting = !selecting;
+  if (!selecting) selected.clear();
+  $('selectBtn').textContent = selecting ? 'Cancel' : 'Select';
+  $('selectBtn').classList.toggle('on', selecting);
+  render();
+  updateSelBar();
+};
+$('selClear').onclick = () => { selected.clear(); render(); updateSelBar(); };
+function buildPrompt(items){
+  const lines = [];
+  lines.push(`Plan and execute the following ${items.length} product improvement${items.length === 1 ? '' : 's'}. Work through them in order. For each item: make a short plan, implement it in the codebase, then verify it works before moving on. Ask for clarification only if an item is genuinely ambiguous.`);
+  lines.push('');
+  items.forEach((t, i) => {
+    lines.push(`## ${i + 1}. ${t.title || '(untitled)'}`);
+    if (t.status && t.status !== 'backlog') lines.push(`Status: ${t.status}${t.kind === 'suggestion' ? ' (suggestion)' : ''}`);
+    else if (t.kind === 'suggestion') lines.push('Status: suggestion');
+    if (t.outcome) lines.push(`Outcome: ${t.outcome}`);
+    if (t.why) lines.push(`Why: ${t.why}`);
+    if (t.sourceTitle || t.sourceBody) {
+      lines.push(`Original note${t.sourceTitle ? ` ("${t.sourceTitle}")` : ''}: ${t.sourceBody || '(see linked capture)'}`);
+    }
+    if (t.sourceIngestId) lines.push(`Source capture id: ${t.sourceIngestId}`);
+    (t.comments || []).forEach(c => { if (c.text) lines.push(`Note: ${c.text}`); });
+    lines.push('');
+  });
+  lines.push('After all items are done, summarize what changed per item.');
+  return lines.join('\n');
+}
+function openPromptPop(){
+  const items = tasks.filter(t => selected.has(t.id));
+  if (!items.length) return;
+  // keep board order within each column: backlog, active, review, done, suggestions mixed by board position
+  const order = new Map(tasks.map((t, i) => [t.id, i]));
+  items.sort((a, b) => (order.get(a.id) || 0) - (order.get(b.id) || 0));
+  $('promptText').value = buildPrompt(items);
+  $('promptSub').textContent = `${items.length} item${items.length === 1 ? '' : 's'} — paste into the agent of your choice.`;
+  $('promptNote').textContent = '';
+  $('promptPop').classList.add('show');
+  $('promptPop').setAttribute('aria-hidden', 'false');
+}
+function hidePromptPop(){
+  $('promptPop').classList.remove('show');
+  $('promptPop').setAttribute('aria-hidden', 'true');
+}
+$('selCopy').onclick = openPromptPop;
+$('promptClose').onclick = hidePromptPop;
+$('promptPop').addEventListener('mousedown', (e) => { if (e.target === $('promptPop')) hidePromptPop(); });
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && $('promptPop').classList.contains('show')) hidePromptPop();
+});
+$('promptCopy').onclick = async () => {
+  const ta = $('promptText');
+  try {
+    await navigator.clipboard.writeText(ta.value);
+    $('promptNote').textContent = 'copied';
+  } catch {
+    ta.focus(); ta.select();
+    try { document.execCommand('copy'); $('promptNote').textContent = 'copied'; }
+    catch { $('promptNote').textContent = 'copy failed — select all + copy manually'; }
+  }
+  setTimeout(() => { if ($('promptNote').textContent === 'copied') $('promptNote').textContent = ''; }, 1600);
+};
+
+async function createTask(){
+  const title = ($('ntTitle')?.value||'').trim();
+  const outcome = ($('ntOutcome')?.value||'').trim();
+  const comment = ($('ntComment')?.value||'').trim();
+  if (!title && !outcome) { $('ntTitle').focus(); return; }
+  try {
+    await api('/api/execute', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ title, outcome, comment }) });
+    composing = false;
+    await load();
+  } catch(e){ alert(String(e.message||e)); }
+}
+
+async function onAction(action, id, card, btn){
+  try {
+    if (action === 'start') { await api('/api/execute/start?id='+encodeURIComponent(id), {method:'POST'}); await load(); }
+    else if (action === 'promote') {
+      if (btn) btn.disabled = true;
+      await api('/api/execute/promote?id='+encodeURIComponent(id), {method:'POST'}); await load();
+    }
+    else if (action === 'archive') {
+      if (btn) btn.disabled = true;
+      await api('/api/execute/archive?id='+encodeURIComponent(id), {method:'POST'}); await load();
+    }
+    else if (action === 'back') {
+      if (btn) btn.disabled = true;
+      await api('/api/execute/unstep?id='+encodeURIComponent(id), {method:'POST'}); await load();
+    }
+    else if (action === 'del') {
+      if (!confirm('Delete this task?')) return;
+      await api('/api/execute/item?id='+encodeURIComponent(id), {method:'DELETE'}); await load();
+    }
+    else if (action === 'comment') {
+      const text = prompt('Add a comment'); if (!text) return;
+      await api('/api/execute/item?id='+encodeURIComponent(id), {method:'PATCH',
+        headers:{'Content-Type':'application/json'}, body: JSON.stringify({ comment:text })}); await load();
+    }
+    else if (action === 'proof') { pickFile(id); }
+    else if (action === 'complete') {
+      const answer = (card.querySelector('[data-ans]')?.value||'').trim();
+      if (!answer) { card.querySelector('[data-ans]')?.focus(); return; }
+      btn.disabled = true;
+      await api('/api/execute/review?id='+encodeURIComponent(id), {method:'POST',
+        headers:{'Content-Type':'application/json'}, body: JSON.stringify({ answer })}); await load();
+    }
+  } catch(e){ alert(String(e.message||e)); if (btn) btn.disabled = false; }
+}
+
+// ---- proof upload: file pick / drag-drop / paste -> data URL -> server ----
+async function sendProof(id, file){
+  if (!file) { alert('choose a file'); return; }
+  if (file.size > 12 * 1024 * 1024) { alert('file is too large (12 MB max)'); return; }
+  const dataUrl = await new Promise((res, rej) => {
+    const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(file);
+  });
+  await api('/api/execute/proof?id='+encodeURIComponent(id), {method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ file: dataUrl, name: file.name || 'proof', mime: file.type || '' })});
+  await load();
+}
+function pickFile(id){
+  const inp = document.createElement('input');
+  inp.type = 'file';
+  inp.onchange = () => { if (inp.files[0]) sendProof(id, inp.files[0]).catch(e=>alert(String(e.message||e))); };
+  inp.click();
+}
+function attachDrop(el, id){
+  el.onclick = () => pickFile(id);
+  el.ondragover = (e) => { e.preventDefault(); el.classList.add('over'); };
+  el.ondragleave = () => el.classList.remove('over');
+  el.ondrop = (e) => {
+    e.preventDefault(); el.classList.remove('over');
+    const f = e.dataTransfer?.files?.[0];
+    if (f) sendProof(id, f).catch(err=>alert(String(err.message||err)));
+  };
+}
+// paste a screenshot onto an active task while its card is focused/hovered — simplest:
+// paste applies to the single active task if there's exactly one.
+document.addEventListener('paste', (e) => {
+  const item = [...(e.clipboardData?.items||[])].find(i => i.type.startsWith('image/'));
+  if (!item) return;
+  const file = item.getAsFile();
+  if (!file) return;
+  const hovered = document.querySelector('.card[data-id]:hover');
+  if (hovered && hovered.querySelector('[data-drop]')) {
+    sendProof(hovered.dataset.id, file).catch(err=>alert(String(err.message||err)));
+    return;
+  }
+  const active = tasks.filter(t => t.status === 'active');
+  if (active.length === 1) {
+    sendProof(active[0].id, file).catch(err=>alert(String(err.message||err)));
+    return;
+  }
+  const review = tasks.filter(t => t.status === 'review');
+  if (review.length === 1 && active.length === 0) {
+    sendProof(review[0].id, file).catch(err=>alert(String(err.message||err)));
+  }
+});
+
+// ============================================================
+//  Board actions below — plain Kanban (time-boxed flow removed 2026-09-12)
+// ============================================================
+$('newBtn').onclick = () => { composing = true; render(); };
+$('scanBtn').onclick = async () => {
+  const btn = $('scanBtn');
+  const hint = $('scanHint');
+  btn.disabled = true;
+  btn.textContent = 'scanning…';
+  if (hint) hint.textContent = '';
+  try {
+    const j = await api('/api/execute/scan', { method:'POST', headers:{'Content-Type':'application/json'}, body:'{}' });
+    const bits = [];
+    if (j.added) bits.push(`${j.added} new`);
+    else bits.push('no new todos');
+    if (j.skipped) bits.push(`${j.skipped} already covered`);
+    if (hint) hint.textContent = bits.join(' · ');
+    await load();
+  } catch (e) {
+    if (hint) hint.textContent = String(e.message || e);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Scan ingest';
+  }
+};
+
+// live timer tick for active cards (updates the DOM in place, no full re-render)
+function startTick(){
+  if (tick) clearInterval(tick);
+  tick = setInterval(() => {
+    if (document.hidden) return;
+    document.querySelectorAll('.card[data-id]').forEach(card => {
+      const el = card.querySelector('[data-timer]');
+      if (!el) return;
+      const t = tasks.find(x => x.id === card.dataset.id);
+      if (t) el.textContent = fmtClock(liveElapsed(t));
+    });
+  }, 1000);
+}
+
+// Don't re-render (which rebuilds innerHTML) while the user is typing into the board —
+// a background poll must never wipe a half-written review answer, comment, or new task.
+function isEditing(){
+  const el = document.activeElement;
+  return !!el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') && el.closest('#board');
+}
+
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !isEditing()) load(); });
+setInterval(() => { if (!document.hidden && !composing && !isEditing()) load(); }, 15000);
+
+// EVALS drawer — the far-right slideout. Every completed run lands here the moment it
+// hits Done (and stays after Archive-all), forming the trajectory set for the Execution
+// eval loop: time-to-completion, re-enters, review Q&A, proof. Built on the shared
+// slideout component (slideout.js), same as the WRITING voice drawer.
+const EvalDrawer = Slideout.create({
+  title: 'EVALS',
+  bodyHTML: `<div id="evalBody"><div class="empty">loading…</div></div>`,
+  onOpen: () => renderEvals(),
+});
+
+function fmtDur(ms){
+  if (ms == null || !Number.isFinite(ms)) return '—';
+  const m = Math.round(ms / 60000);
+  if (m < 1) return '<1m';
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 48) return `${h}h${m % 60 ? ` ${m % 60}m` : ''}`;
+  return `${Math.floor(h / 24)}d ${h % 24}h`;
+}
+function fmtDate(iso){
+  const ms = Date.parse(iso || '');
+  if (!Number.isFinite(ms)) return '';
+  return new Date(ms).toLocaleDateString(undefined, { month:'short', day:'numeric' });
+}
+
+async function renderEvals(){
+  const host = $('evalBody');
+  if (!host) return;
+  let runs = [], summary = null;
+  try {
+    const j = await api('/api/execute/evals?limit=50');
+    runs = j.runs || [];
+    summary = j.summary || null;
+  } catch {
+    // Offline fallback: derive from the board's own done tasks.
+    runs = tasks.filter(t => t.status === 'done').map(t => ({
+      ...t,
+      completedAt: t.updated || null,
+      timeToCompletionMs: (t.outcome_meta && t.outcome_meta.time_to_completion_ms) ?? null,
+      reenters: 0, shallow: ((t.review?.answer || '').trim().length || 99) < 20,
+    }));
+  }
+  if (!runs.length) {
+    host.innerHTML = `<div style="font-size:12.5px;color:var(--dim);line-height:1.55;">
+        No completed runs yet. Complete a task — its trajectory (time, re-enters,
+        review Q&amp;A, proof) lands here as eval fuel.</div>`;
+    return;
+  }
+  const tot = summary ? summary.total : runs.length;
+  const avg = summary ? summary.avgTimeToCompletionMs
+    : (() => { const v = runs.map(r => r.timeToCompletionMs).filter(Number.isFinite);
+        return v.length ? Math.round(v.reduce((a,b) => a+b, 0) / v.length) : null; })();
+  const shallow = summary ? summary.shallowCount : runs.filter(r => r.shallow).length;
+  const reent = summary ? summary.reenterTotal : runs.reduce((s,r) => s + (r.reenters||0), 0);
+  host.innerHTML = `
+    <div style="font-size:12.5px;color:var(--dim);line-height:1.55;margin-bottom:10px;">
+      Completed runs become eval trajectories — completion time, re-enters, review depth.
+    </div>
+    <div class="ev-sum">
+      <div class="ev-stat"><div class="v">${tot}</div><div class="k">COMPLETED</div></div>
+      <div class="ev-stat"><div class="v">${avg == null ? '—' : fmtDur(avg)}</div><div class="k">AVG TIME TO DONE</div></div>
+      <div class="ev-stat"><div class="v">${shallow}</div><div class="k">SHALLOW ANSWERS</div></div>
+      <div class="ev-stat"><div class="v">${reent}</div><div class="k">RE-ENTERS</div></div>
+    </div>
+    ${runs.map(r => {
+      const q = r.review?.question ? `<div class="q">Q: ${esc(r.review.question)}</div>` : '';
+      const a = r.review?.answer ? `<div class="a">A: ${esc(r.review.answer)}</div>` : '';
+      const flags = [
+        `<span class="ev-flag">${fmtClock(r.elapsedMs || 0)} worked</span>`,
+        r.timeToCompletionMs != null ? `<span class="ev-flag">${fmtDur(r.timeToCompletionMs)} to done</span>` : '',
+        (r.reenters || 0) > 0 ? `<span class="ev-flag warn">${r.reenters} re-enter${r.reenters === 1 ? '' : 's'}</span>` : '',
+        r.shallow ? `<span class="ev-flag warn">shallow answer</span>` : '',
+        r.proofUrl ? `<a class="ev-link" href="${esc(r.proofUrl)}" target="_blank" rel="noopener">proof</a>` : '',
+        r.sourceIngestId ? `<a class="ev-link" href="/ingest.html?id=${encodeURIComponent(r.sourceIngestId)}" target="_blank" rel="noopener">source</a>` : '',
+      ].filter(Boolean).join('');
+      return `<div class="ev-run">
+        <div class="t">${esc(r.title || '(untitled)')}</div>
+        <div class="m">${r.completedAt ? esc(fmtDate(r.completedAt)) + ' · ' : ''}${esc(r.outcome || '')}</div>
+        ${q}${a}
+        <div class="flags">${flags}</div>
+      </div>`;
+    }).join('')}`;
+}
+
+// Boot last so the EVALS drawer host exists before the first load() -> renderEvals().
+load(); startTick();
+</script>
+</body>
+</html>

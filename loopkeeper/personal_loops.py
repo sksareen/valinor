@@ -1,5 +1,5 @@
 """
-Registry of personal life-loop templates for the Savar portal.
+Registry of personal life-loop templates for the Valinor portal.
 """
 from __future__ import annotations
 

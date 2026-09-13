@@ -48,7 +48,7 @@ if [ $? -eq 0 ]; then
     
     echo ""
     echo "✅ Done! The API key has been updated and the app restarted."
-    echo "🌐 Test it at: https://savar-ai-chat-backend.fly.dev/health"
+    echo "🌐 Test it at: http://127.0.0.1:18003/health"
 else
     echo "❌ Failed to update API key"
     exit 1

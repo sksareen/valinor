@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Simple startup script for Savar AI backend
+Simple startup script for the Loopkeeper backend
 Ensures proper module loading
 """
 
@@ -22,7 +22,7 @@ sys.path = [p for p in sys.path if 'goop' not in p]
 # Now import and run
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8003))
-    print(f"Starting Savar AI backend on port {port}")
+    print(f"Starting Loopkeeper backend on port {port}")
     print(f"Working directory: {os.getcwd()}")
     print(f"Python path: {sys.path[:3]}...")  # Show first 3 paths
     

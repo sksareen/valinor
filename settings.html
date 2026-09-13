@@ -1,0 +1,1116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<title>Settings</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700&family=Lato:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root, html[data-theme="dark"] {
+    --bg: #05060a; --bg-elev: #070910; --bg-card: #0b0e17;
+    --text: #e2e8f0; --text-dim: #94a3b8; --text-mute: #64748b; --text-faint: #475569;
+    --border: rgba(255,255,255,.08); --border-strong: rgba(255,255,255,.16);
+    --chip-bg: rgba(255,255,255,.03); --accent: #7dd3fc;
+    --accent-soft: rgba(125,211,252,.1); --accent-line: rgba(125,211,252,.3);
+    --danger: #f87171; --ok: #4ade80; --warn: #fbbf24;
+    --font: Lato, sans-serif;
+  }
+  html[data-theme="light"] {
+    --bg: #f4f5f7; --bg-elev: #fff; --bg-card: #fff;
+    --text: #0f172a; --text-dim: #475569; --text-mute: #64748b; --text-faint: #94a3b8;
+    --border: rgba(15,23,42,.1); --border-strong: rgba(15,23,42,.18);
+    --chip-bg: rgba(15,23,42,.04); --accent: #0284c7;
+    --accent-soft: rgba(2,132,199,.08); --accent-line: rgba(2,132,199,.3);
+    --danger: #dc2626; --ok: #059669;
+  }
+  html[data-scheme="slate"]   { --accent: #94a3b8; --accent-soft: rgba(148,163,184,.14); --accent-line: rgba(148,163,184,.3); }
+  html[data-scheme="ember"]   { --accent: #d4a574; --accent-soft: rgba(212,165,116,.14); --accent-line: rgba(212,165,116,.3); }
+  html[data-scheme="pine"]    { --accent: #7a9e7e; --accent-soft: rgba(122,158,126,.14); --accent-line: rgba(122,158,126,.3); }
+  html[data-scheme="violet"]  { --accent: #c4b5fd; --accent-soft: rgba(196,181,255,.14); --accent-line: rgba(196,181,255,.3); }
+  html[data-scheme="rose"]    { --accent: #fb7185; --accent-soft: rgba(251,113,133,.14); --accent-line: rgba(251,113,133,.3); }
+  html[data-scheme="gold"]    { --accent: #e8c547; --accent-soft: rgba(232,197,71,.14); --accent-line: rgba(232,197,71,.3); }
+  html[data-scheme="ice"]     { --accent: #a5f3fc; --accent-soft: rgba(165,243,252,.12); --accent-line: rgba(165,243,252,.3); }
+  html[data-font="plex"]   { --font: "IBM Plex Sans", sans-serif; }
+  html[data-font="source"] { --font: Georgia, serif; }
+  html[data-font="mono"]   { --font: ui-monospace, monospace; }
+  html[data-size="sm"] { font-size: 12px; }
+  html[data-size="md"] { font-size: 13px; }
+  html[data-size="lg"] { font-size: 14px; }
+  html[data-size="xl"] { font-size: 15px; }
+
+  html, body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 13px; }
+  body { min-height: 100vh; }
+  #top { position: sticky; top: 0; z-index: 5; padding: 18px 40px 14px;
+    background: var(--bg); border-bottom: 1px solid var(--border); }
+  #topInner { max-width: 1060px; margin: 0 auto; }
+  #ttitle { font-size: 13px; font-weight: 700; letter-spacing: .14em; color: var(--accent); margin-bottom: 4px; }
+  #tsub { font-size: 12px; color: var(--text-mute); margin-bottom: 12px; }
+  #search { width: 100%; padding: 9px 13px; font: 400 13px var(--font); color: var(--text);
+    background: var(--chip-bg); border: 1px solid var(--border); border-radius: 8px; outline: none; }
+  #search:focus { border-color: var(--accent); }
+  #search::placeholder { color: var(--text-faint); }
+  #anchors { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  #anchors a { font-size: 11px; font-weight: 600; color: var(--text-mute); text-decoration: none;
+    border: 1px solid var(--border); border-radius: 20px; padding: 4px 11px; }
+  #anchors a:hover { color: var(--accent); border-color: var(--accent-line); }
+  #wrap { max-width: 1060px; margin: 0 auto; padding: 26px 40px 80px;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px; align-items: start; }
+  .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 22px; }
+  .card.wide { grid-column: 1 / -1; }
+  .card > h2 { font-size: 12px; font-weight: 700; letter-spacing: .12em; color: var(--accent); margin-bottom: 4px; }
+  .card > .desc { font-size: 12px; color: var(--text-mute); margin-bottom: 14px; line-height: 1.5; }
+  .card.hide { display: none; }
+  .row { margin-bottom: 14px; }
+  .row:last-child { margin-bottom: 0; }
+  .lbl { font-size: 11px; font-weight: 700; letter-spacing: .08em; color: var(--text-mute);
+    text-transform: uppercase; margin-bottom: 7px; }
+  .hint { font-size: 12px; color: var(--text-mute); line-height: 1.5; margin-bottom: 8px; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+  .seg { display: flex; flex-wrap: wrap; gap: 6px; }
+  .seg button { padding: 7px 13px; border-radius: 7px; border: 1px solid var(--border);
+    background: transparent; color: var(--text-mute); font: 600 12px var(--font); cursor: pointer;
+    display: inline-flex; align-items: center; gap: 7px; }
+  .seg button:hover { color: var(--text); border-color: var(--accent-line); }
+  .seg button.on { color: var(--accent); background: var(--accent-soft); border-color: var(--accent); }
+  .seg .swatch { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+  .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .actions button, .btn { padding: 7px 13px; border-radius: 7px; border: 1px solid var(--border);
+    background: transparent; color: var(--text-mute); font: 600 12px var(--font); cursor: pointer; }
+  .actions button:hover, .btn:hover { color: var(--text); border-color: var(--accent-line); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #06202e; }
+  #restartBtn { border-color: var(--danger); color: var(--danger); }
+  #restartBtn:hover { background: var(--danger); color: #fff; }
+  #restartBtn:disabled { opacity: .55; cursor: wait; }
+  #restartStatus { font-size: 12px; color: var(--text-mute); margin-top: 8px; }
+  #ttsStatus, .doc-meta { font-size: 12px; color: var(--text-mute); line-height: 1.5; }
+  .doc-meta.ok { color: var(--ok); }
+  .doc-meta.warn { color: var(--danger); }
+  .doc-block { display: flex; flex-direction: column; gap: 8px; }
+  .doc-row .dk { font-size: 11px; font-weight: 700; letter-spacing: .06em; color: var(--text-mute); text-transform: uppercase; }
+  .doc-row .dv { font: 12px ui-monospace, monospace; color: var(--text); word-break: break-all; margin-top: 2px; }
+  .doc-row .dn { font-size: 12px; color: var(--text-faint); margin-top: 2px; }
+  .keys { display: flex; flex-direction: column; gap: 7px; }
+  .keyrow { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 12.5px; }
+  .keyrow span:first-child { color: var(--text-mute); }
+  kbd { font: 600 11px ui-monospace, monospace; padding: 2px 7px; border-radius: 5px;
+    background: var(--chip-bg); border: 1px solid var(--border); color: var(--text-dim); }
+  input[type="text"], textarea { width: 100%; padding: 8px 11px; font: 400 13px var(--font); color: var(--text);
+    background: var(--chip-bg); border: 1px solid var(--border); border-radius: 7px; outline: none; resize: vertical; }
+  input[type="text"]:focus, textarea:focus { border-color: var(--accent); }
+  label.lbl { display: block; }
+  .profile-ident { display: flex; gap: 12px; align-items: center; }
+  #profileAvatarBtn { width: 52px; height: 52px; border-radius: 50%; border: 1px solid var(--border);
+    background: var(--chip-bg); color: var(--text); font: 700 18px var(--font); cursor: pointer; overflow: hidden;
+    display: grid; place-items: center; flex: none; }
+  #profileAvatarBtn img { width: 100%; height: 100%; object-fit: cover; }
+  .tab-zone { display: flex; flex-direction: column; gap: 6px; padding: 10px;
+    border-radius: 8px; border: 1px dashed var(--border); }
+  .tab-zone.zone-bar { background: var(--accent-soft); border-color: var(--accent-line); }
+  .tab-zone-head { display: flex; justify-content: space-between; font-size: 11px; font-weight: 700;
+    letter-spacing: .08em; text-transform: uppercase; color: var(--text-mute); }
+  .tab-zone-head .meta { color: var(--text-faint); }
+  .tab-zone-empty { font-size: 12px; color: var(--text-faint); padding: 10px; text-align: center; }
+  .tab-bar-cut { display: flex; align-items: center; gap: 10px; margin: 10px 0;
+    font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+  .tab-bar-cut::before, .tab-bar-cut::after { content: ''; flex: 1; height: 1px; background: var(--accent-line); }
+  .tab-bar-cut span { padding: 3px 10px; }
+  .tab-order-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+    border: 1px solid var(--border); border-radius: 7px; background: var(--bg-elev); cursor: grab; }
+  .tab-order-row .grip { color: var(--text-mute); }
+  .tab-order-row .name { flex: 1; font-weight: 600; letter-spacing: .04em; }
+  .tab-order-row .slot { font-size: 11px; color: var(--text-faint); }
+  .tab-order-row .vis { padding: 4px 9px; border-radius: 6px; border: 1px solid var(--border);
+    background: transparent; color: var(--text-mute); font: 600 11px var(--font); cursor: pointer; }
+  .tab-order-row.is-hidden .name { color: var(--text-faint); }
+  .tab-order-row.is-hidden .vis { color: var(--accent); border-color: var(--accent-line); }
+  .tab-order-row.dragging { opacity: .4; border-style: dashed; }
+  .tab-order-row.drag-over-before { box-shadow: inset 0 2px 0 0 var(--accent); }
+  .tab-order-row.drag-over-after { box-shadow: inset 0 -2px 0 0 var(--accent); }
+  .tab-zone.drag-target { border-color: var(--accent); border-style: solid; }
+  .tab-order-actions { display: flex; gap: 8px; margin-top: 10px; }
+  #noMatch { display: none; text-align: center; color: var(--text-faint); padding: 30px; grid-column: 1 / -1; }
+  /* ---- compact layout pass: label-left rows, paired fields, column zones ---- */
+  .card .arow { display: grid; grid-template-columns: 96px 1fr; gap: 4px 12px; align-items: center; margin-bottom: 10px; }
+  .card .arow:last-child { margin-bottom: 0; }
+  .card .arow > .lbl { margin-bottom: 0; }
+  .card .arow .sub { grid-column: 2; font-size: 11.5px; color: var(--text-faint); line-height: 1.45; }
+  #schemeSeg button { width: 26px; height: 26px; padding: 0; border-radius: 50%; justify-content: center; }
+  #schemeSeg .swatch { width: 14px; height: 14px; margin: 0; }
+  .frow { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+  .frow > .row { margin-bottom: 0; }
+  .sys-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; align-items: start; }
+  .sys-grid h3 { font-size: 11px; font-weight: 700; letter-spacing: .08em; color: var(--text-mute); text-transform: uppercase; margin-bottom: 8px; }
+  #tabOrderList { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; align-items: start; }
+  #tabOrderList .tab-bar-cut { display: none; }
+  .card.strip { display: flex; align-items: center; gap: 16px; }
+  .card.strip .grow { flex: 1; min-width: 0; }
+  .card.strip h2 { font-size: 12px; font-weight: 700; letter-spacing: .12em; color: var(--accent); margin-bottom: 2px; }
+  .card.strip .desc { font-size: 12px; color: var(--text-mute); line-height: 1.5; }
+  .card.strip #restartStatus { margin-top: 0; white-space: nowrap; }
+  @media (max-width: 760px) {
+    .frow, .sys-grid { grid-template-columns: 1fr; }
+    #tabOrderList { grid-template-columns: 1fr; }
+    #tabOrderList .tab-bar-cut { display: flex; }
+    .card .arow { grid-template-columns: 1fr; gap: 6px; }
+    .card.strip { flex-direction: column; align-items: stretch; }
+    .card.strip #restartStatus { white-space: normal; }
+  }
+</style>
+</head>
+<body>
+<div id="top">
+  <div id="topInner">
+    <div id="ttitle">SETTINGS</div>
+    <div id="tsub">Same controls as the hub menu — changes apply live everywhere.</div>
+    <input id="search" type="text" placeholder="Filter settings…" autocomplete="off" spellcheck="false" />
+    <div id="anchors">
+      <a href="#appearance">Appearance</a><a href="#voice">Voice</a>
+      <a href="#tabs">Tab order</a><a href="#system">System</a>
+      <a href="#integrations">Integrations</a>
+      <a href="#shortcuts">Shortcuts</a><a href="#profile">Profile</a><a href="#server">Server</a>
+    </div>
+  </div>
+</div>
+<div id="wrap">
+
+  <section class="card" id="appearance" data-name="appearance">
+    <h2>APPEARANCE</h2>
+    <div class="desc">Theme, color, type and chrome density. Applies to this page and the whole hub instantly.</div>
+    <div class="arow"><div class="lbl">Theme</div>
+      <div class="seg" id="themeSeg">
+        <button type="button" data-theme="light">Light</button>
+        <button type="button" data-theme="dark">Dark</button>
+      </div></div>
+    <div class="arow"><div class="lbl">Color</div>
+      <div class="seg" id="schemeSeg">
+        <button type="button" data-scheme="cyan" title="Cyan" aria-label="Cyan"><span class="swatch" style="background:#7dd3fc"></span></button>
+        <button type="button" data-scheme="slate" title="Slate" aria-label="Slate"><span class="swatch" style="background:#94a3b8"></span></button>
+        <button type="button" data-scheme="ember" title="Ember" aria-label="Ember"><span class="swatch" style="background:#d4a574"></span></button>
+        <button type="button" data-scheme="pine" title="Pine" aria-label="Pine"><span class="swatch" style="background:#7a9e7e"></span></button>
+        <button type="button" data-scheme="violet" title="Violet" aria-label="Violet"><span class="swatch" style="background:#c4b5fd"></span></button>
+        <button type="button" data-scheme="rose" title="Rose" aria-label="Rose"><span class="swatch" style="background:#fb7185"></span></button>
+        <button type="button" data-scheme="gold" title="Gold" aria-label="Gold"><span class="swatch" style="background:#e8c547"></span></button>
+        <button type="button" data-scheme="ice" title="Ice" aria-label="Ice"><span class="swatch" style="background:#a5f3fc"></span></button>
+      </div></div>
+    <div class="arow"><div class="lbl">Font</div>
+      <div class="seg" id="fontSeg">
+        <button type="button" data-font="lato" style="font-family:Lato,sans-serif">Lato</button>
+        <button type="button" data-font="plex" style="font-family:'IBM Plex Sans',sans-serif">Plex</button>
+        <button type="button" data-font="source" style="font-family:Georgia,serif">Serif</button>
+        <button type="button" data-font="mono" style="font-family:ui-monospace,monospace">Mono</button>
+      </div></div>
+    <div class="arow"><div class="lbl">Size</div>
+      <div class="seg" id="sizeSeg">
+        <button type="button" data-size="sm">S</button>
+        <button type="button" data-size="md">M</button>
+        <button type="button" data-size="lg">L</button>
+        <button type="button" data-size="xl">XL</button>
+      </div></div>
+    <div class="arow"><div class="lbl">Spacing</div>
+      <div class="seg" id="densitySeg">
+        <button type="button" data-density="cozy">Cozy</button>
+        <button type="button" data-density="compact">Compact</button>
+      </div></div>
+    <div class="arow"><div class="lbl">Layout</div>
+      <div class="seg" id="layoutSeg">
+        <button type="button" data-layout="top">Top bar</button>
+        <button type="button" data-layout="left">Left side</button>
+      </div></div>
+    <div class="arow"><div class="lbl">Fit</div>
+      <div class="seg" id="fitSeg">
+        <button type="button" data-fit="overlay">Overlay</button>
+        <button type="button" data-fit="inset">Inset</button>
+      </div>
+      <div class="sub">Overlay sits on the view. Inset carves a column or row for chrome.</div></div>
+    <div class="arow"><div class="lbl">Tabs</div>
+      <div class="seg" id="tabsSeg">
+        <button type="button" data-tabs="pills">Pills</button>
+        <button type="button" data-tabs="ghost">Ghost</button>
+        <button type="button" data-tabs="line">Line</button>
+      </div></div>
+    <div class="arow"><div class="lbl">Corners</div>
+      <div class="seg" id="radiusSeg">
+        <button type="button" data-radius="round">Round</button>
+        <button type="button" data-radius="sharp">Sharp</button>
+      </div></div>
+    <div class="arow"><div class="lbl">Nav</div>
+      <div class="seg" id="navModeSeg">
+        <button type="button" data-mode="classic">Classic</button>
+        <button type="button" data-mode="drawer">Drawer</button>
+      </div>
+      <div class="sub">Classic scrolls all tabs; drawer shows up to five, rest via ⋯. Applies to the hub live.</div></div>
+  </section>
+
+  <section class="card" id="voice" data-name="voice">
+    <h2>LIVE VOICE</h2>
+    <div class="desc">Local Kitten TTS voice for the live companion. Browser voice is the fallback.</div>
+    <div class="row">
+      <div class="seg" id="ttsVoiceSeg" style="display:grid;grid-template-columns:repeat(3,1fr)">
+        <button type="button" data-voice="Jasper">Jasper</button>
+        <button type="button" data-voice="Bruno">Bruno</button>
+        <button type="button" data-voice="Hugo">Hugo</button>
+        <button type="button" data-voice="Leo">Leo</button>
+        <button type="button" data-voice="Bella">Bella</button>
+        <button type="button" data-voice="Luna">Luna</button>
+        <button type="button" data-voice="Rosie">Rosie</button>
+        <button type="button" data-voice="Kiki">Kiki</button>
+        <button type="button" data-voice="browser">Browser</button>
+      </div>
+      <div class="actions" style="margin-top:10px">
+        <button type="button" id="ttsPreviewBtn">Preview</button>
+        <div id="ttsStatus"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card wide" id="tabs" data-name="tab order tabs">
+    <h2>TAB ORDER</h2>
+    <div class="desc">Drag between boxes. Hide with Show/Hide, or drag into Hidden. Top box = hub chrome (max 5). Saves instantly, hub bar rebuilds live.</div>
+    <div id="tabOrderList"></div>
+    <div class="tab-order-actions">
+      <button type="button" id="tabOrderReset" class="btn">Reset tabs</button>
+    </div>
+  </section>
+
+  <section class="card wide" id="system" data-name="system memory valinor.md data storage models openrouter env">
+    <h2>SYSTEM</h2>
+    <div class="desc">Where Valinor reads and writes, and which models it resolves. Ingest timestamps live in each .md frontmatter.</div>
+    <div class="sys-grid">
+      <div id="memory">
+        <h3>Valinor memory</h3>
+        <div class="doc-block">
+          <div class="doc-row">
+            <div class="dk">Path</div>
+            <div class="dv" id="memFilePath">Loading…</div>
+            <div class="dn" id="memFileNote"></div>
+          </div>
+        </div>
+        <div class="actions" style="margin-top:10px">
+          <button type="button" id="memCopyBtn">Copy path</button>
+          <button type="button" id="memOpenBtn">Open file</button>
+        </div>
+        <div id="memFileStatus" class="doc-meta" style="margin-top:8px"></div>
+      </div>
+      <div id="data">
+        <h3>Data</h3>
+        <div class="doc-block" id="dataDoc"><div class="doc-meta">Loading…</div></div>
+      </div>
+      <div id="models">
+        <h3>Models</h3>
+        <div id="modelsMeta" class="doc-meta"></div>
+        <div class="doc-block" id="modelsDoc" style="margin-top:8px"><div class="doc-meta">Loading…</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card wide" id="integrations" data-name="integrations email imessage pull sync">
+    <h2>INTEGRATIONS</h2>
+    <div class="desc">Pull sources for the Ingest tab's icon buttons + ⏬ pull-all. Saved on the server, used by every sync.</div>
+    <div class="sys-grid">
+      <div>
+        <h3>Apple Mail</h3>
+        <div class="row"><label class="lbl" for="intEmailMailbox">Mailbox</label>
+          <input id="intEmailMailbox" type="text" placeholder="INBOX" /></div>
+        <div class="frow">
+          <div class="row"><label class="lbl" for="intEmailDays">Days back</label>
+            <input id="intEmailDays" type="text" inputmode="numeric" placeholder="7" /></div>
+          <div class="row"><label class="lbl" for="intEmailMax">Max emails</label>
+            <input id="intEmailMax" type="text" inputmode="numeric" placeholder="50" /></div>
+        </div>
+        <div class="actions">
+          <button type="button" id="intEmailSync" class="btn">Sync now</button>
+        </div>
+      </div>
+      <div>
+        <h3>iMessage</h3>
+        <div class="frow">
+          <div class="row"><label class="lbl" for="intImsgDays">Days back</label>
+            <input id="intImsgDays" type="text" inputmode="numeric" placeholder="7" /></div>
+          <div class="row"><label class="lbl" for="intImsgMaxChats">Max chats</label>
+            <input id="intImsgMaxChats" type="text" inputmode="numeric" placeholder="25" /></div>
+        </div>
+        <div class="row"><label class="lbl" for="intImsgPerChat">Messages per chat</label>
+          <input id="intImsgPerChat" type="text" inputmode="numeric" placeholder="30" /></div>
+        <div class="actions">
+          <button type="button" id="intImsgSync" class="btn">Sync now</button>
+        </div>
+      </div>
+      <div>
+        <h3>Setup</h3>
+        <div class="hint">Mail reads the Mail app on this Mac (first sync may ask for Automation permission). iMessage reads chat.db — if sync fails, grant Full Disk Access to your terminal, then retry.</div>
+        <div class="actions" style="margin-top:10px">
+          <button type="button" id="intSaveBtn" class="btn primary">Save integrations</button>
+        </div>
+        <div id="intStatus" class="doc-meta" style="margin-top:8px"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" id="shortcuts" data-name="shortcuts keys keyboard">
+    <h2>SHORTCUTS</h2>
+    <div class="desc">Hub keyboard map.</div>
+    <div class="keys">
+      <div class="keyrow"><span>Go to tab</span><span><kbd>⌘</kbd><kbd>P</kbd></span></div>
+      <div class="keyrow"><span>Toggle theme</span><span><kbd>⌘</kbd><kbd>I</kbd></span></div>
+      <div class="keyrow"><span>Cursor capture</span><span><kbd>⌘</kbd><kbd>U</kbd></span></div>
+      <div class="keyrow"><span>Open menu</span><span><kbd>⌘</kbd><kbd>K</kbd></span></div>
+      <div class="keyrow"><span>Valinor overlay</span><span><kbd>⌘</kbd><kbd>J</kbd></span></div>
+      <div class="keyrow"><span>Tabs 1–10</span><span><kbd>1</kbd>–<kbd>9</kbd> <kbd>0</kbd></span></div>
+      <div class="keyrow"><span>Close overlay</span><span><kbd>Esc</kbd></span></div>
+      <div class="keyrow"><span>Ingest drawer</span><span><kbd>⌘</kbd><kbd>I</kbd> <span style="color:var(--text-faint)">in Execute / Writing</span></span></div>
+    </div>
+  </section>
+
+  <section class="card" id="profile" data-name="profile name about voice photo">
+    <h2>PROFILE</h2>
+    <div class="desc">Who Val is talking to. Stays on this device; saves as you type.</div>
+    <div class="row profile-ident">
+      <button type="button" id="profileAvatarBtn" title="Add a photo" aria-label="Add a photo">
+        <span id="profileAvatarInitials">?</span>
+        <img id="profileAvatarImg" alt="" hidden />
+      </button>
+      <input type="file" id="profilePhotoInput" accept="image/*" hidden />
+      <div class="profile-ident-meta">
+        <div class="hint" style="margin:0">A photo of you, or initials from your name.</div>
+        <button type="button" id="profilePhotoClear" class="btn" hidden>Remove photo</button>
+      </div>
+    </div>
+    <div class="frow">
+      <div class="row"><label class="lbl" for="profileName">Name</label>
+        <input id="profileName" type="text" autocomplete="name" placeholder="Your name" /></div>
+      <div class="row"><label class="lbl" for="profileCallMe">Call me</label>
+        <input id="profileCallMe" type="text" autocomplete="nickname" placeholder="What Val should call you" /></div>
+    </div>
+    <div class="frow">
+      <div class="row"><label class="lbl" for="profileRole">What you do</label>
+        <input id="profileRole" type="text" placeholder="Builder, student, …" /></div>
+      <div class="row"><label class="lbl" for="profileLocation">Where you are</label>
+        <input id="profileLocation" type="text" autocomplete="address-level2" placeholder="City, region" /></div>
+    </div>
+    <div class="row"><label class="lbl" for="profileAbout">About you</label>
+      <textarea id="profileAbout" rows="4" placeholder="Facts Val should know — people, work, how you operate."></textarea></div>
+    <div class="row"><label class="lbl" for="profileVoice">How to talk to you</label>
+      <textarea id="profileVoice" rows="3" placeholder="Tone, length, things to skip."></textarea></div>
+    <div id="profileSaveStatus" class="doc-meta">Not saved yet</div>
+  </section>
+
+  <section class="card wide strip" id="server" data-name="server restart">
+    <div class="grow">
+      <h2>SERVER</h2>
+      <div class="desc">Restart the Valinor Node server on :4777. Reloads when it's back.</div>
+    </div>
+    <div class="actions">
+      <button id="restartBtn" type="button">Restart server</button>
+    </div>
+    <div id="restartStatus"></div>
+  </section>
+
+  <div id="noMatch">Nothing matches that filter.</div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+// ---------- storage keys + vocab (same keys as the hub menu — one source of truth) ----------
+const THEME_KEY = 'lk-theme';
+const SCHEME_KEY = 'hub-scheme';
+const FONT_KEY = 'hub-font';
+const SIZE_KEY = 'hub-size';
+const DENSITY_KEY = 'hub-density';
+const LAYOUT_KEY = 'hub-layout';
+const FIT_KEY = 'hub-fit';
+const TABS_KEY = 'hub-tabs';
+const RADIUS_KEY = 'hub-radius';
+const NAV_MODE_KEY = 'hub-nav-mode';
+const TTS_VOICE_KEY = 'hub-tts-voice';
+const TAB_ORDER_KEY = 'hub-tab-order';
+const TAB_HIDDEN_KEY = 'hub-tab-hidden';
+const PROFILE_KEY = 'hub-user-profile-v1';
+const DRAWER_BAR_MAX = 5;
+const SCHEMES = ['cyan', 'slate', 'ember', 'pine', 'violet', 'rose', 'gold', 'ice'];
+const FONTS = ['lato', 'plex', 'source', 'mono'];
+const SIZES = ['sm', 'md', 'lg', 'xl'];
+const LAYOUTS = ['top', 'left'];
+const FITS = ['overlay', 'inset'];
+const TAB_STYLES = ['pills', 'ghost', 'line'];
+const RADII = ['round', 'sharp'];
+const TTS_VOICES = ['Jasper', 'Bruno', 'Hugo', 'Leo', 'Bella', 'Luna', 'Rosie', 'Kiki', 'browser'];
+const DEFAULT_HIDDEN = ['loops', 'factory', 'board', 'rehearse', 'adventures', 'oss', 'logact', 'buzz'];
+const DEFAULT_VIEWS = [
+  { key: 'loops', label: 'LOOPS' }, { key: 'factory', label: 'FACTORY' },
+  { key: 'live', label: 'LIVE' }, { key: 'ingest', label: 'INGEST' },
+  { key: 'execute', label: 'EXECUTE' }, { key: 'board', label: 'BOARD' },
+  { key: 'draw', label: 'DRAW' }, { key: 'writing', label: 'WRITING' },
+  { key: 'ingrain', label: 'LEARN' }, { key: 'rehearse', label: 'REHEARSE' },
+  { key: 'waves', label: 'BRICK BREAKER' }, { key: 'music', label: 'MUSIC' },
+  { key: 'breathe', label: 'BREATHE' }, { key: 'activity', label: 'ACTIVITY' },
+  { key: 'convos', label: 'CONVOS' }, { key: 'messages', label: 'MESSAGES' },
+  { key: 'adventures', label: 'ADVENTURES' }, { key: 'oss', label: 'OSS' },
+  { key: 'logact', label: 'LOGACT' }, { key: 'buzz', label: 'BUZZ' },
+  { key: 'settings', label: 'SETTINGS' },
+];
+let VIEWS = DEFAULT_VIEWS.slice();
+try {
+  const raw = localStorage.getItem(TAB_ORDER_KEY);
+  const keys = raw ? JSON.parse(raw) : null;
+  if (Array.isArray(keys) && keys.length) {
+    const byKey = new Map(DEFAULT_VIEWS.map((v) => [v.key, v]));
+    const next = [];
+    for (const k of keys) if (byKey.has(k)) { next.push(byKey.get(k)); byKey.delete(k); }
+    for (const v of DEFAULT_VIEWS) if (byKey.has(v.key)) next.push(v);
+    VIEWS = next;
+  }
+} catch { /* defaults stand */ }
+let hiddenKeys = (() => {
+  try {
+    const raw = localStorage.getItem(TAB_HIDDEN_KEY);
+    if (raw == null) return new Set(DEFAULT_HIDDEN);
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return new Set(DEFAULT_HIDDEN);
+    const known = new Set(DEFAULT_VIEWS.map((v) => v.key));
+    return new Set(arr.filter((k) => known.has(k)));
+  } catch { return new Set(DEFAULT_HIDDEN); }
+})();
+function persistTabOrder() { localStorage.setItem(TAB_ORDER_KEY, JSON.stringify(VIEWS.map((v) => v.key))); }
+function persistHidden() { localStorage.setItem(TAB_HIDDEN_KEY, JSON.stringify([...hiddenKeys])); }
+function visibleViews() { return VIEWS.filter((v) => !hiddenKeys.has(v.key)); }
+function notifyHub(msg) {
+  try { if (window.parent && window.parent !== window) window.parent.postMessage(msg, location.origin); } catch {}
+}
+
+// ---------- appearance (mirrors the hub menu; pushes live to the hub frame) ----------
+function resolvedTheme() {
+  const s = localStorage.getItem(THEME_KEY);
+  if (s === 'dark' || s === 'light') return s;
+  return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+function currentScheme() { const s = localStorage.getItem(SCHEME_KEY) || 'ice'; return SCHEMES.includes(s) ? s : 'ice'; }
+function currentFont() { const s = localStorage.getItem(FONT_KEY) || 'plex'; return FONTS.includes(s) ? s : 'plex'; }
+function currentSize() { const s = localStorage.getItem(SIZE_KEY) || 'md'; return SIZES.includes(s) ? s : 'md'; }
+function currentDensity() { return localStorage.getItem(DENSITY_KEY) === 'compact' ? 'compact' : 'cozy'; }
+function currentLayout() { const s = localStorage.getItem(LAYOUT_KEY) || 'left'; return LAYOUTS.includes(s) ? s : 'left'; }
+function currentFit() { const s = localStorage.getItem(FIT_KEY) || 'inset'; return FITS.includes(s) ? s : 'inset'; }
+function currentTabs() { const s = localStorage.getItem(TABS_KEY) || 'line'; return TAB_STYLES.includes(s) ? s : 'line'; }
+function currentRadius() { const s = localStorage.getItem(RADIUS_KEY) || 'sharp'; return RADII.includes(s) ? s : 'sharp'; }
+function appearancePayload() {
+  return { theme: resolvedTheme(), scheme: currentScheme(), font: currentFont(), size: currentSize(),
+    density: currentDensity(), layout: currentLayout(), fit: currentFit(), tabs: currentTabs(), radius: currentRadius() };
+}
+function applyPageAppearance(prefs) {
+  const root = document.documentElement;
+  root.dataset.theme = prefs.theme === 'light' ? 'light' : 'dark';
+  root.dataset.scheme = SCHEMES.includes(prefs.scheme) ? prefs.scheme : 'ice';
+  root.dataset.font = FONTS.includes(prefs.font) ? prefs.font : 'plex';
+  root.dataset.size = SIZES.includes(prefs.size) ? prefs.size : 'md';
+  root.dataset.density = prefs.density === 'compact' ? 'compact' : 'cozy';
+  root.dataset.layout = LAYOUTS.includes(prefs.layout) ? prefs.layout : 'left';
+  root.dataset.fit = FITS.includes(prefs.fit) ? prefs.fit : 'inset';
+  root.dataset.tabs = TAB_STYLES.includes(prefs.tabs) ? prefs.tabs : 'line';
+  root.dataset.radius = RADII.includes(prefs.radius) ? prefs.radius : 'sharp';
+  root.style.colorScheme = root.dataset.theme;
+  syncAppearanceSegs();
+}
+function setGlobalAppearance(partial) {
+  const prefs = { ...appearancePayload(), ...partial };
+  localStorage.setItem(THEME_KEY, prefs.theme);
+  localStorage.setItem(SCHEME_KEY, prefs.scheme);
+  localStorage.setItem(FONT_KEY, prefs.font);
+  localStorage.setItem(SIZE_KEY, prefs.size);
+  localStorage.setItem(DENSITY_KEY, prefs.density);
+  localStorage.setItem(LAYOUT_KEY, prefs.layout);
+  localStorage.setItem(FIT_KEY, prefs.fit);
+  localStorage.setItem(TABS_KEY, prefs.tabs);
+  localStorage.setItem(RADIUS_KEY, prefs.radius);
+  applyPageAppearance(prefs);
+  notifyHub({ type: 'appearance', ...prefs });
+}
+function syncAppearanceSegs() {
+  const prefs = appearancePayload();
+  const sync = (id, attr) => document.querySelectorAll('#' + id + ' button').forEach((b) => {
+    b.classList.toggle('on', b.dataset[attr] === prefs[attr]);
+  });
+  sync('themeSeg', 'theme'); sync('schemeSeg', 'scheme'); sync('fontSeg', 'font');
+  sync('sizeSeg', 'size'); sync('densitySeg', 'density'); sync('layoutSeg', 'layout');
+  sync('fitSeg', 'fit'); sync('tabsSeg', 'tabs'); sync('radiusSeg', 'radius');
+  syncTtsVoiceSeg();
+}
+window.addEventListener('message', (e) => {
+  if (e.origin !== location.origin || !e.data || typeof e.data !== 'object') return;
+  if (e.data.type === 'appearance' || e.data.type === 'theme') {
+    const pick = {};
+    for (const k of ['theme', 'scheme', 'font', 'size', 'density', 'layout', 'fit', 'tabs', 'radius']) {
+      if (typeof e.data[k] === 'string') pick[k] = e.data[k];
+    }
+    if (e.data.type === 'theme' && typeof e.data.theme === 'string') pick.theme = e.data.theme;
+    if (Object.keys(pick).length) applyPageAppearance({ ...appearancePayload(), ...pick });
+  }
+});
+
+// ---------- TTS voice ----------
+function currentTtsVoice() { const s = localStorage.getItem(TTS_VOICE_KEY) || 'Jasper'; return TTS_VOICES.includes(s) ? s : 'Jasper'; }
+function syncTtsVoiceSeg() {
+  const v = currentTtsVoice();
+  document.querySelectorAll('#ttsVoiceSeg button').forEach((b) => b.classList.toggle('on', b.dataset.voice === v));
+}
+function setTtsVoice(voice) {
+  localStorage.setItem(TTS_VOICE_KEY, TTS_VOICES.includes(voice) ? voice : 'Jasper');
+  syncTtsVoiceSeg();
+}
+async function refreshTtsStatus() {
+  const el = $('ttsStatus');
+  if (!el) return;
+  try {
+    const r = await fetch('/api/tts');
+    const j = await r.json();
+    if (j.disabled) { el.textContent = 'Disabled — using browser voice.'; return; }
+    if (j.ready) { el.textContent = 'Kitten TTS ready.'; return; }
+    if (j.starting) { el.textContent = 'Installing / loading Kitten TTS…'; return; }
+    el.textContent = j.error ? `Unavailable — ${j.error}` : 'Unavailable — browser fallback.';
+  } catch { el.textContent = 'Unavailable — browser fallback.'; }
+}
+let ttsPreviewAudio = null;
+async function previewTtsVoice() {
+  const btn = $('ttsPreviewBtn');
+  const voice = currentTtsVoice();
+  const sample = 'Hello — this is the live companion voice.';
+  if (btn) btn.disabled = true;
+  try {
+    if (ttsPreviewAudio) { try { ttsPreviewAudio.pause(); } catch {} ttsPreviewAudio = null; }
+    try { speechSynthesis.cancel(); } catch {}
+    if (voice === 'browser') {
+      if (!window.speechSynthesis) throw new Error('no browser speech');
+      await new Promise((resolve) => {
+        const u = new SpeechSynthesisUtterance(sample);
+        u.onend = () => resolve(); u.onerror = () => resolve();
+        speechSynthesis.speak(u);
+      });
+      return;
+    }
+    const r = await fetch('/api/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: sample, voice, speed: 1.25 }) });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `tts ${r.status}`);
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    await new Promise((resolve, reject) => {
+      const a = new Audio(url);
+      ttsPreviewAudio = a;
+      a.onended = () => { URL.revokeObjectURL(url); resolve(); };
+      a.onerror = () => { URL.revokeObjectURL(url); reject(new Error('playback failed')); };
+      a.play().catch(reject);
+    });
+  } catch (e) {
+    if ($('ttsStatus')) $('ttsStatus').textContent = String(e.message || e);
+  } finally { if (btn) btn.disabled = false; }
+}
+
+// ---------- navigation mode (persisted; hub applies live via message) ----------
+let navMode = localStorage.getItem(NAV_MODE_KEY) === 'drawer' ? 'drawer' : 'classic';
+function applyNavMode(mode) {
+  navMode = mode === 'drawer' ? 'drawer' : 'classic';
+  localStorage.setItem(NAV_MODE_KEY, navMode);
+  document.querySelectorAll('#navModeSeg button').forEach((b) => b.classList.toggle('on', b.dataset.mode === navMode));
+  notifyHub({ type: 'nav-mode', mode: navMode });
+}
+
+// ---------- tab order editor (same model as the hub menu; hub rebuilds live via message) ----------
+function buildTabOrderUI() {
+  const list = $('tabOrderList');
+  if (!list) return;
+  list.innerHTML = '';
+  let dragKey = null;
+  const vis = visibleViews();
+  const barViews = vis.slice(0, DRAWER_BAR_MAX);
+  const overflowViews = vis.slice(DRAWER_BAR_MAX);
+  const hiddenList = VIEWS.filter((v) => hiddenKeys.has(v.key));
+  function clearDragMarks() {
+    list.querySelectorAll('.tab-order-row').forEach((r) => r.classList.remove('dragging', 'drag-over-before', 'drag-over-after'));
+    list.querySelectorAll('.tab-zone').forEach((z) => z.classList.remove('drag-target'));
+  }
+  function commitOrder(next) {
+    VIEWS = next;
+    persistTabOrder(); persistHidden();
+    buildTabOrderUI();
+    notifyHub({ type: 'tabs-changed' });
+  }
+  function reorderByKeys(fromKey, toKey, placeAfter) {
+    const from = VIEWS.findIndex((v) => v.key === fromKey);
+    let to = VIEWS.findIndex((v) => v.key === toKey);
+    if (from < 0 || to < 0 || fromKey === toKey) return;
+    const next = VIEWS.slice();
+    const [item] = next.splice(from, 1);
+    to = next.findIndex((v) => v.key === toKey);
+    if (to < 0) return;
+    next.splice(placeAfter ? to + 1 : to, 0, item);
+    commitOrder(next);
+  }
+  function insertAmongVisible(next, item, targetVisibleIndex) {
+    let visCount = -1;
+    for (let i = 0; i < next.length; i++) {
+      if (hiddenKeys.has(next[i].key)) continue;
+      visCount++;
+      if (visCount === targetVisibleIndex) { next.splice(i, 0, item); return; }
+    }
+    next.push(item);
+  }
+  function placeInZone(fromKey, zone) {
+    const from = VIEWS.findIndex((v) => v.key === fromKey);
+    if (from < 0) return;
+    const next = VIEWS.slice();
+    const [item] = next.splice(from, 1);
+    if (zone === 'hidden') {
+      if (visibleViews().filter((v) => v.key !== fromKey).length < 1) return;
+      hiddenKeys.add(fromKey);
+      next.push(item);
+    } else {
+      hiddenKeys.delete(fromKey);
+      if (zone === 'bar') {
+        const visCount = next.filter((v) => !hiddenKeys.has(v.key)).length;
+        if (visCount >= DRAWER_BAR_MAX) insertAmongVisible(next, item, DRAWER_BAR_MAX - 1);
+        else next.push(item);
+      } else next.push(item);
+    }
+    commitOrder(next);
+  }
+  function setTabHidden(key, hide) {
+    if (hide) {
+      if (visibleViews().length <= 1) return;
+      hiddenKeys.add(key);
+    } else hiddenKeys.delete(key);
+    persistHidden();
+    buildTabOrderUI();
+    notifyHub({ type: 'tabs-changed' });
+  }
+  function makeRow(v, zone, slotNum) {
+    const row = document.createElement('div');
+    row.className = 'tab-order-row' + (hiddenKeys.has(v.key) ? ' is-hidden' : '');
+    row.draggable = true;
+    row.dataset.key = v.key;
+    row.innerHTML = `<span class="grip" aria-hidden="true">⠿</span><span class="name"></span>` +
+      (zone === 'bar' ? `<span class="slot">${slotNum}</span>` : '') +
+      `<button type="button" class="vis">${hiddenKeys.has(v.key) ? 'Show' : 'Hide'}</button>`;
+    row.querySelector('.name').textContent = v.label;
+    const visBtn = row.querySelector('.vis');
+    visBtn.addEventListener('mousedown', (e) => e.stopPropagation());
+    visBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); setTabHidden(v.key, !hiddenKeys.has(v.key)); });
+    if (!hiddenKeys.has(v.key) && vis.length <= 1) visBtn.disabled = true;
+    row.addEventListener('dragstart', (e) => {
+      if (e.target === visBtn || visBtn.contains(e.target)) { e.preventDefault(); return; }
+      dragKey = v.key;
+      row.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', v.key);
+      try { e.dataTransfer.setDragImage(row, 24, 16); } catch {}
+    });
+    row.addEventListener('dragend', () => { dragKey = null; clearDragMarks(); });
+    row.addEventListener('dragover', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      e.dataTransfer.dropEffect = 'move';
+      if (!dragKey || dragKey === v.key) return;
+      const rect = row.getBoundingClientRect();
+      const after = e.clientY > rect.top + rect.height / 2;
+      clearDragMarks();
+      row.classList.add(after ? 'drag-over-after' : 'drag-over-before');
+      const z = row.closest('.tab-zone');
+      if (z) z.classList.add('drag-target');
+    });
+    row.addEventListener('dragleave', () => row.classList.remove('drag-over-before', 'drag-over-after'));
+    row.addEventListener('drop', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const fromKey = dragKey || e.dataTransfer.getData('text/plain');
+      const rect = row.getBoundingClientRect();
+      const after = e.clientY > rect.top + rect.height / 2;
+      clearDragMarks();
+      if (!fromKey || fromKey === v.key) return;
+      if (zone === 'hidden') {
+        if (visibleViews().filter((x) => x.key !== fromKey).length < 1) return;
+        hiddenKeys.add(fromKey);
+      } else hiddenKeys.delete(fromKey);
+      persistHidden();
+      reorderByKeys(fromKey, v.key, after);
+    });
+    return row;
+  }
+  function wireZone(zoneEl, zone) {
+    zoneEl.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; zoneEl.classList.add('drag-target'); });
+    zoneEl.addEventListener('dragleave', (e) => { if (!zoneEl.contains(e.relatedTarget)) zoneEl.classList.remove('drag-target'); });
+    zoneEl.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const fromKey = dragKey || e.dataTransfer.getData('text/plain');
+      clearDragMarks();
+      if (fromKey && !e.target.closest('.tab-order-row')) placeInZone(fromKey, zone);
+    });
+  }
+  function zoneHead(title, meta) {
+    const h = document.createElement('div');
+    h.className = 'tab-zone-head';
+    h.innerHTML = '<span></span><span class="meta"></span>';
+    h.firstChild.textContent = title;
+    h.lastChild.textContent = meta;
+    return h;
+  }
+  const barZone = document.createElement('div');
+  barZone.className = 'tab-zone zone-bar';
+  barZone.appendChild(zoneHead('In chrome', `${barViews.length} / ${DRAWER_BAR_MAX}`));
+  if (!barViews.length) {
+    const empty = document.createElement('div');
+    empty.className = 'tab-zone-empty';
+    empty.textContent = 'Drag tabs here for the chrome bar';
+    barZone.appendChild(empty);
+  } else barViews.forEach((v, i) => barZone.appendChild(makeRow(v, 'bar', i + 1)));
+  wireZone(barZone, 'bar');
+  list.appendChild(barZone);
+  const cut = document.createElement('div');
+  cut.className = 'tab-bar-cut';
+  cut.innerHTML = '<span>Bar cutoff</span>';
+  cut.title = 'Tabs above appear in the top bar. Tabs below open from ⋯.';
+  list.appendChild(cut);
+  const overZone = document.createElement('div');
+  overZone.className = 'tab-zone zone-overflow';
+  overZone.appendChild(zoneHead('Overflow · ⋯', String(overflowViews.length)));
+  if (!overflowViews.length) {
+    const empty = document.createElement('div');
+    empty.className = 'tab-zone-empty';
+    empty.textContent = 'All visible tabs fit in the navbar';
+    overZone.appendChild(empty);
+  } else overflowViews.forEach((v) => overZone.appendChild(makeRow(v, 'overflow')));
+  wireZone(overZone, 'overflow');
+  list.appendChild(overZone);
+  const hideCut = document.createElement('div');
+  hideCut.className = 'tab-bar-cut';
+  hideCut.innerHTML = '<span>Hidden</span>';
+  hideCut.title = 'Hidden tabs stay out of the bar, overflow, and ⌘P until you show them.';
+  list.appendChild(hideCut);
+  const hideZone = document.createElement('div');
+  hideZone.className = 'tab-zone zone-hidden';
+  hideZone.appendChild(zoneHead('Hidden', String(hiddenList.length)));
+  if (!hiddenList.length) {
+    const empty = document.createElement('div');
+    empty.className = 'tab-zone-empty';
+    empty.textContent = 'Drag a tab here, or press Hide';
+    hideZone.appendChild(empty);
+  } else hiddenList.forEach((v) => hideZone.appendChild(makeRow(v, 'hidden')));
+  wireZone(hideZone, 'hidden');
+  list.appendChild(hideZone);
+}
+
+// ---------- memory / data / models ----------
+function escDoc(s) { const d = document.createElement('div'); d.textContent = String(s == null ? '' : s); return d.innerHTML; }
+function renderDocRows(el, rows) {
+  if (!el) return;
+  if (!rows || !rows.length) { el.innerHTML = '<div class="doc-meta">Nothing to show.</div>'; return; }
+  el.innerHTML = rows.map((r) => {
+    const note = r.note || (r.env ? `env ${r.env}` : '');
+    return `<div class="doc-row"><div class="dk">${escDoc(r.key)}</div><div class="dv">${escDoc(r.value)}</div>` +
+      (note ? `<div class="dn">${escDoc(note)}</div>` : '') + `</div>`;
+  }).join('');
+}
+let memFileDisplay = '';
+async function refreshMemoryFile() {
+  const pathEl = $('memFilePath'), noteEl = $('memFileNote'), stEl = $('memFileStatus');
+  if (!pathEl) return;
+  try {
+    const r = await fetch('/api/live/memory');
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || ('memory ' + r.status));
+    memFileDisplay = j.displayPath || j.path || '';
+    pathEl.textContent = memFileDisplay || '(unknown)';
+    if (noteEl) noteEl.textContent = j.exists ? (j.bytes != null ? `${j.bytes} bytes` : 'File exists') : 'File not created yet';
+    if (stEl) { stEl.className = 'doc-meta'; stEl.textContent = ''; }
+  } catch (e) {
+    memFileDisplay = '';
+    pathEl.textContent = 'Could not load path';
+    if (noteEl) noteEl.textContent = String(e.message || e);
+  }
+}
+async function refreshServerInfo() {
+  const dataEl = $('dataDoc'), modelsEl = $('modelsDoc'), metaEl = $('modelsMeta');
+  if (!dataEl || !modelsEl) return;
+  try {
+    const r = await fetch('/api/server/info');
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || `info ${r.status}`);
+    renderDocRows(dataEl, j.storage || []);
+    renderDocRows(modelsEl, j.models || []);
+    if (metaEl) {
+      metaEl.className = 'doc-meta ' + (j.openRouterKey ? 'ok' : 'warn');
+      metaEl.textContent = j.openRouterKey ? 'OPENROUTER_API_KEY loaded' : 'OPENROUTER_API_KEY missing — STT / agent / live will fail';
+    }
+  } catch (e) {
+    dataEl.innerHTML = `<div class="doc-meta warn">${escDoc(e.message || e)}</div>`;
+    modelsEl.innerHTML = '';
+    if (metaEl) { metaEl.className = 'doc-meta warn'; metaEl.textContent = 'Could not load model info'; }
+  }
+}
+
+// ---------- pull integrations (ingest icon buttons + pull-all) ----------
+const INT_IDS = ['intEmailMailbox', 'intEmailDays', 'intEmailMax', 'intImsgDays', 'intImsgMaxChats', 'intImsgPerChat'];
+function intStatus(msg, ok) {
+  const el = $('intStatus');
+  if (!el) return;
+  el.className = 'doc-meta' + (ok === true ? ' ok' : ok === false ? ' warn' : '');
+  el.textContent = msg;
+}
+async function loadIntegrations() {
+  try {
+    const r = await fetch('/api/ingest/integrations');
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || ('integrations ' + r.status));
+    $('intEmailMailbox').value = (j.email && j.email.mailbox) || 'INBOX';
+    $('intEmailDays').value = (j.email && j.email.days) || 7;
+    $('intEmailMax').value = (j.email && j.email.max) || 50;
+    $('intImsgDays').value = (j.imessage && j.imessage.days) || 7;
+    $('intImsgMaxChats').value = (j.imessage && j.imessage.maxChats) || 25;
+    $('intImsgPerChat').value = (j.imessage && j.imessage.perChat) || 30;
+    intStatus(j.path ? 'Config: ' + j.path : '');
+  } catch (e) { intStatus(String(e.message || e), false); }
+}
+function readIntegrations() {
+  return {
+    email: { mailbox: $('intEmailMailbox').value.trim() || 'INBOX',
+      days: Number($('intEmailDays').value) || 7, max: Number($('intEmailMax').value) || 50 },
+    imessage: { days: Number($('intImsgDays').value) || 7,
+      maxChats: Number($('intImsgMaxChats').value) || 25, perChat: Number($('intImsgPerChat').value) || 30 },
+  };
+}
+async function saveIntegrations() {
+  intStatus('Saving…');
+  try {
+    const r = await fetch('/api/ingest/integrations', { method: 'POST',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(readIntegrations()) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || ('save ' + r.status));
+    intStatus('Saved — used by the next pull', true);
+  } catch (e) { intStatus(String(e.message || e), false); }
+}
+async function syncIntegration(kind, btn) {
+  if (btn) btn.disabled = true;
+  intStatus(kind === 'email' ? 'Pulling mail…' : 'Pulling iMessage…');
+  try {
+    await saveIntegrationsSilent();
+    const r = await fetch(kind === 'email' ? '/api/ingest/email/sync' : '/api/ingest/imessage/sync',
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || ('sync ' + r.status));
+    intStatus(kind === 'email'
+      ? `Mail: ${j.imported} new · ${j.skipped} skipped`
+      : `iMessage: ${j.rewritten} chats · ${j.messages} messages`, true);
+  } catch (e) { intStatus(String(e.message || e), false); }
+  finally { if (btn) btn.disabled = false; }
+}
+async function saveIntegrationsSilent() {
+  try {
+    await fetch('/api/ingest/integrations', { method: 'POST',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(readIntegrations()) });
+  } catch {}
+}
+
+// ---------- restart ----------
+async function waitForServer(timeoutMs = 20000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const res = await fetch('/hub.html', { cache: 'no-store' });
+      if (res.ok) return true;
+    } catch { /* still down */ }
+    await new Promise((r) => setTimeout(r, 400));
+  }
+  return false;
+}
+
+// ---------- profile (same device-local store as the hub menu) ----------
+function emptyProfile() { return { name: '', callMe: '', role: '', location: '', about: '', voice: '', photo: '', updatedAt: 0 }; }
+function loadProfile() {
+  try {
+    const raw = localStorage.getItem(PROFILE_KEY);
+    if (!raw) return emptyProfile();
+    return { ...emptyProfile(), ...JSON.parse(raw) };
+  } catch { return emptyProfile(); }
+}
+function profileInitials(p) {
+  const letters = (s) => {
+    const parts = String(s || '').trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return '';
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return parts[0].slice(0, 2).toUpperCase();
+  };
+  return letters(p && p.name) || letters(p && p.callMe) || '?';
+}
+function paintProfileAvatars(p) {
+  const avIni = $('profileAvatarInitials');
+  if (avIni) avIni.textContent = profileInitials(p);
+  const img = $('profileAvatarImg');
+  if (img) {
+    if (p.photo) { img.src = p.photo; img.hidden = false; }
+    else { img.removeAttribute('src'); img.hidden = true; }
+  }
+  const clear = $('profilePhotoClear');
+  if (clear) clear.hidden = !p.photo;
+}
+function fillProfileForm(p) {
+  $('profileName').value = p.name || '';
+  $('profileCallMe').value = p.callMe || '';
+  $('profileRole').value = p.role || '';
+  $('profileLocation').value = p.location || '';
+  $('profileAbout').value = p.about || '';
+  $('profileVoice').value = p.voice || '';
+  paintProfileAvatars(p);
+  const st = $('profileSaveStatus');
+  if (st) { st.className = 'doc-meta' + (p.updatedAt ? ' ok' : ''); st.textContent = p.updatedAt ? 'Saved on this device' : 'Not saved yet'; }
+}
+function readProfileForm() {
+  const prev = loadProfile();
+  return { name: $('profileName').value.trim(), callMe: $('profileCallMe').value.trim(),
+    role: $('profileRole').value.trim(), location: $('profileLocation').value.trim(),
+    about: $('profileAbout').value.trim(), voice: $('profileVoice').value.trim(),
+    photo: prev.photo || '', updatedAt: Date.now() };
+}
+function saveProfile(p) {
+  localStorage.setItem(PROFILE_KEY, JSON.stringify(p));
+  paintProfileAvatars(p);
+  const st = $('profileSaveStatus');
+  if (st) { st.className = 'doc-meta ok'; st.textContent = 'Saved on this device'; }
+}
+let profileSaveTimer = 0;
+function scheduleProfileSave() {
+  const st = $('profileSaveStatus');
+  if (st) { st.className = 'doc-meta'; st.textContent = 'Saving…'; }
+  clearTimeout(profileSaveTimer);
+  profileSaveTimer = setTimeout(() => saveProfile(readProfileForm()), 400);
+}
+function compressPhoto(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const max = 256;
+      const scale = Math.min(1, max / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(img.width * scale));
+      canvas.height = Math.max(1, Math.round(img.height * scale));
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/jpeg', 0.84));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Could not read photo')); };
+    img.src = url;
+  });
+}
+
+// ---------- search filter + anchors ----------
+$('search').addEventListener('input', () => {
+  const q = $('search').value.trim().toLowerCase();
+  let shown = 0;
+  document.querySelectorAll('#wrap .card').forEach((c) => {
+    const hit = !q || (c.textContent || '').toLowerCase().includes(q);
+    c.classList.toggle('hide', !hit);
+    if (hit) shown++;
+  });
+  $('noMatch').style.display = shown ? 'none' : 'block';
+  document.querySelectorAll('#anchors a').forEach((a) => {
+    const target = document.querySelector(a.getAttribute('href'));
+    a.style.display = !target || target.classList.contains('hide') ? 'none' : '';
+  });
+});
+if (location.hash) {
+  const t = document.querySelector(location.hash);
+  if (t) setTimeout(() => t.scrollIntoView(), 60);
+}
+
+// ---------- wire up ----------
+document.querySelectorAll('#themeSeg button').forEach((b) => { b.onclick = () => setGlobalAppearance({ theme: b.dataset.theme }); });
+document.querySelectorAll('#schemeSeg button').forEach((b) => { b.onclick = () => setGlobalAppearance({ scheme: b.dataset.scheme }); });
+document.querySelectorAll('#fontSeg button').forEach((b) => { b.onclick = () => setGlobalAppearance({ font: b.dataset.font }); });
+document.querySelectorAll('#sizeSeg button').forEach((b) => { b.onclick = () => setGlobalAppearance({ size: b.dataset.size }); });
+document.querySelectorAll('#densitySeg button').forEach((b) => { b.onclick = () => setGlobalAppearance({ density: b.dataset.density }); });
+document.querySelectorAll('#layoutSeg button').forEach((b) => { b.onclick = () => setGlobalAppearance({ layout: b.dataset.layout }); });
+document.querySelectorAll('#fitSeg button').forEach((b) => { b.onclick = () => setGlobalAppearance({ fit: b.dataset.fit }); });
+document.querySelectorAll('#tabsSeg button').forEach((b) => { b.onclick = () => setGlobalAppearance({ tabs: b.dataset.tabs }); });
+document.querySelectorAll('#radiusSeg button').forEach((b) => { b.onclick = () => setGlobalAppearance({ radius: b.dataset.radius }); });
+document.querySelectorAll('#ttsVoiceSeg button').forEach((b) => { b.onclick = () => setTtsVoice(b.dataset.voice); });
+$('ttsPreviewBtn').onclick = () => previewTtsVoice();
+document.querySelectorAll('#navModeSeg button').forEach((b) => { b.onclick = () => applyNavMode(b.dataset.mode); });
+$('memCopyBtn').onclick = async () => {
+  const stEl = $('memFileStatus');
+  try {
+    await navigator.clipboard.writeText(memFileDisplay || $('memFilePath').textContent);
+    if (stEl) { stEl.className = 'doc-meta ok'; stEl.textContent = 'Path copied'; }
+  } catch { if (stEl) { stEl.className = 'doc-meta warn'; stEl.textContent = 'Copy failed — select the path above'; } }
+};
+$('memOpenBtn').onclick = async () => {
+  const stEl = $('memFileStatus');
+  if (stEl) { stEl.className = 'doc-meta'; stEl.textContent = 'Opening…'; }
+  try {
+    const r = await fetch('/api/live/memory/open', { method: 'POST' });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.ok) throw new Error(j.error || ('open ' + r.status));
+    if (stEl) { stEl.className = 'doc-meta ok'; stEl.textContent = 'Opened in the default app'; }
+  } catch (e) {
+    if (stEl) { stEl.className = 'doc-meta warn'; stEl.textContent = String(e.message || e); }
+  }
+};
+$('restartBtn').onclick = async () => {
+  const btn = $('restartBtn'), st = $('restartStatus');
+  btn.disabled = true;
+  st.textContent = 'Restarting…';
+  try {
+    const res = await fetch('/api/server/restart', { method: 'POST' });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+    st.textContent = 'Server stopping — waiting for it to come back…';
+    if (await waitForServer()) { st.textContent = 'Back — reloading…'; location.reload(); return; }
+    st.textContent = 'Server did not come back. Start it with npm run server.';
+  } catch {
+    st.textContent = 'Waiting for server…';
+    if (await waitForServer()) { st.textContent = 'Back — reloading…'; location.reload(); }
+    else st.textContent = 'Restart failed — start it manually.';
+  } finally { btn.disabled = false; }
+};
+$('profileAvatarBtn').onclick = () => $('profilePhotoInput').click();
+$('profilePhotoClear').onclick = () => { const p = readProfileForm(); p.photo = ''; saveProfile(p); };
+$('profilePhotoInput').onchange = async (e) => {
+  const file = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  try {
+    const p = readProfileForm();
+    p.photo = await compressPhoto(file);
+    saveProfile(p);
+  } catch (err) {
+    const st = $('profileSaveStatus');
+    if (st) { st.className = 'doc-meta warn'; st.textContent = String(err.message || err); }
+  }
+};
+['profileName', 'profileCallMe', 'profileRole', 'profileLocation', 'profileAbout', 'profileVoice'].forEach((id) => {
+  $(id).addEventListener('input', () => {
+    if (id === 'profileName' || id === 'profileCallMe') paintProfileAvatars(readProfileForm());
+    scheduleProfileSave();
+  });
+});
+$('tabOrderReset').onclick = () => {
+  localStorage.removeItem(TAB_ORDER_KEY);
+  hiddenKeys = new Set(DEFAULT_HIDDEN);
+  persistHidden();
+  VIEWS = DEFAULT_VIEWS.slice();
+  persistTabOrder();
+  buildTabOrderUI();
+  notifyHub({ type: 'tabs-changed' });
+};
+$('intSaveBtn').onclick = () => saveIntegrations();
+$('intEmailSync').onclick = (e) => syncIntegration('email', e.target);
+$('intImsgSync').onclick = (e) => syncIntegration('imessage', e.target);
+
+// ---------- init ----------
+applyPageAppearance(appearancePayload());
+document.querySelectorAll('#navModeSeg button').forEach((b) => b.classList.toggle('on', b.dataset.mode === navMode));
+buildTabOrderUI();
+refreshTtsStatus();
+refreshServerInfo();
+refreshMemoryFile();
+fillProfileForm(loadProfile());
+loadIntegrations();
+</script>
+</body>
+</html>

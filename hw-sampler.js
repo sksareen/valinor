@@ -1,5 +1,6 @@
 // Lightweight 1Hz hardware sampler (CPU / mem / disk / net). No Sauron.
 const os = require('os');
+const fs = require('fs');
 const { execFile } = require('child_process');
 
 const HISTORY_MAX = 120;
@@ -11,6 +12,12 @@ let prevCpu = null;
 let prevDiskMb = null;
 let prevDiskAt = null;
 let prevNet = null; // { inB, outB, t }
+let diskSpace = null;
+let diskSpaceAt = 0;
+const DISK_SPACE_EVERY_MS = 15000;
+const DF_PATH = process.platform === 'darwin' && fs.existsSync('/System/Volumes/Data')
+  ? '/System/Volumes/Data'
+  : '/';
 let busy = false;
 let started = false;
 const listeners = new Set();
@@ -56,6 +63,28 @@ function execText(cmd, args) {
       else resolve(String(stdout || ''));
     });
   });
+}
+
+/** Used/total from POSIX `df -Pk` (Darwin Data volume, else /). */
+function parseDf(text) {
+  if (!text) return null;
+  for (const line of String(text).split('\n')) {
+    const row = line.trim();
+    if (!row || /^Filesystem\b/i.test(row)) continue;
+    const parts = row.split(/\s+/);
+    if (parts.length < 6) continue;
+    const totalKb = Number(parts[1]);
+    const usedKb = Number(parts[2]);
+    if (![totalKb, usedKb].every((n) => Number.isFinite(n) && n >= 0) || totalKb <= 0) continue;
+    const used = usedKb * 1024;
+    const total = totalKb * 1024;
+    return {
+      diskPct: Math.round((used / total) * 1000) / 10,
+      diskUsedGb: Math.round((used / (1024 ** 3)) * 100) / 100,
+      diskTotalGb: Math.round((total / (1024 ** 3)) * 100) / 100,
+    };
+  }
+  return null;
 }
 
 /** Cumulative MB transferred across disks from `iostat -Id` (Darwin). */
@@ -114,10 +143,19 @@ async function tick() {
     const cpu = sampleCpu();
     const mem = sampleMem();
 
-    const [diskOut, netOut] = await Promise.all([
+    const needSpace = !diskSpace || (t - diskSpaceAt) >= DISK_SPACE_EVERY_MS;
+    const [diskOut, netOut, dfOut] = await Promise.all([
       process.platform === 'darwin' ? execText('iostat', ['-Id']) : Promise.resolve(null),
       execText('netstat', ['-ib', '-n']),
+      needSpace ? execText('df', ['-Pk', DF_PATH]) : Promise.resolve(null),
     ]);
+    if (needSpace) {
+      const parsed = parseDf(dfOut);
+      if (parsed) {
+        diskSpace = parsed;
+        diskSpaceAt = t;
+      }
+    }
 
     const diskMb = parseDiskMb(diskOut);
     let diskMBs = null;
@@ -150,6 +188,9 @@ async function tick() {
       memUsedGb: mem.memUsedGb,
       memTotalGb: mem.memTotalGb,
       diskMBs,
+      diskPct: diskSpace ? diskSpace.diskPct : null,
+      diskUsedGb: diskSpace ? diskSpace.diskUsedGb : null,
+      diskTotalGb: diskSpace ? diskSpace.diskTotalGb : null,
       netMBs,
       netInMBs,
       netOutMBs,

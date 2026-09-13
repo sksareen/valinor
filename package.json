@@ -1,7 +1,7 @@
 {
   "name": "valinor",
   "version": "0.1.0",
-  "description": "Gestural HUD \u2014 transparent desktop overlay over a hot-reloadable web app",
+  "description": "Gestural HUD — transparent desktop overlay over a hot-reloadable web app",
   "license": "Apache-2.0",
   "main": "electron-main.js",
   "scripts": {
@@ -16,5 +16,8 @@
   },
   "devDependencies": {
     "electron": "^31.7.7"
+  },
+  "dependencies": {
+    "@earendil-works/pi-coding-agent": "^0.84.1"
   }
 }
