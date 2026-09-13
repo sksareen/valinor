@@ -6,11 +6,31 @@ const fs = require('fs');
 const path = require('path');
 const networkData = require('./network-data');
 const agentUsage = require('./agent-usage');
+const dataHome = require('./data-home');
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const ROOT = __dirname;
-const DRAFTS_FILE = path.join(ROOT, 'drafts.json');
-const PROFILE_FILE = path.join(ROOT, 'message-profile.json');
+// Data-home aware: DRAFTS_PATH / MESSAGE_PROFILE_PATH, then repo-local when
+// present, then VALINOR_DATA_DIR (or ~/.valinor/). Lazy — .env-safe.
+function getDraftsPath() {
+  return dataHome.resolveStore({ env: 'DRAFTS_PATH', name: 'drafts.json', legacy: ['drafts.json'] });
+}
+function getProfilePath() {
+  return dataHome.resolveStore({ env: 'MESSAGE_PROFILE_PATH', name: 'message-profile.json', legacy: ['message-profile.json'] });
+}
+// Legacy constants kept for compat — prefer getDraftsPath()/getProfilePath() (lazy).
+
+function lastUserText(messages) {
+  for (let i = (messages || []).length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (!m || m.role !== 'user') continue;
+    if (typeof m.content === 'string') return m.content;
+    if (Array.isArray(m.content)) {
+      return m.content.map((p) => p.text || (p.image_url || p.input_audio ? '[media]' : '')).join(' ');
+    }
+  }
+  return '';
+}
 
 function messageModel() {
   return process.env.MESSAGE_MODEL || process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini';
@@ -99,7 +119,7 @@ function voiceExemplarsBlock(contactId) {
 }
 
 function distilledProfileBlock() {
-  const profile = safeReadJson(PROFILE_FILE, null);
+  const profile = safeReadJson(getProfilePath(), null);
   if (!profile || !profile.summary) return null;
   return `HOW THE USER WRITES (distilled from past sessions):\n${profile.summary}`;
 }
@@ -164,6 +184,7 @@ async function streamOpenRouter(apiKey, messages, onDelta) {
       temperature: 0.7,
       stream: true,
       stream_options: { include_usage: true },
+      usage: { include: true },
     }),
   });
 
@@ -210,6 +231,8 @@ async function streamOpenRouter(apiKey, messages, onDelta) {
     cost: lastUsage?.cost ?? null,
     ok: true,
     label: 'stream',
+    input: lastUserText(messages),
+    output: full,
   });
   return full;
 }
@@ -238,7 +261,7 @@ async function runDraftTurn(res, body, apiKey) {
   if (contactId != null) {
     try { context = networkData.getContext(contactId); } catch (e) { console.warn('[draft-server] getContext failed:', e.message); }
   }
-  const drafts = safeReadJson(DRAFTS_FILE, []);
+  const drafts = safeReadJson(getDraftsPath(), []);
 
   const messages = [
     {
@@ -274,7 +297,7 @@ async function callOpenRouter(apiKey, messages, { temperature = 0.3, title = 'ha
       'HTTP-Referer': 'http://localhost:4777',
       'X-Title': title,
     },
-    body: JSON.stringify({ model: useModel, messages, temperature }),
+    body: JSON.stringify({ model: useModel, messages, temperature, usage: { include: true } }),
   });
   const text = await res.text();
   let json;
@@ -286,6 +309,7 @@ async function callOpenRouter(apiKey, messages, { temperature = 0.3, title = 'ha
     throw Object.assign(new Error(typeof msg === 'string' ? msg : JSON.stringify(msg)), { status: res.status });
   }
   const usage = json.usage || {};
+  const content = (json.choices?.[0]?.message?.content || '').trim();
   agentUsage.record({
     surface,
     model: json.model || useModel,
@@ -294,8 +318,10 @@ async function callOpenRouter(apiKey, messages, { temperature = 0.3, title = 'ha
     cost: usage.cost ?? null,
     ok: true,
     label,
+    input: lastUserText(messages),
+    output: content,
   });
-  return (json.choices?.[0]?.message?.content || '').trim();
+  return content;
 }
 
 // Models wrap JSON in prose or ```json fences often enough that strict JSON.parse alone
@@ -398,7 +424,7 @@ async function suggestRecipients(intent, apiKey, limit = SUGGEST_LIMIT) {
 // half (few-shot retrieval) runs on every draft via acceptedExemplarsBlock/voiceExemplarsBlock.
 async function refreshStyleProfile(apiKey) {
   if (!apiKey) throw Object.assign(new Error('OPENROUTER_API_KEY is missing.'), { status: 401 });
-  const drafts = safeReadJson(DRAFTS_FILE, []);
+  const drafts = safeReadJson(getDraftsPath(), []);
   const accepted = drafts.filter((s) => s.copiedText).slice(-60).map((s) => s.copiedText);
   const sentSamples = [];
   const seenContacts = new Set();
@@ -421,8 +447,17 @@ async function refreshStyleProfile(apiKey) {
   ];
   const summary = await callOpenRouter(apiKey, messages, { temperature: 0.3, title: 'handviz-messages-profile' });
   const profile = { summary, updatedAt: Date.now(), corpusSize: corpus.length };
-  fs.writeFileSync(PROFILE_FILE, JSON.stringify(profile, null, 2));
+  fs.writeFileSync(getProfilePath(), JSON.stringify(profile, null, 2));
   return profile;
 }
 
-module.exports = { runDraftTurn, refreshStyleProfile, suggestRecipients, PRESETS };
+module.exports = {
+  runDraftTurn,
+  refreshStyleProfile,
+  suggestRecipients,
+  getDraftsPath,
+  getProfilePath,
+  PRESETS,
+  messageModel,
+  suggestModel,
+};

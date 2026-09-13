@@ -1,53 +1,98 @@
-// Agent usage sampler — OpenRouter call telemetry for the AGENT tab.
+// Agent usage sampler — OpenRouter call telemetry for ACTIVITY.
 // Mirrors hw-sampler.js: in-memory ring + optional jsonl persistence + SSE subscribers.
 'use strict';
 
 const fs = require('fs');
 const path = require('path');
-const os = require('os');
+const dataHome = require('./data-home');
 
 const HISTORY_MAX = 2000;
-const SERIES_BUCKET_MS = 60_000; // 1-minute buckets for sparklines
-const SERIES_MAX = 120; // ~2h of minute buckets
+const SERIES_MAX = 120; // buckets across the requested hours window
 
 const history = []; // newest at end — raw call records
 const listeners = new Set();
+const BOOT_AT = Date.now();
+const lifetime = emptyTotals();
 
-const LOG_CANDIDATES = [
-  process.env.AGENT_USAGE_PATH,
-  path.join(__dirname, 'agent-usage.jsonl'),
-  path.join(os.homedir(), '.handviz', 'agent-usage.jsonl'),
-].filter(Boolean);
+function emptyTotals() {
+  return {
+    calls: 0, prompt_tokens: 0, completion_tokens: 0, total_tokens: 0,
+    cost: 0, costN: 0, errors: 0, firstAt: null, lastAt: null,
+  };
+}
 
+function addTotals(acc, row) {
+  acc.calls += 1;
+  acc.prompt_tokens += row.prompt_tokens || 0;
+  acc.completion_tokens += row.completion_tokens || 0;
+  acc.total_tokens += row.total_tokens || 0;
+  if (row.cost != null && Number.isFinite(row.cost)) { acc.cost += row.cost; acc.costN += 1; }
+  if (!row.ok) acc.errors += 1;
+  if (row.t) {
+    if (acc.firstAt == null || row.t < acc.firstAt) acc.firstAt = row.t;
+    if (acc.lastAt == null || row.t > acc.lastAt) acc.lastAt = row.t;
+  }
+}
+
+function finishTotals(acc) {
+  return {
+    calls: acc.calls,
+    prompt_tokens: acc.prompt_tokens,
+    completion_tokens: acc.completion_tokens,
+    total_tokens: acc.total_tokens,
+    cost: acc.costN ? Math.round(acc.cost * 1e6) / 1e6 : null,
+    errors: acc.errors,
+    firstAt: acc.firstAt,
+    lastAt: acc.lastAt,
+  };
+}
+
+// Data-home aware: AGENT_USAGE_PATH, then repo-local file when present, then
+// VALINOR_DATA_DIR (or ~/.valinor/). Resolved lazily — first use is always
+// after .env load, so .env-provided paths work.
 let logPath = null;
+let diskLoaded = false;
 
 function ensureLogPath() {
   if (logPath) return logPath;
-  for (const p of LOG_CANDIDATES) {
-    try {
-      fs.mkdirSync(path.dirname(p), { recursive: true });
-      fs.appendFileSync(p, '');
-      logPath = p;
-      return p;
-    } catch { /* try next */ }
-  }
-  return null;
+  logPath = dataHome.resolveStore({
+    env: 'AGENT_USAGE_PATH',
+    name: 'agent-usage.jsonl',
+    legacy: ['agent-usage.jsonl'],
+  });
+  try {
+    fs.mkdirSync(path.dirname(logPath), { recursive: true });
+    fs.appendFileSync(logPath, '');
+  } catch { /* persistence best-effort; memory still works */ }
+  return logPath;
 }
 
 function loadFromDisk() {
+  if (diskLoaded) return;
+  diskLoaded = true;
   const p = ensureLogPath();
   if (!p) return;
   try {
     const text = fs.readFileSync(p, 'utf8');
     const lines = text.split('\n').filter(Boolean);
-    const cut = lines.slice(-HISTORY_MAX);
-    for (const line of cut) {
+    const loaded = [];
+    for (const line of lines) {
       try {
         const row = JSON.parse(line);
-        if (row && typeof row.t === 'number') history.push(normalize(row));
+        if (!row || typeof row.t !== 'number') continue;
+        const n = normalize(row);
+        addTotals(lifetime, n);
+        loaded.push(n);
       } catch { /* skip bad line */ }
     }
+    history.push(...loaded.slice(-HISTORY_MAX));
   } catch { /* fresh file ok */ }
+}
+
+function clipField(s, n = 480) {
+  const t = String(s == null ? '' : s).replace(/\s+/g, ' ').trim();
+  if (!t) return '';
+  return t.length > n ? t.slice(0, n - 1) + '…' : t;
 }
 
 function normalize(raw) {
@@ -65,9 +110,12 @@ function normalize(raw) {
     total_tokens: total,
     cost: Number.isFinite(cost) ? cost : null,
     latencyMs: raw.latencyMs != null ? Number(raw.latencyMs) : null,
+    ttftMs: raw.ttftMs != null ? Number(raw.ttftMs) : null,
     ok: raw.ok !== false,
     turnId: raw.turnId || null,
     label: raw.label || null,
+    input: clipField(raw.input),
+    output: clipField(raw.output),
   };
 }
 
@@ -85,9 +133,11 @@ function broadcast(row) {
 
 /** Record one completed OpenRouter (or equivalent) call. */
 function record(partial) {
+  loadFromDisk();
   const row = normalize({ t: Date.now(), ...partial });
   history.push(row);
   if (history.length > HISTORY_MAX) history.splice(0, history.length - HISTORY_MAX);
+  addTotals(lifetime, row);
   persist(row);
   broadcast(row);
   return row;
@@ -123,18 +173,21 @@ function breakdown(rows, key) {
     .sort((a, b) => b.tokens - a.tokens || b.calls - a.calls);
 }
 
-function series(rows) {
+function series(rows, hours = 2) {
   if (!rows.length) return [];
+  const h = Math.max(0.25, Math.min(48, Number(hours) || 2));
+  const span = h * 3600_000;
   const now = Date.now();
-  const start = now - SERIES_MAX * SERIES_BUCKET_MS;
+  const start = now - span;
+  const bucketMs = span / SERIES_MAX;
   const buckets = [];
   for (let i = 0; i < SERIES_MAX; i++) {
-    const t0 = start + i * SERIES_BUCKET_MS;
-    buckets.push({ t: t0 + SERIES_BUCKET_MS / 2, tokens: 0, calls: 0, cost: 0, latencySum: 0, latencyN: 0 });
+    const t0 = start + i * bucketMs;
+    buckets.push({ t: t0 + bucketMs / 2, tokens: 0, calls: 0, cost: 0, latencySum: 0, latencyN: 0 });
   }
   for (const r of rows) {
     if (r.t < start) continue;
-    const idx = Math.min(SERIES_MAX - 1, Math.floor((r.t - start) / SERIES_BUCKET_MS));
+    const idx = Math.min(SERIES_MAX - 1, Math.max(0, Math.floor((r.t - start) / bucketMs)));
     const b = buckets[idx];
     b.tokens += r.total_tokens;
     b.calls += 1;
@@ -173,30 +226,54 @@ function summarize(rows) {
 }
 
 function getSnapshot(hours = 2) {
+  loadFromDisk();
   const h = Math.max(0.25, Math.min(48, Number(hours) || 2));
   const rows = since(h);
+  const sessionRows = history.filter((r) => r.t >= BOOT_AT);
   return {
     at: Date.now(),
     hours: h,
+    bootAt: BOOT_AT,
     logPath,
     totals: summarize(rows),
+    session: summarize(sessionRows),
+    lifetime: finishTotals(lifetime),
     bySurface: breakdown(rows, 'surface'),
     byModel: breakdown(rows, 'model'),
-    series: series(rows),
+    series: series(rows, h),
     recent: rows.slice(-80).reverse(),
+    log: history.slice(-250).reverse().map((r) => ({
+      t: r.t,
+      surface: r.surface,
+      model: r.model,
+      prompt_tokens: r.prompt_tokens,
+      completion_tokens: r.completion_tokens,
+      total_tokens: r.total_tokens,
+      cost: r.cost,
+      latencyMs: r.latencyMs,
+      ok: r.ok,
+      label: r.label,
+      input: r.input || '',
+      output: r.output || '',
+    })),
   };
 }
 
 function subscribe(fn) {
+  loadFromDisk();
   listeners.add(fn);
   return () => listeners.delete(fn);
 }
 
-loadFromDisk();
+function getLogPath() {
+  loadFromDisk();
+  return logPath;
+}
 
 module.exports = {
   record,
   getSnapshot,
   subscribe,
+  getLogPath,
   HISTORY_MAX,
 };

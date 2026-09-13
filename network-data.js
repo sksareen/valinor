@@ -30,7 +30,9 @@ let _chatAttached = null; // null = not tried yet, true/false = cached result
 // the server.
 function loadCrmFile() {
   try {
-    return JSON.parse(fs.readFileSync(path.join(__dirname, 'crm.json'), 'utf8'));
+    const dataHome = require('./data-home');
+    const p = dataHome.resolveStore({ env: 'CRM_PATH', name: 'crm.json', legacy: ['crm.json'] });
+    return JSON.parse(fs.readFileSync(p, 'utf8'));
   } catch {
     return {};
   }

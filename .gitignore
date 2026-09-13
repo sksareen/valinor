@@ -1,14 +1,29 @@
 node_modules/
 .DS_Store
 *.webm
+*.jsonl
+
+# secrets / keys — never commit (belt & suspenders; real config lives in .env)
 .env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+*.keystore
+
 handviz-watchdog.log
 .tmp-activity-cursor.png
 .tmp-activity-cursor.jpg
+.tmp-activity-cursor.webp
 
 # editor / local tooling
 .vscode/
 .cursor/
+.vercel/
+.obsidian/
 
 # Loopkeeper (bundled FastAPI)
 loopkeeper/venv/
@@ -19,13 +34,37 @@ loopkeeper/*.db
 loopkeeper/design_runs/
 loopkeeper/design_runs/**
 
+# Kitten TTS (local neural voice for live companion)
+tts/venv/
+tts/models/
+tts/tmp/
+tts/__pycache__/
+tts/**/__pycache__/
+
 # personal message content / contact enrichment — never commit
 drafts.json
 crm.json
 message-profile.json
 live-session.jsonl
+live-conversations.json
 agent-usage.jsonl
+rehearse-sessions.jsonl
+
+# board notes runtime store (legacy tracked notes.json is read-only; see data-home.js)
+board-notes.json
+
+# rehearse persona — per-user config stays local (see rehearse.config.example.json)
+rehearse.config.json
 
 # personal writing — keep the folder, not the letters
 letters/*
 !letters/.gitkeep
+letters/.history/
+
+# writing voice model — personal exemplars + distilled profile stay local
+writing-voice.md
+writing-stars.json
+writing-samples.json
+writing-projects.json
+writing-voice-runs.json
+letter-session-prompt-runs.json

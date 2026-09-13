@@ -25,7 +25,7 @@ const { DatabaseSync } = require('node:sqlite');
 
 const NETWORK_DB = process.env.NETWORK_DB_PATH || '';
 const PEOPLE_DIR = process.env.NETWORK_PEOPLE_DIR || '';
-const CRM_FILE = path.join(__dirname, 'crm.json');
+const CRM_FILE = require('./data-home').resolveStore({ env: 'CRM_PATH', name: 'crm.json', legacy: ['crm.json'] });
 const NOTES_CHAR_CAP = 2000; // meeting notes can run to 100+ lines; keep the prompt cheap
 
 if (!NETWORK_DB || !PEOPLE_DIR) {

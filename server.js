@@ -4,19 +4,131 @@ const fs = require('fs');
 const path = require('path');
 const { exec, execFile, spawn } = require('child_process');
 const os = require('os');
-const { runAgentTurn, subscribeTrace, transcribeAudio } = require('./agent-server');
-const { getHistory, clearSession, runLiveTurn } = require('./live-server');
+const {
+  runAgentTurn,
+  subscribeTrace,
+  transcribeAudio,
+  DEFAULT_MODEL: AGENT_MODEL,
+  TRANSCRIBE_MODEL,
+} = require('./agent-server');
+const {
+  getHistory,
+  clearSession,
+  runLiveTurn,
+  getSessionPath,
+  getValinorMemory,
+  valinorMemoryPath,
+  getHubGeo,
+  reportClientGeo,
+  listLiveConversations,
+  getLiveConversation,
+  newLiveConversation,
+  switchLiveConversation,
+  continueImportedConversation,
+  resetLivePi,
+  DEFAULT_MODEL: LIVE_MODEL,
+  VISION_MODEL,
+  ROUTER_MODEL,
+} = require('./live-server');
+const ingest = require('./ingest-server');
+const execute = require('./execute-server');
+const appleNotes = require('./apple-notes');
+const applePhotos = require('./apple-photos');
+const screenshots = require('./screenshots');
+const emailIngest = require('./email-ingest');
+const imessageIngest = require('./imessage-ingest');
+const integrations = require('./integrations');
 const networkData = require('./network-data');
-const { runDraftTurn, refreshStyleProfile, suggestRecipients } = require('./draft-server');
+const {
+  runDraftTurn,
+  refreshStyleProfile,
+  suggestRecipients,
+  getDraftsPath,
+  messageModel,
+  suggestModel,
+} = require('./draft-server');
 const hwSampler = require('./hw-sampler');
 const agentUsage = require('./agent-usage');
+const letterSession = require('./letter-session');
+const writingVoice = require('./writing-voice');
+const writingPipeline = require('./writing-pipeline');
+const livePrompt = require('./live-prompt');
+const rehearse = require('./rehearse-server');
+const tts = require('./tts-server');
+const dataHome = require('./data-home');
 hwSampler.start();
 
 const ROOT = __dirname;
-const LETTERS = path.join(ROOT, 'letters');
-const PORT = 4777;
+// Letter bodies: LETTERS_DIR, then repo letters/ when present (legacy user
+// content), then VALINOR_DATA_DIR (or ~/.valinor/). Lazy — .env-safe.
+function lettersDir() {
+  return dataHome.resolveDir({ env: 'LETTERS_DIR', name: 'letters', legacy: ['letters'] });
+}
+// Letter revision history: LETTER_HISTORY_DIR, then repo letters/.history when
+// present, then VALINOR_DATA_DIR (or ~/.valinor/). Lazy — .env-safe.
+function letterHistDir() {
+  return dataHome.resolveDir({ env: 'LETTER_HISTORY_DIR', name: 'letter-history', legacy: ['letters/.history'] });
+}
+const LETTER_HIST_CAP = 50;
+function letterHistPath(file) {
+  const base = path.basename(String(file || ''));
+  if (!/^[\w][\w.()\- ]*\.md$/.test(base)) return null;
+  return path.join(letterHistDir(), base + '.json');
+}
+function readLetterHist(file) {
+  try {
+    const p = letterHistPath(file);
+    if (!p) return [];
+    const raw = JSON.parse(fs.readFileSync(p, 'utf8'));
+    return Array.isArray(raw) ? raw : [];
+  } catch { return []; }
+}
+const PORT = Number(process.env.PORT) || 4777;
 const BIND = process.env.VALINOR_BIND || process.env.HUDHUB_BIND || '127.0.0.1';
 const SAURON_BIN = process.env.SAURON_BIN || path.join(os.homedir(), 'go', 'bin', 'sauron');
+
+async function buildServerInfo() {
+  const usage = agentUsage.getSnapshot(0.01);
+  let ttsModel = process.env.KITTEN_TTS_MODEL || 'KittenML/kitten-tts-mini-0.8';
+  try {
+    const ttsStatus = await tts.status();
+    if (ttsStatus && ttsStatus.model) ttsModel = ttsStatus.model;
+  } catch { /* ignore */ }
+  return {
+    storage: [
+      { key: 'Ingest', value: ingest.INGEST_DIR, note: 'Voice + Apple Notes + screenshots → .md files' },
+      { key: 'Execute', value: execute.EXECUTE_DIR, note: 'Tasks + proof files' },
+      { key: 'Screenshots source', value: screenshots.SCREENSHOTS_DIR, note: 'Mac folder watched for auto-ingest' },
+      { key: 'Board notes', value: dataHome.boardNotesPath(), note: '/api/notes (legacy notes.json imported once)' },
+      { key: 'Drafts / CRM', value: getDraftsPath(), note: 'Gitignored or data-home; messages tab' },
+      { key: 'Letters', value: lettersDir(), note: 'Markdown letters (gitignored)' },
+      { key: 'Live session', value: getSessionPath(), note: 'live-session.jsonl' },
+      { key: 'Valinor memory', value: valinorMemoryPath(), note: 'valinor.md — VALINOR_MEMORY_PATH or data home' },
+      { key: 'Agent usage', value: usage.logPath || path.join(ROOT, 'agent-usage.jsonl'), note: 'OpenRouter call log' },
+      { key: 'Loopkeeper', value: path.join(ROOT, 'loopkeeper/*.db'), note: 'LOOPS tab databases' },
+      { key: 'Browser prefs', value: 'localStorage', note: 'Hub look, INGRAIN SRS, rehearse scripts' },
+      { key: 'CRM DB', value: process.env.NETWORK_DB_PATH || '(NETWORK_DB_PATH unset)', note: 'Read-only' },
+      { key: 'iMessage DB', value: process.env.CHAT_DB_PATH || path.join(os.homedir(), 'Library', 'Messages', 'chat.db'), note: 'Read-only' },
+    ],
+    models: [
+      { key: 'Speech → text', value: TRANSCRIBE_MODEL, env: 'OPENROUTER_TRANSCRIBE_MODEL' },
+      { key: 'Ingest refine / plan', value: ingest.CAPTURE_MODEL, env: 'OPENROUTER_CAPTURE_MODEL' },
+      { key: 'Agent / board', value: AGENT_MODEL, env: 'OPENROUTER_MODEL' },
+      { key: 'Live (text)', value: LIVE_MODEL, env: 'OPENROUTER_MODEL' },
+      { key: 'Live (vision)', value: VISION_MODEL, env: 'OPENROUTER_VISION_MODEL' },
+      { key: 'Live (tick router)', value: ROUTER_MODEL, env: 'OPENROUTER_VISION_MODEL' },
+      { key: 'Activity cursor', value: process.env.OPENROUTER_VISION_MODEL || process.env.OPENROUTER_MODEL || 'google/gemini-2.5-flash-lite', env: 'OPENROUTER_VISION_MODEL' },
+      { key: 'Messages draft', value: messageModel(), env: 'MESSAGE_MODEL' },
+      { key: 'Messages suggest', value: suggestModel(), env: 'SUGGEST_MODEL' },
+      { key: 'Execute review', value: execute.REVIEW_MODEL, env: 'OPENROUTER_CAPTURE_MODEL' },
+      { key: 'Letters from session', value: letterSession.LETTER_MODEL, env: 'OPENROUTER_CAPTURE_MODEL' },
+      { key: 'Live TTS', value: ttsModel, env: 'KITTEN_TTS_MODEL', note: 'Local Kitten TTS' },
+      { key: 'Rehearse interviewer', value: rehearse.MODEL, env: 'REHEARSE_MODEL', note: 'Fallback: ' + rehearse.FALLBACK_MODEL },
+      { key: 'Rehearse TTS', value: rehearse.TTS_MODEL, env: 'REHEARSE_TTS_MODEL', note: 'Voice ' + rehearse.TTS_VOICE + '; fallback ' + rehearse.TTS_FALLBACK_MODEL },
+    ],
+    openRouterKey: Boolean(process.env.OPENROUTER_API_KEY),
+  };
+}
 
 function sauronExec(args, { timeout = 8000 } = {}) {
   return new Promise((resolve) => {
@@ -51,7 +163,7 @@ function parseSauronStatus(text) {
 }
 
 async function buildMachineSnapshot(hours) {
-  const [statusR, contextR, activityR, timelineR, clipboardR, hintsR, reentryR, memory] = await Promise.all([
+  const [statusR, contextR, activityR, timelineR, clipboardR, hintsR, reentryR, memory, wispr] = await Promise.all([
     sauronExec(['status']),
     sauronExec(['context', '--json']),
     sauronExec(['activity', String(hours), '--json']),
@@ -60,6 +172,7 @@ async function buildMachineSnapshot(hours) {
     sauronExec(['hints', '--json']),
     sauronExec(['reentry', '--json']),
     collectMemory(),
+    readWisprFlow(hours),
   ]);
   // `sauron status` is plain text; everything else is --json
   const status = statusR.ok
@@ -74,6 +187,7 @@ async function buildMachineSnapshot(hours) {
     activity: activityR.ok ? activityR.data : null,
     timeline: Array.isArray(timelineR.data) ? timelineR.data : [],
     clipboard: Array.isArray(clipboardR.data) ? clipboardR.data : [],
+    wispr: wispr || { dictations: [] },
     hints: Array.isArray(hintsR.data) ? hintsR.data : [],
     reentry: reentryR.ok ? reentryR.data : null,
     memory,
@@ -103,6 +217,77 @@ function getMachineSnapshot(hours) {
   });
   _machineCache.set(key, { at: Date.now(), promise });
   return promise;
+}
+function bustMachineCache() {
+  _machineCache.clear();
+}
+function sauronToken(id) {
+  return typeof id === 'string' && /^[A-Za-z0-9_.:-]{4,96}$/.test(id);
+}
+
+const WISPR_DB = process.env.WISPR_DB_PATH
+  || path.join(os.homedir(), 'Library', 'Application Support', 'Wispr Flow', 'flow.sqlite');
+const WISPR_APPS = {
+  'com.todesktop.230313mzl4w4u92': 'Cursor',
+  'com.anthropic.claudefordesktop': 'Claude',
+  'com.google.Chrome': 'Chrome',
+  'com.brave.Browser': 'Brave',
+  'company.thebrowser.Browser': 'Arc',
+  'com.apple.Safari': 'Safari',
+  'com.apple.MobileSMS': 'Messages',
+  'com.apple.mail': 'Mail',
+  'com.tinyspeck.slackmacgap': 'Slack',
+  'com.linear': 'Linear',
+  'com.figma.Desktop': 'Figma',
+  'com.microsoft.VSCode': 'VS Code',
+  'net.whatsapp.WhatsApp': 'WhatsApp',
+  'com.hnc.Discord': 'Discord',
+  'com.apple.dt.Xcode': 'Xcode',
+};
+function wisprAppName(bundle) {
+  const s = String(bundle || '');
+  if (WISPR_APPS[s]) return WISPR_APPS[s];
+  const last = s.split('.').pop();
+  return last || 'Wispr';
+}
+function sqliteJson(db, sql) {
+  return new Promise((resolve) => {
+    execFile('sqlite3', ['-json', db, sql], { timeout: 2500, maxBuffer: 2 * 1024 * 1024 }, (err, stdout) => {
+      if (err) return resolve([]);
+      const t = String(stdout || '').trim();
+      if (!t) return resolve([]);
+      try { resolve(JSON.parse(t)); } catch { resolve([]); }
+    });
+  });
+}
+async function readWisprFlow(hours) {
+  const empty = { dictations: [] };
+  try {
+    if (!fs.existsSync(WISPR_DB)) return empty;
+    const h = Math.max(0.25, Math.min(48, Number(hours) || 2));
+    const rawDict = await sqliteJson(WISPR_DB, `
+        SELECT timestamp AS t, app, status, numWords AS words, duration,
+          substr(COALESCE(NULLIF(editedText,''), NULLIF(formattedText,''), NULLIF(asrText,''), pastedText), 1, 400) AS text
+        FROM History
+        WHERE IFNULL(isArchived,0)=0
+          AND status IN ('formatted','raw_transcript')
+          AND IFNULL(numWords,0) > 0
+          AND timestamp >= datetime('now', '-${h} hours')
+        ORDER BY timestamp DESC
+        LIMIT 12;
+      `);
+    return {
+      dictations: (Array.isArray(rawDict) ? rawDict : []).map((r) => ({
+        t: r.t,
+        app: wisprAppName(r.app),
+        words: r.words,
+        duration: r.duration,
+        text: String(r.text || '').trim(),
+      })).filter((r) => r.text),
+    };
+  } catch {
+    return empty;
+  }
 }
 
 function appFamily(comm) {
@@ -365,9 +550,9 @@ async function startManagedLoopkeeper() {
   console.log(`Loopkeeper: managed child pid=${loopkeeperChild.pid} → ${app.base}`);
 }
 
-process.on('exit', stopLoopkeeper);
-process.on('SIGINT', () => { stopLoopkeeper(); process.exit(0); });
-process.on('SIGTERM', () => { stopLoopkeeper(); process.exit(0); });
+process.on('exit', () => { stopLoopkeeper(); tts.stop(); });
+process.on('SIGINT', () => { stopLoopkeeper(); tts.stop(); process.exit(0); });
+process.on('SIGTERM', () => { stopLoopkeeper(); tts.stop(); process.exit(0); });
 
 // ---- zero-dep .env reader (.env wins over inherited shell env) ----
 function loadEnvFile(filePath) {
@@ -453,6 +638,23 @@ function decodeImagePayload(image) {
   } catch {
     return null;
   }
+}
+
+function decodeFilePayload(data, fallbackMime) {
+  if (!data || typeof data !== 'string') return null;
+  const s = data.trim();
+  if (!s) return null;
+  const m = s.match(/^data:([^;,]+);base64,(.+)$/i);
+  if (m) return { mime: m[1].toLowerCase(), buf: Buffer.from(m[2], 'base64') };
+  const img = decodeImagePayload(s);
+  if (img) return { mime: img.mime, buf: img.buf };
+  if (fallbackMime) {
+    try {
+      const buf = Buffer.from(s.replace(/\s+/g, ''), 'base64');
+      if (buf.length) return { mime: fallbackMime, buf };
+    } catch { /* ignore */ }
+  }
+  return null;
 }
 
 function fallbackCursorSummary(ctx = {}) {
@@ -542,6 +744,7 @@ async function summarizeCursorContext({ imageUrl, context }, apiKey) {
       temperature: 0.2,
       max_tokens: 120,
       stream: false,
+      usage: { include: true },
     }),
   });
 
@@ -558,6 +761,8 @@ async function summarizeCursorContext({ imageUrl, context }, apiKey) {
 
   const json = await upstream.json();
   const usage = json.usage || {};
+  const raw = String(json.choices?.[0]?.message?.content || '').trim();
+  const clamped = clampWords(raw.replace(/^["']|["']$/g, ''), 50);
   agentUsage.record({
     surface: 'cursor',
     model: json.model || CURSOR_VISION_MODEL,
@@ -566,9 +771,9 @@ async function summarizeCursorContext({ imageUrl, context }, apiKey) {
     cost: usage.cost ?? null,
     ok: true,
     label: 'activity',
+    input: '[screenshot]',
+    output: clamped.summary || raw,
   });
-  const raw = String(json.choices?.[0]?.message?.content || '').trim();
-  const clamped = clampWords(raw.replace(/^["']|["']$/g, ''), 50);
   if (!clamped.summary) return { ...fallbackCursorSummary(ctx), source: 'fallback-empty' };
   return { ...clamped, source: 'model' };
 }
@@ -610,7 +815,6 @@ function startSse(res) {
 
 let restartScheduled = false;
 let restartSpawned = false;
-let geoCache = { at: 0, data: null }; // IP location, refreshed hourly
 
 const server = http.createServer(async (req, res) => {
   const full = req.url || '/';
@@ -648,14 +852,174 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // ---- local Kitten TTS (live companion voice) ----
+  if (url === '/api/tts' && req.method === 'GET') {
+    try {
+      send(res, 200, JSON.stringify(await tts.status()));
+    } catch (e) {
+      send(res, 500, JSON.stringify({ ok: false, error: String(e.message || e) }));
+    }
+    return;
+  }
+  if (url === '/api/tts' && req.method === 'POST') {
+    let body = {};
+    try { body = JSON.parse(await readBody(req) || '{}'); } catch { body = {}; }
+    try {
+      const out = await tts.synthesize(body.text, body.voice, body.speed);
+      res.writeHead(200, {
+        'Content-Type': 'audio/wav',
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'no-store',
+        'X-TTS-Voice': out.voice || '',
+        'X-TTS-Ms': String(out.ms == null ? '' : out.ms),
+      });
+      res.end(out.buffer);
+    } catch (e) {
+      send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
+
   // ---- live companion: speech finals → streamed reply + durable session ----
   if (url === '/api/live' && req.method === 'GET') {
     send(res, 200, JSON.stringify({ messages: getHistory() }));
     return;
   }
+  if (url === '/api/live/memory' && req.method === 'GET') {
+    send(res, 200, JSON.stringify(getValinorMemory()));
+    return;
+  }
+  if (url === '/api/live/memory/open' && req.method === 'POST') {
+    const mem = getValinorMemory();
+    if (process.platform !== 'darwin') {
+      send(res, 400, JSON.stringify({ ok: false, error: 'Open is macOS-only' }));
+      return;
+    }
+    execFile('open', [mem.path], (err) => {
+      send(res, err ? 500 : 200, JSON.stringify({
+        ok: !err,
+        displayPath: mem.displayPath,
+        error: err ? String(err.message || err) : undefined,
+      }));
+    });
+    return;
+  }
   if (url === '/api/live' && req.method === 'DELETE') {
     clearSession();
     send(res, 200, JSON.stringify({ ok: true }));
+    return;
+  }
+  // ---- live threads: topic list, switch, new, continue-from-harness ----
+  if (url === '/api/live/conversations' && req.method === 'GET') {
+    try {
+      send(res, 200, JSON.stringify({ conversations: listLiveConversations() }));
+    } catch (e) {
+      send(res, 500, JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
+  if (url === '/api/live/conversation' && req.method === 'GET') {
+    const c = getLiveConversation(params.get('id') || '');
+    if (!c) { send(res, 404, JSON.stringify({ error: 'not found' })); return; }
+    send(res, 200, JSON.stringify(c));
+    return;
+  }
+  if (url === '/api/live/conversation/new' && req.method === 'POST') {
+    let body = {};
+    try { body = JSON.parse(await readBody(req) || '{}'); } catch { body = {}; }
+    try {
+      const c = await newLiveConversation(body.title || '');
+      send(res, 200, JSON.stringify(c));
+    } catch (e) {
+      send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
+  if (url === '/api/live/conversation/switch' && req.method === 'POST') {
+    let body = {};
+    try { body = JSON.parse(await readBody(req) || '{}'); } catch { body = {}; }
+    try {
+      const c = await switchLiveConversation(String(body.id || ''));
+      send(res, 200, JSON.stringify(c));
+    } catch (e) {
+      send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
+  if (url === '/api/live/conversation/continue' && req.method === 'POST') {
+    let body = {};
+    try { body = JSON.parse(await readBody(req) || '{}'); } catch { body = {}; }
+    try {
+      const c = await continueImportedConversation({
+        title: body.title || '',
+        source: body.source || '',
+        transcript: body.transcript || '',
+        messages: Array.isArray(body.messages) ? body.messages : [],
+      });
+      send(res, 200, JSON.stringify(c));
+    } catch (e) {
+      send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
+  // ---- live system-prompt lab: edit / dry-run / refine / revert Val's voice prompt ----
+  if (url === '/api/live/prompt' && req.method === 'GET') {
+    try {
+      send(res, 200, JSON.stringify(livePrompt.getLab()));
+    } catch (e) {
+      send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
+  if (url === '/api/live/prompt' && req.method === 'POST') {
+    let body = {};
+    try { body = JSON.parse(await readBody(req) || '{}'); } catch { body = {}; }
+    try {
+      const out = livePrompt.deployPrompt(body.prompt || '', body.note || '');
+      try { await resetLivePi(); } catch { /* session resets on next turn */ }
+      send(res, 200, JSON.stringify({ ok: true, ...out, versions: livePrompt.getLab().versions }));
+    } catch (e) {
+      send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
+  if (url === '/api/live/prompt/test' && req.method === 'POST') {
+    let body = {};
+    try { body = JSON.parse(await readBody(req) || '{}'); } catch { body = {}; }
+    try {
+      const out = await livePrompt.testPrompt(body.prompt || '', body.input || '', process.env.OPENROUTER_API_KEY || '');
+      send(res, 200, JSON.stringify(out));
+    } catch (e) {
+      send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
+  if (url === '/api/live/prompt/refine' && req.method === 'POST') {
+    let body = {};
+    try { body = JSON.parse(await readBody(req) || '{}'); } catch { body = {}; }
+    try {
+      const out = await livePrompt.refinePrompt({
+        prompt: body.prompt || '',
+        testInput: body.testInput || '',
+        testResponse: body.testResponse || '',
+        feedback: body.feedback || '',
+      }, process.env.OPENROUTER_API_KEY || '');
+      send(res, 200, JSON.stringify(out));
+    } catch (e) {
+      send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
+  if (url === '/api/live/prompt/revert' && req.method === 'POST') {
+    let body = {};
+    try { body = JSON.parse(await readBody(req) || '{}'); } catch { body = {}; }
+    try {
+      const out = livePrompt.revertVersion(String(body.id || ''));
+      try { await resetLivePi(); } catch { /* session resets on next turn */ }
+      send(res, 200, JSON.stringify({ ok: true, ...out, versions: livePrompt.getLab().versions }));
+    } catch (e) {
+      send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) }));
+    }
     return;
   }
   if (url === '/api/live' && req.method === 'POST') {
@@ -669,6 +1033,77 @@ const server = http.createServer(async (req, res) => {
       try { res.write(`data: ${JSON.stringify({ type: 'error', message: String(e.message || e) })}\n\n`); } catch {}
     }
     try { res.end(); } catch {}
+    return;
+  }
+
+  // ---- rehearse: mock interview partner (SSE turns + cloud TTS) ----
+  if (url === '/api/rehearse/config' && req.method === 'GET') {
+    try {
+      send(res, 200, JSON.stringify(rehearse.getConfigSnapshot()));
+    } catch (e) { send(res, 500, JSON.stringify({ error: String(e.message || e) })); }
+    return;
+  }
+  if (url === '/api/rehearse' && req.method === 'GET') {
+    const s = rehearse.getSession(params.get('sessionId') || '');
+    if (!s) { send(res, 404, JSON.stringify({ error: 'unknown session' })); return; }
+    // Never leak companion context — history only.
+    send(res, 200, JSON.stringify({
+      sessionId: s.id, sessionType: s.type, mode: s.mode,
+      sessionNumber: s.sessionNumber, depth: s.depth, turns: s.turns,
+      history: s.history,
+    }));
+    return;
+  }
+  if (url === '/api/rehearse' && req.method === 'POST') {
+    startSse(res);
+    let body = {};
+    try { body = JSON.parse(await readBody(req) || '{}'); } catch { body = {}; }
+    const apiKey = process.env.OPENROUTER_API_KEY || '';
+    const ac = new AbortController();
+    let settled = false;
+    // res (not req) 'close': req 'close' fires as soon as the POST body is
+    // consumed, which would abort every turn instantly. res 'close' fires on
+    // client disconnect (barge-in / Stop / tab switch) or after res.end().
+    res.on('close', () => {
+      // Client disconnected (barge-in / Stop / tab switch) — halt the OpenRouter stream.
+      if (!settled) { settled = true; try { ac.abort(); } catch {} }
+    });
+    try {
+      await rehearse.runRehearseTurn(res, body, apiKey, { signal: ac.signal });
+    } catch (e) {
+      if (!ac.signal.aborted) {
+        try { res.write(`data: ${JSON.stringify({ type: 'error', message: String(e.message || e) })}\n\n`); } catch {}
+      }
+    }
+    settled = true;
+    try { res.end(); } catch {}
+    return;
+  }
+  if (url === '/api/rehearse' && req.method === 'DELETE') {
+    const ok = rehearse.endSession(params.get('sessionId') || '');
+    send(res, ok ? 200 : 404, JSON.stringify(ok ? { ok: true } : { error: 'unknown session' }));
+    return;
+  }
+  if (url === '/api/rehearse/tts' && req.method === 'POST') {
+    let body = {};
+    try { body = JSON.parse(await readBody(req) || '{}'); } catch { body = {}; }
+    const apiKey = process.env.OPENROUTER_API_KEY || '';
+    try {
+      const out = await rehearse.synthesizeRehearseTts(body.text, apiKey, {
+        voice: body.voice, format: body.format,
+      });
+      res.writeHead(200, {
+        'Content-Type': out.contentType || 'audio/mpeg',
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'no-store',
+        'X-TTS-Model': out.model || '',
+        'X-TTS-Ms': String(out.ms == null ? '' : out.ms),
+        ...(out.cached ? { 'X-TTS-Cache': 'hit' } : {}),
+      });
+      res.end(out.buffer);
+    } catch (e) {
+      send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) }));
+    }
     return;
   }
 
@@ -688,6 +1123,385 @@ const server = http.createServer(async (req, res) => {
     } catch (e) {
       send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) }));
     }
+    return;
+  }
+
+  // ---- ingest store: voice capture -> refine+plan -> markdown file (PRIVATE) ----
+  if (url === '/api/ingest/capture' && req.method === 'POST') {
+    let body = {};
+    try { body = JSON.parse(await readBody(req) || '{}'); } catch { body = {}; }
+    const apiKey = process.env.OPENROUTER_API_KEY || '';
+    try {
+      const rec = await ingest.capture(body, apiKey);
+      send(res, 200, JSON.stringify(rec));
+      // Epic 1: auto-render this capture into an EXECUTE suggestion in the BACKGROUND.
+      // Fire-and-forget AFTER the response is flushed — never awaited, so capture latency
+      // is unchanged (P8). Failures are swallowed/logged, never surfaced to capture. The
+      // manual "Scan ingest" button remains the backstop for anything this misses.
+      if (rec && rec.id) {
+        Promise.resolve()
+          .then(() => execute.renderNoteToSuggestion(rec.id, apiKey))
+          .catch((err) => console.warn('[ingest] auto-render failed:', err && err.message ? err.message : err));
+      }
+    } catch (e) {
+      send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
+  if (url === '/api/ingest' && req.method === 'GET') {
+    try {
+      send(res, 200, JSON.stringify({ items: ingest.listCaptures(200), dir: ingest.INGEST_DIR }));
+    } catch (e) {
+      send(res, 500, JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
+  if (url === '/api/ingest/item' && req.method === 'GET') {
+    const rec = ingest.readCapture(params.get('id'));
+    if (!rec) { send(res, 404, JSON.stringify({ error: 'not found' })); return; }
+    send(res, 200, JSON.stringify(rec));
+    return;
+  }
+  if (url === '/api/ingest/item' && req.method === 'DELETE') {
+    const ok = ingest.deleteCapture(params.get('id'));
+    if (!ok) { send(res, 404, JSON.stringify({ error: 'not found' })); return; }
+    send(res, 200, JSON.stringify({ ok: true }));
+    return;
+  }
+  if (url === '/api/ingest/media' && req.method === 'GET') {
+    const fileParam = params.get('file');
+    const media = fileParam ? ingest.readMediaFile(params.get('id'), fileParam) : ingest.readMedia(params.get('id'));
+    if (!media) { send(res, 404, JSON.stringify({ error: 'not found' })); return; }
+    res.writeHead(200, {
+      'Content-Type': media.mime,
+      'Access-Control-Allow-Origin': '*',
+      'Cache-Control': 'private, max-age=3600',
+    });
+    res.end(media.buffer);
+    return;
+  }
+  // pull Apple Notes (incl. phone notes via iCloud) into the store — manual sync button
+  if (url === '/api/ingest/apple-notes/sync' && req.method === 'POST') {
+    let body = {};
+    try { body = JSON.parse(await readBody(req) || '{}'); } catch { body = {}; }
+    try {
+      const summary = await appleNotes.importNotes({ folder: body.folder || null });
+      send(res, 200, JSON.stringify(summary));
+    } catch (e) {
+      send(res, 500, JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
+  // scan recent Apple Photos → export + thumbnail candidates for the picker (pick-first)
+  if (url === '/api/ingest/apple-photos/scan' && req.method === 'POST') {
+    let body = {};
+    try { body = JSON.parse(await readBody(req) || '{}'); } catch { body = {}; }
+    try {
+      const out = await applePhotos.scanRecent({ hours: Number(body.hours) || 48, max: Number(body.max) || 150 });
+      send(res, 200, JSON.stringify(out));
+    } catch (e) {
+      send(res, 500, JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
+  // serve a cached photo thumbnail for the picker
+  if (url === '/api/ingest/apple-photos/thumb' && req.method === 'GET') {
+    const p = applePhotos.thumbPath(params.get('token'));
+    if (!p) { send(res, 404, JSON.stringify({ error: 'not found' })); return; }
+    res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'private, max-age=600' });
+    res.end(fs.readFileSync(p));
+    return;
+  }
+  // ingest the chosen photos (caption + write into store)
+  if (url === '/api/ingest/apple-photos/ingest' && req.method === 'POST') {
+    let body = {};
+    try { body = JSON.parse(await readBody(req) || '{}'); } catch { body = {}; }
+    const apiKey = process.env.OPENROUTER_API_KEY || '';
+    try {
+      const out = await applePhotos.ingestSelected({ tokens: Array.isArray(body.tokens) ? body.tokens : [] }, apiKey);
+      send(res, 200, JSON.stringify(out));
+    } catch (e) {
+      send(res, 500, JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
+  // manually re-scan the Mac screenshots folder (also runs automatically on boot)
+  if (url === '/api/ingest/screenshots/sync' && req.method === 'POST') {
+    let body = {};
+    try { body = JSON.parse(await readBody(req) || '{}'); } catch { body = {}; }
+    const apiKey = process.env.OPENROUTER_API_KEY || '';
+    try {
+      const out = await screenshots.importScreenshots({ sinceHours: Number(body.sinceHours) || undefined }, apiKey);
+      send(res, 200, JSON.stringify(out));
+    } catch (e) {
+      send(res, 500, JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
+  // ---- pull integrations: config + email + imessage + pull-all ----
+  if (url === '/api/ingest/integrations' && req.method === 'GET') {
+    try {
+      send(res, 200, JSON.stringify(integrations.getConfig()));
+    } catch (e) {
+      send(res, 500, JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
+  if (url === '/api/ingest/integrations' && req.method === 'POST') {
+    let body = {};
+    try { body = JSON.parse(await readBody(req) || '{}'); } catch { body = {}; }
+    try {
+      send(res, 200, JSON.stringify(integrations.saveConfig(body)));
+    } catch (e) {
+      send(res, 500, JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
+  if (url === '/api/ingest/email/sync' && req.method === 'POST') {
+    let body = {};
+    try { body = JSON.parse(await readBody(req) || '{}'); } catch { body = {}; }
+    try {
+      const cfg = integrations.getConfig().email;
+      const out = await emailIngest.importEmails({
+        mailbox: body.mailbox || cfg.mailbox,
+        days: body.days || cfg.days,
+        max: body.max || cfg.max,
+      });
+      send(res, 200, JSON.stringify(out));
+    } catch (e) {
+      send(res, 500, JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
+  if (url === '/api/ingest/imessage/sync' && req.method === 'POST') {
+    let body = {};
+    try { body = JSON.parse(await readBody(req) || '{}'); } catch { body = {}; }
+    try {
+      const cfg = integrations.getConfig().imessage;
+      const out = await imessageIngest.importMessages({
+        days: body.days || cfg.days,
+        maxChats: body.maxChats || cfg.maxChats,
+        perChat: body.perChat || cfg.perChat,
+      });
+      send(res, 200, JSON.stringify(out));
+    } catch (e) {
+      send(res, 500, JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
+  // pull from all non-interactive sources (photos stays pick-first in its modal)
+  if (url === '/api/ingest/pull-all' && req.method === 'POST') {
+    const apiKey = process.env.OPENROUTER_API_KEY || '';
+    const cfg = integrations.getConfig();
+    const out = {};
+    const run = async (key, fn) => {
+      try { out[key] = { ok: true, ...(await fn()) }; }
+      catch (e) { out[key] = { ok: false, error: String(e.message || e) }; }
+    };
+    await run('notes', () => appleNotes.importNotes({}));
+    await run('screenshots', () => screenshots.importScreenshots({}, apiKey));
+    await run('email', () => emailIngest.importEmails(cfg.email));
+    await run('imessage', () => imessageIngest.importMessages(cfg.imessage));
+    send(res, 200, JSON.stringify(out));
+    return;
+  }
+  // enhance a note into ONE tangible outcome (the PLAN step, on demand)
+  if (url === '/api/ingest/enhance' && req.method === 'POST') {
+    const apiKey = process.env.OPENROUTER_API_KEY || '';
+    try {
+      const out = await ingest.enhance(params.get('id'), apiKey);
+      send(res, 200, JSON.stringify(out));
+    } catch (e) {
+      send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
+  // materialize a conversation record as a stable ingest capture (source 'convo'),
+  // so convos merged into the ingest list can route to Writing / Execute / Enhance.
+  // idempotent: same convoId always yields the same capture id.
+  if (url === '/api/ingest/materialize' && req.method === 'POST') {
+    let body = {};
+    try { body = JSON.parse(await readBody(req) || '{}'); } catch { body = {}; }
+    try {
+      const convoId = String(body.convoId || '').trim();
+      if (!convoId) throw Object.assign(new Error('convoId required'), { status: 400 });
+      const safe = convoId.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'x';
+      const id = `convo-${safe}`;
+      const title = String(body.title || convoId).slice(0, 120) || convoId;
+      const created = String(body.created || '') || new Date().toISOString();
+      const md = String(body.body || '');
+      const out = ingest.writeCapture({
+        id, created, source: 'convo', title,
+        raw: md, refined: '', plan: '', nextAction: '',
+        tags: ['ingest', 'convo'],
+      });
+      send(res, 200, JSON.stringify({ id: out.id }));
+    } catch (e) {
+      send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
+
+  // ---- execute store: tangible outcomes -> tasks (Backlog/Active/Review/Done) PRIVATE ----
+  if (url === '/api/execute' && req.method === 'GET') {
+    try {
+      send(res, 200, JSON.stringify({ tasks: execute.listTasks(), dir: execute.EXECUTE_DIR }));
+    } catch (e) {
+      send(res, 500, JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
+  if (url === '/api/execute' && req.method === 'POST') {
+    let body = {};
+    try { body = JSON.parse(await readBody(req) || '{}'); } catch { body = {}; }
+    try {
+      const task = execute.createTask(body);
+      send(res, 200, JSON.stringify(task));
+    } catch (e) {
+      send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
+  if (url === '/api/execute/scan' && req.method === 'POST') {
+    let body = {};
+    try { body = JSON.parse(await readBody(req) || '{}'); } catch { body = {}; }
+    const apiKey = process.env.OPENROUTER_API_KEY || '';
+    try {
+      const out = await execute.scanIngest(apiKey, {
+        sinceHours: body.sinceHours,
+        limit: body.limit,
+      });
+      send(res, 200, JSON.stringify(out));
+    } catch (e) {
+      send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
+  if (url === '/api/execute/promote' && req.method === 'POST') {
+    try {
+      const task = execute.promoteTask(params.get('id'));
+      send(res, 200, JSON.stringify(task));
+    } catch (e) {
+      send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
+  if (url === '/api/execute/archive' && req.method === 'POST') {
+    try {
+      const task = execute.archiveTask(params.get('id'));
+      send(res, 200, JSON.stringify(task));
+    } catch (e) {
+      send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
+  if (url === '/api/execute/archive-done' && req.method === 'POST') {
+    try {
+      const out = execute.archiveCompleted();
+      send(res, 200, JSON.stringify(out));
+    } catch (e) {
+      send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
+  if (url === '/api/execute/evals' && req.method === 'GET') {
+    try {
+      const out = execute.evalRuns({ limit: params.get('limit') });
+      send(res, 200, JSON.stringify(out));
+    } catch (e) {
+      send(res, 500, JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
+  if (url === '/api/execute/item' && req.method === 'PATCH') {
+    let body = {};
+    try { body = JSON.parse(await readBody(req) || '{}'); } catch { body = {}; }
+    try {
+      const task = execute.updateTask(params.get('id'), body);
+      send(res, 200, JSON.stringify(task));
+    } catch (e) {
+      send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
+  if (url === '/api/execute/item' && req.method === 'DELETE') {
+    const ok = execute.deleteTask(params.get('id'));
+    if (!ok) { send(res, 404, JSON.stringify({ error: 'not found' })); return; }
+    send(res, 200, JSON.stringify({ ok: true }));
+    return;
+  }
+  if (url === '/api/execute/start' && req.method === 'POST') {
+    try {
+      const task = execute.startTask(params.get('id'));
+      send(res, 200, JSON.stringify(task));
+    } catch (e) {
+      send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
+  if (url === '/api/execute/unstep' && req.method === 'POST') {
+    try {
+      const task = execute.unstepTask(params.get('id'));
+      send(res, 200, JSON.stringify(task));
+    } catch (e) {
+      send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
+  if (url === '/api/execute/proof' && req.method === 'POST') {
+    let body = {};
+    try { body = JSON.parse(await readBody(req) || '{}'); } catch { body = {}; }
+    const decoded = decodeFilePayload(body.file || body.image, body.mime);
+    if (!decoded?.buf?.length) { send(res, 400, JSON.stringify({ error: 'proof file required' })); return; }
+    const apiKey = process.env.OPENROUTER_API_KEY || '';
+    try {
+      const task = await execute.attachProof(
+        { id: params.get('id'), buf: decoded.buf, mime: body.mime || decoded.mime, filename: body.name }, apiKey);
+      send(res, 200, JSON.stringify(task));
+    } catch (e) {
+      send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
+  if (url === '/api/execute/review' && req.method === 'POST') {
+    let body = {};
+    try { body = JSON.parse(await readBody(req) || '{}'); } catch { body = {}; }
+    try {
+      const task = execute.saveReview(params.get('id'), body.answer);
+      // Loop-back: write the review Q&A into the ingest store as a fresh note.
+      try {
+        const q = task.review?.question || '';
+        const a = task.review?.answer || '';
+        ingest.writeCapture({
+          source: 'review',
+          title: `Review · ${task.title}`.slice(0, 80),
+          refined: [q ? `Q: ${q}` : '', a ? `A: ${a}` : ''].filter(Boolean).join('\n'),
+          plan: [],
+          nextAction: '',
+          tags: ['ingest', 'review'],
+        });
+      } catch (e) {
+        console.warn('[execute] review loop-back to ingest failed:', e && e.message ? e.message : e);
+      }
+      send(res, 200, JSON.stringify(task));
+    } catch (e) {
+      send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
+  if (url === '/api/execute/proof/media' && req.method === 'GET') {
+    const media = execute.readProof(params.get('id'));
+    if (!media) { send(res, 404, JSON.stringify({ error: 'not found' })); return; }
+    const inline = /^image\//i.test(media.mime);
+    const disp = inline ? 'inline' : 'attachment';
+    const filename = String(media.name || 'proof').replace(/[\r\n"]/g, '');
+    res.writeHead(200, {
+      'Content-Type': media.mime,
+      'Content-Disposition': `${disp}; filename="${filename}"`,
+      'Access-Control-Allow-Origin': '*',
+      'Cache-Control': 'private, max-age=3600',
+    });
+    res.end(media.buffer);
     return;
   }
 
@@ -774,19 +1588,104 @@ const server = http.createServer(async (req, res) => {
   // ---- letters: real markdown files in ./letters ----
   if (url === '/api/letters' && req.method === 'GET') {
     try {
-      if (!fs.existsSync(LETTERS)) fs.mkdirSync(LETTERS);
-      const list = fs.readdirSync(LETTERS).filter(f => f.endsWith('.md')).map(f => {
-        const p = path.join(LETTERS, f), st = fs.statSync(p);
-        return { file: f, mtime: st.mtimeMs, preview: fs.readFileSync(p, 'utf8').slice(0, 500) };
+      if (!fs.existsSync(lettersDir())) fs.mkdirSync(lettersDir());
+      const list = fs.readdirSync(lettersDir()).filter(f => f.endsWith('.md')).map(f => {
+        const p = path.join(lettersDir(), f), st = fs.statSync(p);
+        return { file: f, path: p, mtime: st.mtimeMs, preview: fs.readFileSync(p, 'utf8').slice(0, 500) };
       }).sort((a, b) => b.mtime - a.mtime);
-      send(res, 200, JSON.stringify(list));
+      send(res, 200, JSON.stringify({ dir: lettersDir(), letters: list }));
     } catch (e) { send(res, 500, JSON.stringify({ error: String(e) })); }
+    return;
+  }
+  async function gatherSessionPacket(hours) {
+    const [recentR, machineSnapshot] = await Promise.all([
+      sauronExec(['experience', 'recent', '80', '--json']),
+      getMachineSnapshot(hours).catch(() => null),
+    ]);
+    const sauronRecent = Array.isArray(recentR.data) ? recentR.data : [];
+    return letterSession.gather({
+      hours,
+      ingest,
+      execute,
+      getHistory,
+      sauronRecent,
+      machineSnapshot,
+      agentSnapshot: agentUsage.getSnapshot(hours),
+    });
+  }
+  if (url === '/api/letters/from-session' && req.method === 'POST') {
+    let body = {};
+    try { body = JSON.parse(await readBody(req) || '{}'); } catch { body = {}; }
+    const hours = Math.max(0.25, Math.min(6, Number(body.hours) || 1));
+    const apiKey = process.env.OPENROUTER_API_KEY || '';
+    try {
+      const gathered = await gatherSessionPacket(hours);
+      const letter = await letterSession.writeFromSession(gathered, apiKey);
+      if (!fs.existsSync(lettersDir())) fs.mkdirSync(lettersDir());
+      const d = new Date();
+      const file = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}-${d.getTime().toString(36)}.md`;
+      const fp = path.join(lettersDir(), file);
+      fs.writeFileSync(fp, letter.body);
+      send(res, 200, JSON.stringify({ file, path: fp, title: letter.title, hours }));
+    } catch (e) {
+      send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
+  // ---- session reflection prompt: editable system prompt behind "From this hour" ----
+  if (url === '/api/letters/session-prompt' && req.method === 'GET') {
+    try { send(res, 200, JSON.stringify(letterSession.getPrompt())); }
+    catch (e) { send(res, 500, JSON.stringify({ error: String(e.message || e) })); }
+    return;
+  }
+  if (url === '/api/letters/session-prompt/test' && req.method === 'POST') {
+    try {
+      const b = JSON.parse(await readBody(req) || '{}');
+      const hours = Math.max(0.25, Math.min(6, Number(b.hours) || 1));
+      const apiKey = process.env.OPENROUTER_API_KEY || '';
+      const gathered = await gatherSessionPacket(hours);
+      const out = await letterSession.testSessionPrompt({ prompt: b.prompt, gathered }, apiKey);
+      send(res, 200, JSON.stringify(out));
+    } catch (e) { send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) })); }
+    return;
+  }
+  if (url === '/api/letters/session-prompt/refine' && req.method === 'POST') {
+    try {
+      const b = JSON.parse(await readBody(req) || '{}');
+      const apiKey = process.env.OPENROUTER_API_KEY || '';
+      const out = await letterSession.refineSessionPrompt({
+        prompt: b.prompt, testTitle: b.testTitle, testBody: b.testBody,
+        feedback: b.feedback, runId: b.runId,
+      }, apiKey);
+      send(res, 200, JSON.stringify(out));
+    } catch (e) { send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) })); }
+    return;
+  }
+  if (url === '/api/letters/session-prompt/runs' && req.method === 'GET') {
+    try { send(res, 200, JSON.stringify(letterSession.listPromptRuns())); }
+    catch (e) { send(res, 500, JSON.stringify({ error: String(e.message || e) })); }
+    return;
+  }
+  if (url === '/api/letters/session-prompt/revert' && req.method === 'POST') {
+    try {
+      const b = JSON.parse(await readBody(req) || '{}');
+      const out = letterSession.revertPromptRun(b.id, b.which);
+      send(res, 200, JSON.stringify(out));
+    } catch (e) { send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) })); }
+    return;
+  }
+  if (url === '/api/letters/session-prompt' && req.method === 'POST') {
+    try {
+      const b = JSON.parse(await readBody(req) || '{}');
+      const saved = b.reset ? letterSession.resetPrompt() : letterSession.savePrompt(b.prompt);
+      send(res, 200, JSON.stringify(saved));
+    } catch (e) { send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) })); }
     return;
   }
   const lm = url.match(/^\/api\/letter\/([\w][\w.-]*\.md)$/);
   if (lm) {
-    const fp2 = path.join(LETTERS, lm[1]);
-    if (!fs.existsSync(LETTERS)) fs.mkdirSync(LETTERS);
+    const fp2 = path.join(lettersDir(), lm[1]);
+    if (!fs.existsSync(lettersDir())) fs.mkdirSync(lettersDir());
     if (req.method === 'GET') {
       fs.readFile(fp2, 'utf8', (e, d) => e ? send(res, 404, 'not found', 'text/plain') : send(res, 200, d, 'text/markdown'));
       return;
@@ -794,13 +1693,196 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST') {
       let body = '';
       req.on('data', c => (body += c));
-      req.on('end', () => { try { fs.writeFileSync(fp2, body); send(res, 200, '{"ok":true}'); } catch (e) { send(res, 500, '{"error":"write failed"}'); } });
+      req.on('end', () => { try { fs.writeFileSync(fp2, body); send(res, 200, JSON.stringify({ ok: true, path: fp2 })); } catch (e) { send(res, 500, '{"error":"write failed"}'); } });
       return;
     }
     if (req.method === 'DELETE') {
       try { fs.unlinkSync(fp2); send(res, 200, '{"ok":true}'); } catch (e) { send(res, 404, '{"error":"not found"}'); }
       return;
     }
+  }
+  const lhm = url.match(/^\/api\/letter-history\/([\w][\w.()\- ]*\.md)$/);
+  if (lhm) {
+    const hp = letterHistPath(lhm[1]);
+    if (!hp) { send(res, 400, JSON.stringify({ error: 'bad filename' })); return; }
+    if (req.method === 'GET') {
+      send(res, 200, JSON.stringify({ entries: readLetterHist(lhm[1]).slice().reverse() }));
+      return;
+    }
+    if (req.method === 'POST') {
+      try {
+        const b = JSON.parse(await readBody(req) || '{}');
+        const clip = (s, n) => String(s == null ? '' : s).slice(0, n);
+        const histDir = letterHistDir();
+        if (!fs.existsSync(histDir)) fs.mkdirSync(histDir, { recursive: true });
+        const entries = readLetterHist(lhm[1]);
+        const entry = {
+          id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+          ts: Date.now(),
+          prompt: clip(b.prompt, 500),
+          before: clip(b.before, 4000),
+          after: clip(b.after, 4000),
+          docBefore: clip(b.docBefore, 60000),
+          docAfter: clip(b.docAfter, 60000),
+          runId: clip(b.runId, 32),
+          revertOf: clip(b.revertOf, 32),
+        };
+        if (!entry.after && !entry.docAfter) { send(res, 400, JSON.stringify({ error: 'nothing to record' })); return; }
+        entries.push(entry);
+        while (entries.length > LETTER_HIST_CAP) entries.shift();
+        fs.writeFileSync(hp, JSON.stringify(entries, null, 2));
+        send(res, 200, JSON.stringify({ entry, entries: entries.slice().reverse() }));
+      } catch (e) { send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) })); }
+      return;
+    }
+  }
+
+  // ---- writing voice: exemplars, the distilled profile, and the rewrite engine ----
+  if (url === '/api/writing/voice' && req.method === 'GET') {
+    try {
+      const { profile, updatedAt, exists } = writingVoice.getProfile();
+      send(res, 200, JSON.stringify({
+        profile, updatedAt, exists,
+        stars: writingVoice.getStars(),
+        samples: writingVoice.getSamples(),
+        hasKey: Boolean(process.env.OPENROUTER_API_KEY),
+      }));
+    } catch (e) { send(res, 500, JSON.stringify({ error: String(e.message || e) })); }
+    return;
+  }
+  if (url === '/api/writing/voice' && req.method === 'POST') {
+    try {
+      const body = await readBody(req);
+      const parsed = (() => { try { return JSON.parse(body); } catch { return { profile: body }; } })();
+      const saved = writingVoice.saveProfile(parsed.profile != null ? parsed.profile : body);
+      send(res, 200, JSON.stringify(saved));
+    } catch (e) { send(res, 500, JSON.stringify({ error: String(e.message || e) })); }
+    return;
+  }
+  if (url === '/api/writing/voice/build' && req.method === 'POST') {
+    try {
+      const saved = await writingVoice.buildProfile({ apiKey: process.env.OPENROUTER_API_KEY || '' });
+      send(res, 200, JSON.stringify(saved));
+    } catch (e) { send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) })); }
+    return;
+  }
+  if (url === '/api/writing/star' && req.method === 'POST') {
+    try {
+      const b = JSON.parse(await readBody(req) || '{}');
+      const stars = writingVoice.setStar(b.file, b.on !== false);
+      send(res, 200, JSON.stringify({ stars }));
+    } catch (e) { send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) })); }
+    return;
+  }
+  if (url === '/api/writing/sample' && req.method === 'POST') {
+    try {
+      const b = JSON.parse(await readBody(req) || '{}');
+      const sample = writingVoice.addSample(b);
+      send(res, 200, JSON.stringify({ sample, samples: writingVoice.getSamples() }));
+    } catch (e) { send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) })); }
+    return;
+  }
+  const sm = url.match(/^\/api\/writing\/sample\/([\w]+)$/);
+  if (sm && req.method === 'DELETE') {
+    try {
+      const samples = writingVoice.removeSample(sm[1]);
+      send(res, 200, JSON.stringify({ samples }));
+    } catch (e) { send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) })); }
+    return;
+  }
+  if (url === '/api/writing/rewrite' && req.method === 'POST') {
+    try {
+      const b = JSON.parse(await readBody(req) || '{}');
+      const out = await writingVoice.rewriteSample({ ...b, apiKey: process.env.OPENROUTER_API_KEY || '' });
+      send(res, 200, JSON.stringify(out));
+    } catch (e) { send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) })); }
+    return;
+  }
+  if (url === '/api/writing/voice/refine' && req.method === 'POST') {
+    try {
+      const b = JSON.parse(await readBody(req) || '{}');
+      const saved = await writingVoice.refineProfileFromFeedback({ ...b, apiKey: process.env.OPENROUTER_API_KEY || '' });
+      send(res, 200, JSON.stringify(saved));
+    } catch (e) { send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) })); }
+    return;
+  }
+  if (url === '/api/writing/voice/runs' && req.method === 'GET') {
+    try { send(res, 200, JSON.stringify({ runs: writingVoice.listRuns(80) })); }
+    catch (e) { send(res, 500, JSON.stringify({ error: String(e.message || e) })); }
+    return;
+  }
+  if (url === '/api/writing/voice/revert' && req.method === 'POST') {
+    try {
+      const b = JSON.parse(await readBody(req) || '{}');
+      const saved = writingVoice.revertToRun(b.id, b.which || 'before');
+      send(res, 200, JSON.stringify(saved));
+    } catch (e) { send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) })); }
+    return;
+  }
+
+  // ---- writing pipeline: Inspiration Ideas routed from ingest -> thread -> draft ----
+  if (url === '/api/writing/projects' && req.method === 'GET') {
+    try { send(res, 200, JSON.stringify({ projects: writingPipeline.listProjects() })); }
+    catch (e) { send(res, 500, JSON.stringify({ error: String(e.message || e) })); }
+    return;
+  }
+  if (url === '/api/writing/route' && req.method === 'POST') {
+    try {
+      const b = JSON.parse(await readBody(req) || '{}');
+      const p = writingPipeline.routeFromIngest(String(b.ingestId || ''));
+      send(res, 200, JSON.stringify(p));
+    } catch (e) { send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) })); }
+    return;
+  }
+  if (url === '/api/writing/project' && req.method === 'GET') {
+    try { send(res, 200, JSON.stringify(writingPipeline.getProject(params.get('id') || ''))); }
+    catch (e) { send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) })); }
+    return;
+  }
+  if (url === '/api/writing/project/accept' && req.method === 'POST') {
+    try {
+      const b = JSON.parse(await readBody(req) || '{}');
+      send(res, 200, JSON.stringify(writingPipeline.acceptProject(String(b.id || ''))));
+    } catch (e) { send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) })); }
+    return;
+  }
+  if (url === '/api/writing/project/dismiss' && req.method === 'POST') {
+    try {
+      const b = JSON.parse(await readBody(req) || '{}');
+      send(res, 200, JSON.stringify(writingPipeline.dismissProject(String(b.id || ''))));
+    } catch (e) { send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) })); }
+    return;
+  }
+  if (url === '/api/writing/project/reply' && req.method === 'POST') {
+    try {
+      const b = JSON.parse(await readBody(req) || '{}');
+      send(res, 200, JSON.stringify(writingPipeline.appendReply(String(b.id || ''), b.text || '')));
+    } catch (e) { send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) })); }
+    return;
+  }
+  if (url === '/api/writing/project/research' && req.method === 'POST') {
+    try {
+      const b = JSON.parse(await readBody(req) || '{}');
+      const p = await writingPipeline.runResearch(String(b.id || ''), process.env.OPENROUTER_API_KEY || '');
+      send(res, 200, JSON.stringify(p));
+    } catch (e) { send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) })); }
+    return;
+  }
+  if (url === '/api/writing/project/options' && req.method === 'POST') {
+    try {
+      const b = JSON.parse(await readBody(req) || '{}');
+      const p = await writingPipeline.runOptions(String(b.id || ''), process.env.OPENROUTER_API_KEY || '');
+      send(res, 200, JSON.stringify(p));
+    } catch (e) { send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) })); }
+    return;
+  }
+  if (url === '/api/writing/project/draft' && req.method === 'POST') {
+    try {
+      const b = JSON.parse(await readBody(req) || '{}');
+      const p = await writingPipeline.runDraft(String(b.id || ''), process.env.OPENROUTER_API_KEY || '');
+      send(res, 200, JSON.stringify(p));
+    } catch (e) { send(res, e.status || 500, JSON.stringify({ error: String(e.message || e) })); }
+    return;
   }
 
   // ---- conversations: past agent sessions from Sauron's experience graph ----
@@ -856,6 +1938,23 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // ---- activity screen grab: true macOS screenshot for cursor capture ----
+  // The cursor tool wants the actual screen (main display) with the trail stamped
+  // on top — not an html2canvas re-render of one iframe. macOS-only; the client
+  // falls back to the html2canvas path when this 501s or fails.
+  if (url === '/api/activity/screen' && req.method === 'POST') {
+    if (process.platform !== 'darwin') { send(res, 501, JSON.stringify({ error: 'screen capture is macOS-only' })); return; }
+    const tmp = path.join(os.tmpdir(), `valinor-screen-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`);
+    execFile('screencapture', ['-x', '-m', '-t', 'jpg', tmp], { timeout: 15000 }, () => {
+      fs.readFile(tmp, (e, buf) => {
+        fs.unlink(tmp, () => {});
+        if (e || !buf || !buf.length) { send(res, 500, JSON.stringify({ error: 'screencapture failed (no display access?)' })); return; }
+        send(res, 200, JSON.stringify({ dataUrl: 'data:image/jpeg;base64,' + buf.toString('base64'), bytes: buf.length }));
+      });
+    });
+    return;
+  }
+
   // ---- activity live cursor: save shot + ≤50-word summary (debounced client-side) ----
   if (url === '/api/activity/cursor-context' && req.method === 'POST') {
     let body = {};
@@ -878,11 +1977,29 @@ const server = http.createServer(async (req, res) => {
       }
     }
     const apiKey = process.env.OPENROUTER_API_KEY || '';
+    // Manual caption wins: skip the vision read entirely (no billed model call) —
+    // the user's words become the summary saved to ingest.
+    const manualCaption = String(body.caption || (body.context && body.context.caption) || '').trim();
     try {
-      const result = await summarizeCursorContext({
-        imageUrl: decoded?.dataUrl || null,
-        context: body.context || {},
-      }, apiKey);
+      const result = manualCaption
+        ? { ...clampWords(manualCaption, 200), source: 'manual-caption' }
+        : await summarizeCursorContext({
+          imageUrl: decoded?.dataUrl || null,
+          context: body.context || {},
+        }, apiKey);
+      let ingestRec = null;
+      if (decoded?.buf?.length) {
+        try {
+          ingestRec = ingest.writeCursorCapture({
+            imageBuf: decoded.buf,
+            mime: decoded.mime,
+            summary: result.summary,
+            context: body.context || {},
+          });
+        } catch (e) {
+          console.warn('[ingest] cursor capture save failed:', e && e.message ? e.message : e);
+        }
+      }
       send(res, 200, JSON.stringify({
         summary: result.summary,
         words: result.words,
@@ -890,7 +2007,10 @@ const server = http.createServer(async (req, res) => {
         error: result.error || null,
         screenshotPath: screenshotPath ? path.basename(screenshotPath) : null,
         screenshotAbsPath: screenshotPath,
-        screenshotUrl,
+        screenshotUrl: ingestRec
+          ? `/api/ingest/media?id=${encodeURIComponent(ingestRec.id)}&t=${Date.now()}`
+          : screenshotUrl,
+        ingestId: ingestRec ? ingestRec.id : null,
       }));
     } catch (e) {
       send(res, 500, JSON.stringify({ error: String(e.message || e) }));
@@ -906,6 +2026,26 @@ const server = http.createServer(async (req, res) => {
     } catch (e) {
       send(res, 500, JSON.stringify({ error: String(e.message || e) }));
     }
+    return;
+  }
+  if (url === '/api/sauron/task/complete' && req.method === 'POST') {
+    let body = {};
+    try { body = JSON.parse(await readBody(req) || '{}'); } catch { body = {}; }
+    const id = String(body.task_id || '').trim();
+    if (!sauronToken(id)) { send(res, 400, JSON.stringify({ error: 'missing task_id' })); return; }
+    const r = await sauronExec(['task', 'complete', id, '--json']);
+    bustMachineCache();
+    send(res, r.ok ? 200 : 500, JSON.stringify(r.ok ? { ok: true } : { error: r.error || 'complete failed' }));
+    return;
+  }
+  if (url === '/api/sauron/hint/stop' && req.method === 'POST') {
+    let body = {};
+    try { body = JSON.parse(await readBody(req) || '{}'); } catch { body = {}; }
+    const id = String(body.hint_id || '').trim();
+    if (!sauronToken(id)) { send(res, 400, JSON.stringify({ error: 'missing hint_id' })); return; }
+    const r = await sauronExec(['hint', 'stop', id, '--json']);
+    bustMachineCache();
+    send(res, r.ok ? 200 : 500, JSON.stringify(r.ok ? { ok: true } : { error: r.error || 'stop failed' }));
     return;
   }
 
@@ -982,7 +2122,7 @@ const server = http.createServer(async (req, res) => {
     const id = parseInt(params.get('id') || '', 10);
     if (!Number.isFinite(id)) { send(res, 400, JSON.stringify({ error: 'missing/invalid id' })); return; }
     try {
-      const file = path.join(ROOT, 'drafts.json');
+      const file = getDraftsPath();
       let all = [];
       try { all = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { all = []; }
       let changed = false;
@@ -1032,39 +2172,35 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // ---- IP geolocation (cached; for hub clock hover) ----
+  // ---- Place: OS timezone + optional browser GPS (IP city only if tz agrees) ----
   if (url === '/api/geo' && req.method === 'GET') {
-    const TTL = 60 * 60 * 1000;
-    if (geoCache.data && geoCache.data.ip && Date.now() - geoCache.at < TTL) {
-      send(res, 200, JSON.stringify(geoCache.data));
-      return;
-    }
     try {
-      const upstream = await fetch('https://ipapi.co/json/', {
-        headers: { 'User-Agent': 'valinor-hub/1.0', Accept: 'application/json' },
-      });
-      if (!upstream.ok) throw new Error(`geo HTTP ${upstream.status}`);
-      const json = await upstream.json();
-      if (json.error) throw new Error(json.reason || json.error);
-      const data = {
-        ip: json.ip || null,
-        city: json.city || null,
-        region: json.region || null,
-        region_code: json.region_code || null,
-        country: json.country_code || json.country || null,
-        country_code: json.country_code || json.country || null,
-        timezone: json.timezone || null,
-      };
-      geoCache = { at: Date.now(), data };
-      send(res, 200, JSON.stringify(data));
+      send(res, 200, JSON.stringify(await getHubGeo()));
     } catch (e) {
-      if (geoCache.data) { send(res, 200, JSON.stringify(geoCache.data)); return; }
+      send(res, 200, JSON.stringify({ city: null, country_code: null, local: true, error: String(e.message || e) }));
+    }
+    return;
+  }
+  if (url === '/api/geo' && req.method === 'POST') {
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      reportClientGeo(body.latitude, body.longitude);
+      send(res, 200, JSON.stringify(await getHubGeo()));
+    } catch (e) {
       send(res, 200, JSON.stringify({ city: null, country_code: null, local: true, error: String(e.message || e) }));
     }
     return;
   }
 
   // ---- server control (localhost self-restart) ----
+  if (url === '/api/server/info' && req.method === 'GET') {
+    try {
+      send(res, 200, JSON.stringify(await buildServerInfo()));
+    } catch (e) {
+      send(res, 500, JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
   if (url === '/api/server/restart' && req.method === 'POST') {
     if (restartScheduled) {
       send(res, 409, JSON.stringify({ error: 'already restarting' }));
@@ -1075,6 +2211,7 @@ const server = http.createServer(async (req, res) => {
     setTimeout(() => {
       console.log('Valinor: restart requested — respawning server.js');
       stopLoopkeeper();
+      tts.stop();
       const spawnNext = () => {
         if (restartSpawned) {
           process.exit(0);
@@ -1104,21 +2241,54 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // generic JSON store: /api/<name>  <->  <name>.json  (notes, drafts, crm, ...)
+  // board notes: runtime state in board-notes.json (data-home aware); the
+  // legacy tracked notes.json is imported once when present, never written.
+  if (url === '/api/notes' && req.method === 'GET') {
+    try {
+      send(res, 200, JSON.stringify(dataHome.readBoardNotes().notes));
+    } catch (e) { send(res, 500, JSON.stringify({ error: String(e.message || e) })); }
+    return;
+  }
+  if (url === '/api/notes' && req.method === 'POST') {
+    let body = '';
+    req.on('data', c => (body += c));
+    req.on('end', () => {
+      try {
+        const parsed = JSON.parse(body);
+        if (!Array.isArray(parsed)) { send(res, 400, '{"error":"notes must be an array"}'); return; }
+        dataHome.writeBoardNotes(parsed);
+        send(res, 200, '{"ok":true}');
+      } catch { send(res, 400, '{"error":"bad json"}'); }
+    });
+    return;
+  }
+
+  // generic JSON store: /api/<name> for the audited allowlist only.
+  // Audited POST callers: messages.html -> drafts. (Board notes moved to the
+  // explicit /api/notes route above.) GET stays permissive (read-only, [] on
+  // miss); POST to anything else is rejected so pages can't mint new tracked
+  // state files.
+  const GENERIC_STORE_PATHS = { drafts: () => getDraftsPath() };
   const apiM = url.match(/^\/api\/([a-z0-9_-]+)$/i);
-  const RESERVED = new Set(['agent', 'proxy', 'transcribe', 'roster', 'context', 'events', 'reconcile', 'draft', 'suggest', 'machine', 'conversations', 'dictate', 'letters', 'live', 'profile', 'activity', 'hw', 'server', 'geo']);
+  const RESERVED = new Set(['agent', 'proxy', 'transcribe', 'roster', 'context', 'events', 'reconcile', 'draft', 'suggest', 'machine', 'conversations', 'dictate', 'letters', 'live', 'profile', 'activity', 'hw', 'server', 'geo', 'tts', 'rehearse', 'notes']);
   if (apiM && !RESERVED.has(apiM[1])) {
-    const file = path.join(ROOT, apiM[1] + '.json');
+    const name = apiM[1].toLowerCase();
     if (req.method === 'GET') {
+      const resolver = GENERIC_STORE_PATHS[name];
+      const file = resolver ? resolver() : path.join(ROOT, apiM[1] + '.json');
       fs.readFile(file, 'utf8', (e, d) => send(res, 200, e ? '[]' : d));
       return;
     }
     if (req.method === 'POST') {
+      const resolver = GENERIC_STORE_PATHS[name];
+      if (!resolver) { send(res, 403, JSON.stringify({ error: `store '${apiM[1]}' is not writable via the generic API` })); return; }
+      const file = resolver();
       let body = '';
       req.on('data', c => (body += c));
       req.on('end', () => {
         try {
           const parsed = JSON.parse(body);
+          try { fs.mkdirSync(path.dirname(file), { recursive: true }); } catch {}
           fs.writeFileSync(file, JSON.stringify(parsed, null, 2));
           send(res, 200, '{"ok":true}');
         } catch { send(res, 400, '{"error":"bad json"}'); }
@@ -1152,5 +2322,29 @@ const server = http.createServer(async (req, res) => {
       (apps ? `  (${apps})` : '') +
       (process.env.OPENROUTER_API_KEY ? '  (OpenRouter key loaded)' : '  (OPENROUTER_API_KEY missing — agent will error clearly)'),
     );
+    // Warm Kitten TTS in the background (first run downloads ~80MB). Live falls back
+    // to browser speechSynthesis until ready.
+    setTimeout(() => {
+      tts.startManaged().catch((e) => console.warn('Kitten TTS:', e && e.message ? e.message : e));
+    }, 500);
+    // Pull Apple Notes (incl. phone notes via iCloud) into the ingest store on boot.
+    // Non-blocking; first run may trigger a macOS Automation permission prompt. Disable
+    // with INGEST_APPLE_NOTES_SYNC=0. Manual re-sync lives on the INGEST view button.
+    if (process.env.INGEST_APPLE_NOTES_SYNC !== '0') {
+      setTimeout(() => {
+        appleNotes.importNotes()
+          .then((s) => console.log(`Apple Notes sync: ${s.imported} new, ${s.updated} updated, ${s.skipped} unchanged (${s.total} total)`))
+          .catch((e) => console.log(`Apple Notes sync skipped: ${String(e.message || e)}`));
+      }, 3000);
+    }
+    // Auto-ingest recent Mac screenshots (folder source) on boot. Bounded to a recent window
+    // + dedup, and captioned via the vision model. Disable with INGEST_SCREENSHOTS_SYNC=0.
+    if (process.env.INGEST_SCREENSHOTS_SYNC !== '0') {
+      setTimeout(() => {
+        screenshots.importScreenshots({}, process.env.OPENROUTER_API_KEY || '')
+          .then((s) => console.log(`Screenshots sync: ${s.imported} new, ${s.skipped} skipped${s.missing ? ' (folder missing)' : ''} (${s.dir})`))
+          .catch((e) => console.log(`Screenshots sync skipped: ${String(e.message || e)}`));
+      }, 6000);
+    }
   });
 })();
