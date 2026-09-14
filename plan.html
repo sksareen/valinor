@@ -1,0 +1,2542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" href="/favicon.png" type="image/png" />
+<title>Plan — Valinor</title>
+<style>
+  :root, html[data-theme="dark"] {
+    --bg: #05060a; --bg-elev: #0b0d14; --ink: #e2e8f0; --mute: #64748b; --accent: #7dd3fc;
+    --bg-card: #14161f; --line: rgba(255,255,255,.08); --line-mid: rgba(255,255,255,.12);
+    --dim: #94a3b8; --faint: #64748b; --chip-bg: rgba(255,255,255,.04);
+    --panel: #0b0d14; --card: #14161f;
+  }
+  html[data-theme="light"] {
+    --bg: #f8fafc; --bg-elev: #ffffff; --ink: #0f172a; --mute: #64748b; --accent: #0284c7;
+    --bg-card: #ffffff; --line: rgba(15,23,42,.1); --line-mid: rgba(15,23,42,.16);
+    --dim: #475569; --faint: #94a3b8; --chip-bg: rgba(15,23,42,.04);
+    --panel: #ffffff; --card: #f1f5f9;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
+    font-family: Lato, sans-serif; color: var(--ink); }
+  body { display: flex; flex-direction: row; }
+
+  /* Stage — full width; conversations live in a slide-out panel on the right. */
+  #stage { position: relative; flex: 1; min-width: 0; height: 100%;
+    overflow: hidden; background: var(--bg); }
+  #self { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+    transform: scaleX(-1); background: var(--bg); }
+  .scrim { position: absolute; inset: 0; background: linear-gradient(to top, rgba(5,6,10,.78) 0%, rgba(5,6,10,.2) 42%, rgba(5,6,10,.35) 100%);
+    pointer-events: none; }
+
+  #status { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 5;
+    font: 700 11px Lato, sans-serif; letter-spacing: .14em; text-transform: uppercase;
+    padding: 7px 14px; border-radius: 999px; background: rgba(8,10,18,.72);
+    border: 1px solid rgba(255,255,255,.1); color: #94a3b8; backdrop-filter: blur(10px); }
+  #status.listening { color: var(--accent); border-color: rgba(125,211,252,.35); }
+  #status.thinking { color: #fbbf24; border-color: rgba(251,191,36,.35); }
+  #status.speaking { color: #34d399; border-color: rgba(52,211,153,.35); }
+  #status.paused { color: #64748b; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #status.thinking::after { content: ''; display: inline-block; width: 9px; height: 9px;
+    margin-left: 8px; vertical-align: -1px; border: 2px solid currentColor;
+    border-right-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; }
+  #screenSpin { width: 12px; height: 12px; border: 2px solid var(--accent);
+    border-right-color: transparent; border-radius: 50%; animation: spin .7s linear infinite;
+    flex: 0 0 auto; }
+  #screenSpin[hidden] { display: none; }
+
+  #captions { position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%);
+    width: min(560px, 92%); z-index: 5; display: flex; flex-direction: column; gap: 10px;
+    max-height: 38vh; overflow-y: auto; }
+  .cap { padding: 12px 16px; border-radius: 14px; font: 550 17px/1.45 Lato, sans-serif;
+    text-shadow: 0 2px 14px rgba(0,0,0,.85); backdrop-filter: blur(8px);
+    user-select: text; -webkit-user-select: text; cursor: text; }
+  .cap.you { align-self: flex-end; background: rgba(125,211,252,.14); border: 1px solid rgba(125,211,252,.25);
+    color: #e0f2fe; max-width: 92%; }
+  .cap.you.interim { opacity: .65; font-style: italic; }
+  .cap.ai { align-self: flex-start; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12);
+    color: #f8fafc; max-width: 92%; }
+  .cap .who { display: block; font: 700 10px Lato, sans-serif; letter-spacing: .12em;
+    text-transform: uppercase; opacity: .55; margin-bottom: 4px; user-select: none; }
+  .cap .cap-img { display: block; max-width: 260px; max-height: 200px; border-radius: 10px;
+    margin-top: 8px; border: 1px solid rgba(255,255,255,.15); }
+  .btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 15px; border-radius: 999px;
+    border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.05); color: #e2e8f0;
+    font: 600 13px Lato, sans-serif; cursor: pointer; white-space: nowrap; transition: .12s; }
+  .btn:hover { background: rgba(255,255,255,.12); }
+  .btn.primary { background: var(--accent); color: #05060a; border-color: transparent; }
+  .btn.mini { padding: 7px 11px; font-size: 12px; }
+  #hint { position: absolute; bottom: 78px; left: 50%; transform: translateX(-50%); z-index: 5;
+    font: 600 12px Lato, sans-serif; color: #64748b; max-width: 88%; text-align: center;
+    text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
+  #hint.retry { color: #fbbf24; cursor: pointer; text-decoration: underline; }
+  #threadTag { position: absolute; top: 12px; left: 12px; z-index: 5; max-width: 46%;
+    font: 700 10px Lato, sans-serif; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--accent); background: rgba(8,10,18,.72); border: 1px solid rgba(125,211,252,.3);
+    padding: 7px 12px; border-radius: 999px; backdrop-filter: blur(10px);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #threadTag:empty { display: none; }
+
+  #chat { position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%); z-index: 6;
+    display: flex; align-items: center; gap: 8px; width: min(560px, 94%);
+    padding: 8px 10px; background: rgba(8,10,18,.78); backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,.1); border-radius: 16px; }
+  #chatIn { flex: 1; min-width: 0; background: transparent; border: 0; outline: none;
+    color: #f8fafc; font: 550 15px/1.3 Lato, sans-serif; padding: 6px 8px; }
+  #chatIn::placeholder { color: #64748b; }
+  #chatSend { flex: 0 0 auto; }
+
+  /* Cmd+J console panel — drops from top */
+  #tray { position: fixed; top: var(--hub-pad-top, 44px); left: 0; right: 0; height: min(42vh, 360px); z-index: 29;
+    display: flex; flex-direction: column; background: rgba(8,10,18,.94);
+    border-bottom: 1px solid rgba(255,255,255,.1); backdrop-filter: blur(16px);
+    transform: translateY(calc(-100% - var(--hub-pad-top, 44px))); transition: transform .2s ease; pointer-events: none; }
+  #tray.open { transform: translateY(0); pointer-events: auto; }
+  #trayHead { display: flex; align-items: center; gap: 10px; padding: 14px 16px;
+    border-bottom: 1px solid rgba(255,255,255,.08); flex: 0 0 auto; }
+  #trayHead h2 { font: 700 12px Lato, sans-serif; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--accent); flex: 1; }
+  #trayHead .kbd { font: 600 11px Lato, sans-serif; color: #64748b; }
+  #logClear { padding: 5px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,.12);
+    background: rgba(255,255,255,.05); color: #94a3b8; font: 600 11px Lato, sans-serif; cursor: pointer; }
+  #logClear:hover { background: rgba(255,255,255,.1); color: #e2e8f0; }
+  #log { flex: 1; overflow-y: auto; padding: 12px 14px; font: 500 12px/1.45 "SF Mono", ui-monospace, monospace;
+    color: #94a3b8; }
+  #log .line { padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,.04); word-break: break-word; }
+  #log .line .ts { color: #475569; margin-right: 8px; }
+  #log .line.info { color: #94a3b8; }
+  #log .line.ok { color: #34d399; }
+  #log .line.warn { color: #fbbf24; }
+  #log .line.err { color: #f87171; }
+  #log .line.you { color: #7dd3fc; }
+  #log .line.ai { color: #e2e8f0; }
+
+  /* ---- unified slideout panes (one panel, tabbed) ---- */
+  #panelTabs { display: flex; gap: 6px; padding: 12px 16px 0; flex: 0 0 auto; }
+  .pTab { flex: 1; padding: 8px 0; text-align: center; font: 700 11px Lato, sans-serif;
+    letter-spacing: .08em; text-transform: uppercase; color: #64748b;
+    background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.1);
+    border-radius: 999px; cursor: pointer; }
+  .pTab:hover { color: #e2e8f0; }
+  .pTab.on { color: var(--accent); background: rgba(125,211,252,.12);
+    border-color: rgba(125,211,252,.45); }
+  .pane { display: none; flex: 1; min-height: 0; flex-direction: column; }
+  .pane.on { display: flex; }
+  #paneThreads.on { display: flex; flex-direction: column; }
+  #paneThreads { min-height: 0; }
+  #paneMemory { overflow-y: auto; padding: 14px 16px 30px; gap: 14px; }
+  #paneMemory.on { display: flex; }
+  .paneSec { display: flex; flex-direction: column; gap: 8px; }
+  .paneSec > label.lbl { font-size: 10.5px; font-weight: 700; letter-spacing: .09em;
+    color: #64748b; text-transform: uppercase; }
+  .paneHint { font-size: 11.5px; color: #475569; line-height: 1.5; }
+  #memPath2 { font: 500 11px/1.4 "SF Mono", ui-monospace, monospace; color: #64748b;
+    word-break: break-all; }
+  #memBody2 { font: 500 12.5px/1.55 Lato, sans-serif; color: #cbd5e1; white-space: pre-wrap;
+    word-break: break-word; background: rgba(255,255,255,.025);
+    border: 1px solid rgba(255,255,255,.07); border-radius: 10px; padding: 10px 12px;
+    max-height: 30vh; overflow-y: auto; }
+  #memBody2.empty { color: #64748b; font-style: italic; }
+  .pField { width: 100%; padding: 10px 12px; font: 500 12.5px/1.5 Lato, sans-serif;
+    color: #f1f5f9; background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.1); border-radius: 10px; outline: none; resize: vertical; }
+  .pField:focus { border-color: rgba(125,211,252,.45); }
+  .pField::placeholder { color: #475569; }
+  textarea.pField { min-height: 64px; }
+  #promptEditor { min-height: 220px; font: 500 12px/1.55 "SF Mono", ui-monospace, monospace; }
+  .pRow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .pBtn { padding: 9px 16px; border-radius: 999px; cursor: pointer;
+    font: 700 12px Lato, sans-serif; border: 1px solid rgba(255,255,255,.14);
+    background: rgba(255,255,255,.06); color: #e2e8f0; }
+  .pBtn:hover { background: rgba(255,255,255,.12); }
+  .pBtn.primary { background: var(--accent); color: #05060a; border-color: transparent; }
+  .pBtn:disabled { opacity: .45; cursor: default; }
+  .pBtn.danger { color: #fca5a5; border-color: rgba(248,113,113,.3); }
+  #promptStatus { font-size: 11.5px; color: #64748b; }
+  #promptStatus.ok { color: #34d399; }
+  #promptStatus.err { color: #f87171; }
+  #promptTestOut { font-size: 12.5px; line-height: 1.55; color: #e2e8f0; white-space: pre-wrap;
+    background: rgba(125,211,252,.06); border: 1px solid rgba(125,211,252,.2);
+    border-radius: 10px; padding: 10px 12px; }
+  #promptTestOut:empty { display: none; }
+  #promptTestOut .dry { display: block; font: 700 9.5px Lato, sans-serif; letter-spacing: .1em;
+    text-transform: uppercase; color: #64748b; margin-bottom: 5px; }
+  .verRow { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px;
+    background: rgba(255,255,255,.025); border: 1px solid rgba(255,255,255,.06);
+    font-size: 11.5px; color: #94a3b8; }
+  .verRow .vNote { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .verRow .vWhen { color: #475569; flex: 0 0 auto; }
+  .verRow button { flex: 0 0 auto; padding: 5px 11px; border-radius: 999px; cursor: pointer;
+    font: 700 10.5px Lato, sans-serif; border: 1px solid rgba(255,255,255,.14);
+    background: rgba(255,255,255,.06); color: #e2e8f0; }
+  .verRow button:hover { background: rgba(255,255,255,.12); }
+
+  /* Screen — docks above the chat, full stage width. No board chrome. */
+  #screen {
+    position: absolute; left: 50%; transform: translateX(-50%); z-index: 7;
+    width: min(620px, 94%); top: 54px; bottom: 300px; min-height: 180px;
+    display: flex; flex-direction: column;
+    background: #070910; border: 1px solid rgba(255,255,255,.14);
+    border-radius: 14px; overflow: hidden;
+    box-shadow: 0 16px 48px rgba(0,0,0,.5);
+  }
+  #screen[hidden] { display: none; }
+  #screenHead {
+    flex: 0 0 auto; display: flex; align-items: center; gap: 8px;
+    padding: 6px 8px 6px 12px; border-bottom: 1px solid rgba(255,255,255,.08);
+    background: rgba(8,10,18,.85);
+  }
+  #screenTitle {
+    font: 600 12px Lato, sans-serif; color: #cbd5e1; flex: 1;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  #screenHead a, #screenHead button {
+    height: 24px; min-width: 24px; padding: 0 8px; border-radius: 8px;
+    border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.05);
+    color: #94a3b8; font: 600 14px Lato, sans-serif; cursor: pointer;
+    text-decoration: none; display: inline-flex; align-items: center; justify-content: center;
+  }
+  #screenHead a[hidden] { display: none; }
+  #screenHead a:hover, #screenHead button:hover { background: rgba(255,255,255,.12); color: #e2e8f0; }
+  #screenBody { flex: 1; min-height: 0; position: relative; background: #070910; }
+  #screenBody iframe {
+    position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #070910;
+  }
+  #screenLoading {
+    position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 14px; text-align: center; padding: 24px;
+    background: #070910; color: #94a3b8; font: 600 13px/1.5 Lato, sans-serif;
+  }
+  #screenLoading[hidden] { display: none; }
+  #screenLoading .bigspin { width: 30px; height: 30px; border: 3px solid rgba(125,211,252,.3);
+    border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+
+  /* When the screen is open it sits above the chat, so captions move to the top. */
+  body.screen-open #captions { top: 46px; bottom: auto; max-height: 15vh; }
+  body.screen-open #captions .cap { font-size: 14px; padding: 9px 13px; }
+  body.screen-open #hint { display: none; }
+
+  /* ---- conversations slide-out (right edge, same pattern as the Memory panel) ---- */
+  #convos { position: fixed; top: 0; right: 0; bottom: 0; z-index: 28;
+    width: var(--convos-w, 440px); max-width: 94vw;
+    display: flex; flex-direction: column;
+    background: rgba(7,9,16,.97); border-left: 1px solid rgba(255,255,255,.1);
+    box-shadow: -16px 0 48px rgba(0,0,0,.5); backdrop-filter: blur(16px);
+    transform: translateX(105%); transition: transform .22s ease; }
+  #convos.open { transform: none; }
+  /* Peek handle — same pattern as the shared drawers (hover the right edge). */
+  #panelEdge { position: fixed; top: 0; right: 0; bottom: 0; width: 14px; z-index: 26; }
+  #panelHandle { position: fixed; top: 50%; right: 0; z-index: 27; transform: translateY(-50%);
+    writing-mode: vertical-rl; padding: 14px 6px;
+    font: 700 10.5px Lato, system-ui, sans-serif; letter-spacing: .18em;
+    color: var(--accent); background: rgba(125,211,252,.12);
+    border: 1px solid rgba(125,211,252,.3); border-right: none;
+    border-radius: 6px 0 0 6px; cursor: pointer; user-select: none; -webkit-user-select: none; }
+  #panelHandle:hover { background: rgba(125,211,252,.2); }
+  #convosGrip { position: absolute; left: -6px; top: 0; bottom: 0; width: 12px;
+    cursor: ew-resize; touch-action: none; z-index: 2; }
+  #convosGrip::after { content: ''; position: absolute; left: 5px; top: 0; bottom: 0; width: 2px;
+    border-radius: 2px; background: transparent; transition: background .15s; }
+  #convosGrip:hover::after, #convosGrip.dragging::after { background: rgba(125,211,252,.6); }
+  #convosHead { flex: 0 0 auto; padding: 14px 16px 10px; border-bottom: 1px solid rgba(255,255,255,.08); }
+  #convosTitle { display: flex; align-items: center; gap: 10px; }
+  #convosTitle h2 { font: 700 12px Lato, sans-serif; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--accent); flex: 1; }
+  #convosTitle .cClose { padding: 5px 11px; border-radius: 8px; border: 1px solid rgba(255,255,255,.12);
+    background: rgba(255,255,255,.05); color: #94a3b8; font: 600 14px Lato, sans-serif; cursor: pointer; }
+  #convosTitle .cClose:hover { background: rgba(255,255,255,.12); color: #e2e8f0; }
+  #convosCount { font: 600 11px Lato, sans-serif; color: #64748b; }
+  #convoNew { padding: 7px 14px; border-radius: 999px; border: 1px solid rgba(125,211,252,.4);
+    background: rgba(125,211,252,.12); color: var(--accent); font: 700 12px Lato, sans-serif; cursor: pointer; }
+  #convoNew:hover { background: rgba(125,211,252,.22); }
+  #convoSearch { margin-top: 10px; width: 100%; padding: 9px 13px; font: 400 13px Lato, sans-serif;
+    color: #f8fafc; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1);
+    border-radius: 999px; outline: none; }
+  #convoSearch:focus { border-color: rgba(125,211,252,.5); }
+  #convoSearch::placeholder { color: #475569; }
+  #convoFilters { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+  .cChip { padding: 5px 12px; font: 700 10.5px Lato, sans-serif; letter-spacing: .04em;
+    color: #64748b; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.1);
+    border-radius: 999px; cursor: pointer; white-space: nowrap; }
+  .cChip:hover { color: #e2e8f0; }
+  .cChip.on { color: var(--accent); background: rgba(125,211,252,.12); border-color: rgba(125,211,252,.45); }
+  #convoList { flex: 1; overflow-y: auto; padding: 12px 12px 30px; display: flex;
+    flex-direction: column; gap: 8px; }
+  .cGroup { font: 700 10px Lato, sans-serif; letter-spacing: .12em; text-transform: uppercase;
+    color: #475569; padding: 8px 6px 2px; }
+  .cCard { flex: 0 0 auto; background: rgba(255,255,255,.025); border: 1px solid rgba(255,255,255,.07);
+    border-radius: 12px; overflow: hidden; }
+  .cCard:hover { border-color: rgba(125,211,252,.3); }
+  .cCard.open { border-color: rgba(125,211,252,.5); }
+  .cCard.live-active { border-color: rgba(52,211,153,.5); }
+  .cRow { display: flex; align-items: center; gap: 9px; padding: 11px 13px; cursor: pointer; }
+  .cDot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; background: #475569; }
+  .cDot.live { background: #34d399; }
+  .cDot.cursor { background: #c4b5fd; }
+  .cDot.claude { background: #f0b27a; }
+  .cDot.cli { background: #7dd3fc; }
+  .cMain { flex: 1; min-width: 0; }
+  .cTitle { font-size: 13.5px; font-weight: 700; color: #f1f5f9; line-height: 1.35;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cCard.open .cTitle { white-space: normal; }
+  .cMeta { font-size: 11px; color: #64748b; margin-top: 3px; display: flex; gap: 6px;
+    flex-wrap: wrap; align-items: center; }
+  .cTag { font: 700 9.5px Lato, sans-serif; letter-spacing: .05em; text-transform: uppercase;
+    padding: 2px 8px; border-radius: 999px; background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.1); color: #94a3b8; }
+  .cTag.src-live { color: #34d399; border-color: rgba(52,211,153,.35); background: rgba(52,211,153,.1); }
+  .cWhen { font-size: 10.5px; color: #475569; flex: 0 0 auto; font-weight: 600; }
+  .cThread { border-top: 1px solid rgba(255,255,255,.07); padding: 12px 13px; display: flex;
+    flex-direction: column; gap: 8px; max-height: 46vh; overflow-y: auto; }
+  .cMsg { font-size: 13px; line-height: 1.55; padding: 8px 11px; border-radius: 10px;
+    white-space: pre-wrap; word-break: break-word; }
+  .cMsg.you { align-self: flex-end; max-width: 92%; color: #e0f2fe;
+    background: rgba(125,211,252,.12); border: 1px solid rgba(125,211,252,.22); }
+  .cMsg.ai { align-self: flex-start; max-width: 94%; color: #e2e8f0;
+    background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.09); }
+  .cMsg .who { display: block; font: 700 9px Lato, sans-serif; letter-spacing: .12em;
+    text-transform: uppercase; opacity: .5; margin-bottom: 3px; }
+  .cMsg { position: relative; }
+  .cCap { position: absolute; top: 5px; right: 6px; padding: 3px 9px; border-radius: 999px;
+    border: 1px solid rgba(125,211,252,.35); background: rgba(8,10,18,.88); color: #7dd3fc;
+    font: 700 10px Lato, sans-serif; cursor: pointer; opacity: 0; transition: opacity .12s; }
+  .cMsg:hover .cCap { opacity: 1; }
+  .cCap:disabled { opacity: .85; cursor: default; }
+  .cCap.saved { color: #34d399; border-color: rgba(52,211,153,.4); }
+  .cCap.err { color: #f87171; border-color: rgba(248,113,113,.4); }
+  .cKinds { display: flex; gap: 5px; margin-top: 7px; flex-wrap: wrap; }
+  .cKind { padding: 3px 10px; border-radius: 999px; border: 1px solid rgba(125,211,252,.35);
+    background: transparent; color: #7dd3fc; font: 700 10.5px Lato, sans-serif; cursor: pointer; }
+  .cKind:hover { background: rgba(125,211,252,.15); }
+  .cMsg.captured { outline: 1px solid rgba(52,211,153,.35); }
+  .cActions { display: flex; gap: 8px; padding-top: 2px; }
+  .cGo { flex: 1; padding: 9px 14px; border-radius: 999px; border: none; cursor: pointer;
+    background: var(--accent); color: #05060a; font: 700 12.5px Lato, sans-serif; }
+  .cGo:hover { filter: brightness(1.1); }
+  .cGo:disabled { opacity: .5; cursor: default; }
+  #convosEmpty { text-align: center; color: #475569; font-size: 12.5px; padding: 30px 10px; }
+
+  /* Light mode — the stage stays dark (it's a camera view), but both slideouts follow. */
+  html[data-theme="light"] #convos { background: rgba(255,255,255,.97);
+    border-left: 1px solid rgba(15,23,42,.1); box-shadow: -16px 0 48px rgba(15,23,42,.12); }
+  html[data-theme="light"] #convosHead { border-bottom: 1px solid rgba(15,23,42,.08); }
+  html[data-theme="light"] #convoSearch { color: #0f172a; background: rgba(15,23,42,.04);
+    border-color: rgba(15,23,42,.12); }
+  html[data-theme="light"] #convoSearch::placeholder { color: #94a3b8; }
+  html[data-theme="light"] #convoSearch:focus { border-color: rgba(2,132,199,.5); }
+  html[data-theme="light"] .cChip { color: #64748b; background: rgba(15,23,42,.04);
+    border-color: rgba(15,23,42,.1); }
+  html[data-theme="light"] .cChip:hover { color: #0f172a; }
+  html[data-theme="light"] .cChip.on { color: #0284c7; background: rgba(2,132,199,.1);
+    border-color: rgba(2,132,199,.45); }
+  html[data-theme="light"] .cGroup { color: #94a3b8; }
+  html[data-theme="light"] .cCard { background: #fff; border-color: rgba(15,23,42,.1); }
+  html[data-theme="light"] .cCard:hover { border-color: rgba(2,132,199,.35); }
+  html[data-theme="light"] .cCard.open { border-color: #0284c7; }
+  html[data-theme="light"] .cTitle { color: #0f172a; }
+  html[data-theme="light"] .cMeta { color: #64748b; }
+  html[data-theme="light"] .cTag { color: #475569; background: rgba(15,23,42,.05);
+    border-color: rgba(15,23,42,.12); }
+  html[data-theme="light"] .cTag.src-live { color: #15803d; border-color: rgba(21,128,61,.3);
+    background: rgba(21,128,61,.08); }
+  html[data-theme="light"] .cWhen { color: #94a3b8; }
+  html[data-theme="light"] .cThread { border-top: 1px solid rgba(15,23,42,.08); }
+  html[data-theme="light"] .cMsg.you { color: #0c4a6e; background: rgba(2,132,199,.09);
+    border-color: rgba(2,132,199,.25); }
+  html[data-theme="light"] .cMsg.ai { color: #0f172a; background: rgba(15,23,42,.035);
+    border-color: rgba(15,23,42,.1); }
+  html[data-theme="light"] .cGo { background: #0284c7; color: #fff; }
+  html[data-theme="light"] .cCap { background: rgba(255,255,255,.95); color: #0284c7;
+    border-color: rgba(2,132,199,.4); }
+  html[data-theme="light"] .cCap.saved { color: #15803d; border-color: rgba(21,128,61,.4); }
+  html[data-theme="light"] .cKind { color: #0284c7; border-color: rgba(2,132,199,.4); }
+  html[data-theme="light"] .cKind:hover { background: rgba(2,132,199,.1); }
+  html[data-theme="light"] .pTab { color: #64748b; background: rgba(15,23,42,.04);
+    border-color: rgba(15,23,42,.1); }
+  html[data-theme="light"] .pTab:hover { color: #0f172a; }
+  html[data-theme="light"] .pTab.on { color: #0284c7; background: rgba(2,132,199,.1);
+    border-color: rgba(2,132,199,.45); }
+  html[data-theme="light"] .paneSec > label.lbl { color: #64748b; }
+  html[data-theme="light"] .paneHint { color: #94a3b8; }
+  html[data-theme="light"] #memPath2 { color: #64748b; }
+  html[data-theme="light"] #memBody2 { color: #334155; background: rgba(15,23,42,.03);
+    border-color: rgba(15,23,42,.1); }
+  html[data-theme="light"] #memBody2.empty { color: #94a3b8; }
+  html[data-theme="light"] .pField { color: #0f172a; background: #fff;
+    border-color: rgba(15,23,42,.14); }
+  html[data-theme="light"] .pField:focus { border-color: rgba(2,132,199,.5); }
+  html[data-theme="light"] .pField::placeholder { color: #94a3b8; }
+  html[data-theme="light"] .pBtn { color: #0f172a; background: rgba(15,23,42,.05);
+    border-color: rgba(15,23,42,.14); }
+  html[data-theme="light"] .pBtn:hover { background: rgba(15,23,42,.1); }
+  html[data-theme="light"] .pBtn.primary { background: #0284c7; color: #fff; }
+  html[data-theme="light"] #promptStatus { color: #64748b; }
+  html[data-theme="light"] #promptStatus.ok { color: #15803d; }
+  html[data-theme="light"] #promptTestOut { color: #0f172a; background: rgba(2,132,199,.07);
+    border-color: rgba(2,132,199,.25); }
+  html[data-theme="light"] #promptTestOut .dry { color: #64748b; }
+  html[data-theme="light"] .verRow { background: rgba(15,23,42,.03);
+    border-color: rgba(15,23,42,.09); color: #475569; }
+  html[data-theme="light"] .verRow .vWhen { color: #94a3b8; }
+  html[data-theme="light"] .verRow button { color: #0f172a; background: rgba(15,23,42,.05);
+    border-color: rgba(15,23,42,.14); }
+  html[data-theme="light"] .verRow button:hover { background: rgba(15,23,42,.1); }
+  html[data-theme="light"] #panelHandle { color: #0284c7; background: rgba(2,132,199,.1);
+    border-color: rgba(2,132,199,.3); }
+  html[data-theme="light"] #panelHandle:hover { background: rgba(2,132,199,.18); }
+  html[data-theme="light"] #convosTitle .cClose { color: #64748b;
+    border-color: rgba(15,23,42,.14); background: rgba(15,23,42,.04); }
+  html[data-theme="light"] #convosTitle .cClose:hover { color: #0f172a;
+    background: rgba(15,23,42,.09); }
+  html[data-theme="light"] #convosEmpty { color: #94a3b8; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <video id="self" autoplay playsinline muted></video>
+  <div class="scrim"></div>
+  <div id="status" class="paused">paused</div>
+  <div id="threadTag"></div>
+  <div id="captions"></div>
+  <div id="hint"></div>
+
+  <aside id="screen" aria-label="screen" hidden>
+    <div id="screenHead">
+      <span id="screenTitle">Screen</span>
+      <span id="screenSpin" hidden aria-label="searching"></span>
+      <a id="screenOpen" href="#" target="_blank" rel="noopener" title="open in new tab" hidden>↗</a>
+      <button type="button" id="screenClose" title="hide screen">×</button>
+    </div>
+    <div id="screenBody">
+      <div id="screenLoading" hidden>
+        <span class="bigspin"></span>
+        <span id="screenLoadingText">Searching…</span>
+      </div>
+      <iframe id="screenFrame" title="Screen" referrerpolicy="no-referrer-when-downgrade"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+        allowfullscreen></iframe>
+    </div>
+  </aside>
+
+  <form id="chat" autocomplete="off">
+    <input id="chatIn" type="text" placeholder="Type to talk…" maxlength="500" />
+    <button class="btn primary" id="chatSend" type="submit">Send</button>
+    <button class="btn mini" id="screenBtn" type="button" title="show / hide screen">Screen</button>
+    <button class="btn mini" id="resetBtn" type="button">Reset</button>
+  </form>
+</div>
+
+<div id="panelEdge" aria-hidden="true"></div>
+<div id="panelHandle" title="Panel (⌥R) — hover to peek, click to pin">PANEL</div>
+<aside id="convos" aria-label="panel" aria-hidden="true">
+  <div id="convosGrip" title="drag to resize"></div>  <div id="convosHead">
+    <div id="convosTitle">
+      <h2 id="panelTitle">Conversations</h2>
+      <span id="convosCount"></span>
+      <button id="convoNew" type="button" title="start a fresh thread">+ New</button>
+      <button class="cClose" id="convoClose" type="button" title="hide panel">×</button>
+    </div>
+    <div id="panelTabs">
+      <div class="pTab on" data-tab="threads">Threads</div>
+      <div class="pTab" data-tab="memory">Memory</div>
+    </div>
+  </div>
+  <div class="pane on" id="paneThreads">
+    <input id="convoSearch" type="text" placeholder="Search threads…" maxlength="120" />
+    <div id="convoFilters">
+      <span class="cChip on" data-f="">All</span>
+      <span class="cChip" data-f="live">Live</span>
+      <span class="cChip" data-f="cursor">Cursor</span>
+      <span class="cChip" data-f="claude">Claude</span>
+      <span class="cChip" data-f="cli">CLI</span>
+    </div>
+    <div id="convoList"></div>
+  </div>
+  <div class="pane" id="paneMemory">
+    <div class="paneSec">
+      <label class="lbl">Valinor memory</label>
+      <div id="memPath2"></div>
+      <div id="memBody2" class="empty">Open this tab to load Valinor memory.</div>
+    </div>
+    <div class="paneSec">
+      <label class="lbl">System prompt · <span id="promptModel"></span></label>
+      <div class="paneHint">Saving deploys live — the next turn uses it. Test first, refine from feedback, revert anytime.</div>
+      <textarea class="pField" id="promptEditor" spellcheck="false"></textarea>
+      <div class="pRow">
+        <button class="pBtn primary" id="promptSave">Save &amp; deploy</button>
+        <span id="promptStatus"></span>
+      </div>
+    </div>
+    <div class="paneSec">
+      <label class="lbl">Test a response · dry run, no tools</label>
+      <textarea class="pField" id="promptTestIn" placeholder="Say something to Val…"></textarea>
+      <div class="pRow"><button class="pBtn" id="promptTestBtn">Run test</button></div>
+      <div id="promptTestOut"></div>
+    </div>
+    <div class="paneSec">
+      <label class="lbl">Feedback → refine · eval loop</label>
+      <textarea class="pField" id="promptFeedback" placeholder="e.g. too wordy when I ask for the time — answer in half the words"></textarea>
+      <div class="pRow"><button class="pBtn" id="promptRefineBtn">Refine prompt</button></div>
+      <div class="paneHint">Uses the last test above as the example, or describe the failure directly.</div>
+    </div>
+    <div class="paneSec">
+      <label class="lbl">Versions</label>
+      <div id="promptVersions"></div>
+    </div>
+  </div>
+</div>
+</aside>
+
+  <aside id="tray" aria-label="console">
+    <div id="trayHead">
+      <h2>Console</h2>
+      <span class="kbd">⌘J</span>
+      <button id="logClear" type="button">Clear</button>
+    </div>
+    <div id="log"></div>
+  </aside>
+
+<script src="hub-client.js"></script>
+<script src="capture-drawer.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const self = $('self'), caps = $('captions'), statusEl = $('status'), hintEl = $('hint');
+const tray = $('tray'), logEl = $('log');
+HubClient.forwardNavKeys();
+if (window.CaptureDrawer) CaptureDrawer.attach(); else if (window.IngestDrawer) IngestDrawer.attach(); // global left-edge capture drawer (⌥E; ⌘I = theme)
+
+const SPEECH_ID = 'live';
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const LOG_MAX = 400;
+const ECHO_COOLDOWN_MS = 800;
+const TICK_QUIET_MS = 8000;
+// Proactive commentary: when false, the companion only responds when spoken to
+// (no autonomous webcam observations). Flip to true to re-enable the 5s tick loop.
+const PROACTIVE_TICKS = false;
+// Pause STT + ticks while a soundtrack video plays (HTML5 or YouTube). Typed Send still works.
+const PAUSE_LISTEN_ON_VIDEO = true;
+
+let liveOn = true;
+let busy = false;          // thinking / speaking / post-TTS cooldown — mute STT for user turns
+let tickInFlight = false;  // router fetch in background — does NOT mute STT
+let turnGen = 0;           // invalidates superseded user turns (barge-in)
+let tickAbortGen = 0;      // invalidates in-flight ticks when user speaks
+let rec = null;
+let stream = null;
+let micStream = null;
+let youInterimEl = null;
+let aiEl = null;
+let trayOpen = false;
+let ttsVoice = null;
+let ttsVoiceReady = null;
+let kittenAudio = null;
+let kittenObjectUrl = null;
+let kittenPlayDone = null;
+let liveTurnAbort = null;  // abort in-flight POST /api/live on barge-in
+let hubClientGeo = null;
+const TTS_VOICE_KEY = 'hub-tts-voice';
+const KITTEN_VOICES = ['Bella', 'Jasper', 'Luna', 'Bruno', 'Rosie', 'Hugo', 'Kiki', 'Leo'];
+
+function selectedTtsVoice() {
+  const v = localStorage.getItem(TTS_VOICE_KEY) || 'Jasper';
+  return v;
+}
+
+function stopKittenAudio() {
+  const done = kittenPlayDone;
+  kittenPlayDone = null;
+  if (kittenAudio) {
+    try { kittenAudio.pause(); } catch (e) {}
+    kittenAudio = null;
+  }
+  if (kittenObjectUrl) {
+    try { URL.revokeObjectURL(kittenObjectUrl); } catch (e) {}
+    kittenObjectUrl = null;
+  }
+  if (done) done();
+}
+
+function stopAllTts() {
+  stopKittenAudio();
+  try { speechSynthesis.cancel(); } catch (e) {}
+}
+let tickTimer = null;
+let lastUserSpeechAt = 0;
+let lastFrameHash = '';
+let lastTickAt = 0;
+let quietUntil = 0;        // suppress proactive ticks until this time
+let lastTickLines = [];    // recent tick utterances for router anti-repeat
+let html5VideoPlaying = false;
+let ytVideoPlaying = false;
+let boardVideoPlaying = false;
+let lastMediaQuiet = false;
+
+function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+
+function clearInterim() {
+  if (youInterimEl) {
+    try { youInterimEl.remove(); } catch (e) {}
+    youInterimEl = null;
+  }
+}
+
+/** Stop recognizer without releasing the hub speech claim — resume after TTS. */
+function pauseRec(reason) {
+  if (rec) {
+    try { rec.onend = null; rec.onerror = null; rec.onresult = null; rec.stop(); } catch (e) {}
+    rec = null;
+    if (reason) log('stt pause — ' + reason, 'warn');
+  }
+}
+
+function fmtTs(d = new Date()) {
+  return d.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+function log(msg, kind = 'info') {
+  const line = document.createElement('div');
+  line.className = 'line ' + kind;
+  const ts = document.createElement('span');
+  ts.className = 'ts';
+  ts.textContent = fmtTs();
+  line.appendChild(ts);
+  line.appendChild(document.createTextNode(String(msg)));
+  logEl.appendChild(line);
+  while (logEl.children.length > LOG_MAX) logEl.removeChild(logEl.firstChild);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+function setTray(on) {
+  trayOpen = !!on;
+  tray.classList.toggle('open', trayOpen);
+}
+function toggleTray() { setTray(!trayOpen); }
+
+function setStatus(s) {
+  statusEl.className = s;
+  statusEl.textContent = s;
+  log('status → ' + s);
+}
+function setHint(msg, retry) {
+  hintEl.textContent = msg || '';
+  hintEl.classList.toggle('retry', !!retry);
+  if (msg) log(msg, retry ? 'warn' : 'info');
+}
+function scrollCaps() { caps.scrollTop = caps.scrollHeight; }
+
+function addCap(role, text, interim) {
+  const div = document.createElement('div');
+  div.className = 'cap ' + role + (interim ? ' interim' : '');
+  const who = document.createElement('span');
+  who.className = 'who';
+  who.textContent = role === 'you' ? 'you' : 'Val';
+  div.appendChild(who);
+  div.appendChild(document.createTextNode(text));
+  caps.appendChild(div);
+  scrollCaps();
+  return div;
+}
+
+function renderHistory(messages) {
+  caps.innerHTML = '';
+  for (const m of messages) {
+    if (!m || (m.role !== 'assistant' && m.role !== 'user') || !String(m.text || '').trim()) continue;
+    addCap(m.role === 'assistant' ? 'ai' : 'you', m.text, false);
+  }
+  if (messages.length) log('restored ' + messages.length + ' messages', 'ok');
+}
+
+/* ---- conversations sidebar: entire threads, resumable across harnesses ---- */
+const convoList = $('convoList'), convoSearch = $('convoSearch'),
+      convosCount = $('convosCount'), threadTag = $('threadTag');
+let liveConvos = [];
+let sauronRecs = [];
+let openConvoKey = null;
+let convoFilter = '';
+let convoSearchT = null;
+let convoRefreshT = null;
+let activeLiveId = null;
+const liveThreadCache = new Map(); // live convo id -> messages
+
+function setThreadTag(text) { threadTag.textContent = text || ''; }
+
+function fmtAgo(ts) {
+  let ms = ts;
+  if (typeof ts === 'string') {
+    const d = new Date(ts.replace(' ', 'T') + 'Z');
+    ms = isNaN(d) ? Date.now() : d.getTime();
+  }
+  const diff = Date.now() - Number(ms || Date.now());
+  const mins = Math.round(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return mins + 'm ago';
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return hrs + 'h ago';
+  const days = Math.round(hrs / 24);
+  if (days < 30) return days + 'd ago';
+  return new Date(Number(ms)).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+/** Same collapsed format Sauron stores: "User feedback: a → b | Final response: … | Files: …" */
+function parseApproach(approach) {
+  const parts = String(approach || '').split(' | ');
+  const out = { feedback: [], finalResponse: '', files: [] };
+  for (const p of parts) {
+    if (p.startsWith('User feedback: ')) {
+      out.feedback = p.slice('User feedback: '.length).split(' → ').map((s) => s.trim()).filter(Boolean);
+    } else if (p.startsWith('Final response: ')) {
+      out.finalResponse = p.slice('Final response: '.length).trim();
+    } else if (p.startsWith('Files: ')) {
+      out.files = p.slice('Files: '.length).split(', ').map((s) => s.trim()).filter(Boolean);
+    }
+  }
+  if (!out.feedback.length && !out.finalResponse) out.finalResponse = String(approach || '');
+  return out;
+}
+
+function splitIntent(intent) {
+  const idx = String(intent || '').indexOf(': ');
+  if (idx === -1 || idx > 40) return { project: '', title: String(intent || '(untitled)') };
+  return { project: intent.slice(0, idx), title: intent.slice(idx + 2) };
+}
+
+/** One Sauron session → one entire conversation (all turns strung together). */
+function sauronThread(rec) {
+  const { project, title } = splitIntent(rec.task_intent);
+  const parsed = parseApproach(rec.approach);
+  const cap = (s, n) => { s = String(s || ''); return s.length > n ? s.slice(0, n).trimEnd() + '…' : s; };
+  const messages = [
+    ...parsed.feedback.map((t) => ({ role: 'user', text: cap(t, 2500) })),
+    ...(parsed.finalResponse ? [{ role: 'assistant', text: cap(parsed.finalResponse, 4000) }] : []),
+  ];
+  const transcript = messages
+    .map((m) => (m.role === 'user' ? 'Savar: ' : 'Val: ') + m.text)
+    .join('\n').slice(-6000);
+  const tags = rec.tags || [];
+  return {
+    key: 'sauron:' + rec.id,
+    title: cap(title, 160),
+    project: tags[2] || project || '',
+    source: String(tags[1] || rec.source || 'agent').toLowerCase(),
+    when: rec.created_at || '',
+    count: messages.length,
+    messages,
+    transcript,
+    files: parsed.files,
+  };
+}
+
+function threadMatches(t, q, f) {
+  if (f && t.source !== f) return false;
+  if (!q) return true;
+  const hay = (t.title + ' ' + (t.project || '') + ' ' + t.messages.map((m) => m.text).join(' ').slice(0, 4000)).toLowerCase();
+  return q.toLowerCase().split(/\s+/).every((w) => hay.includes(w));
+}
+
+function dotClass(source) {
+  if (source === 'live') return 'cDot live';
+  if (/cursor/.test(source)) return 'cDot cursor';
+  if (/claude/.test(source)) return 'cDot claude';
+  return 'cDot cli';
+}
+
+function renderConvos() {
+  const q = convoSearch.value.trim();
+  convoList.innerHTML = '';
+  const live = liveConvos.filter((c) => threadMatches({
+    source: 'live', title: c.title || '', project: '',
+    messages: [],
+  }, q, convoFilter) && (!q || liveThreadMatches(c, q)));
+  const past = sauronRecs.map(sauronThread).filter((t) => threadMatches(t, q, convoFilter));
+
+  convosCount.textContent = live.length + past.length
+    ? (live.length + past.length) + ' threads' : '';
+
+  if (!live.length && !past.length) {
+    const d = document.createElement('div');
+    d.id = 'convosEmpty';
+    d.textContent = q ? 'No threads match.' : 'No conversations yet.';
+    convoList.appendChild(d);
+    return;
+  }
+
+  if (live.length) {
+    convoList.appendChild(groupLabel('This session'));
+    for (const c of live) convoList.appendChild(liveCard(c));
+  }
+  if (past.length) {
+    convoList.appendChild(groupLabel('Past sessions · other harnesses'));
+    for (const t of past.slice(0, 60)) convoList.appendChild(sauronCard(t));
+  }
+}
+
+function liveThreadMatches(c, q) {
+  const cached = liveThreadCache.get(c.id);
+  const hay = ((c.title || '') + ' ' + (cached || []).map((m) => m.text || '').join(' ').slice(0, 4000)).toLowerCase();
+  return q.toLowerCase().split(/\s+/).every((w) => hay.includes(w));
+}
+
+function groupLabel(text) {
+  const d = document.createElement('div');
+  d.className = 'cGroup';
+  d.textContent = text;
+  return d;
+}
+
+function cardShell({ key, title, source, project, when, count, isActive }) {
+  const card = document.createElement('div');
+  card.className = 'cCard' + (openConvoKey === key ? ' open' : '') + (isActive ? ' live-active' : '');
+  const row = document.createElement('div');
+  row.className = 'cRow';
+  const dot = document.createElement('span');
+  dot.className = dotClass(source);
+  const main = document.createElement('div');
+  main.className = 'cMain';
+  const t = document.createElement('div');
+  t.className = 'cTitle';
+  t.textContent = title;
+  const meta = document.createElement('div');
+  meta.className = 'cMeta';
+  const tag = document.createElement('span');
+  tag.className = 'cTag' + (source === 'live' ? ' src-live' : '');
+  tag.textContent = isActive ? 'live · current' : source;
+  meta.appendChild(tag);
+  if (project) {
+    const p = document.createElement('span');
+    p.className = 'cTag';
+    p.textContent = project;
+    meta.appendChild(p);
+  }
+  if (count) {
+    const n = document.createElement('span');
+    n.textContent = count + ' msgs';
+    meta.appendChild(n);
+  }
+  main.appendChild(t);
+  main.appendChild(meta);
+  const w = document.createElement('span');
+  w.className = 'cWhen';
+  w.textContent = when ? fmtAgo(when) : '';
+  row.appendChild(dot);
+  row.appendChild(main);
+  row.appendChild(w);
+  card.appendChild(row);
+  row.onclick = () => {
+    openConvoKey = openConvoKey === key ? null : key;
+    renderConvos();
+  };
+  return card;
+}
+
+const MEMORY_KINDS = ['idea', 'recommendation', 'decision', 'note'];
+
+async function postMemory(msg, idx, convoRef, kind, b, cap) {
+  cap.disabled = true;
+  cap.style.display = '';
+  cap.textContent = '…';
+  const ref = (msg && msg.t != null) ? String(msg.t) : 'msg-' + idx;
+  try {
+    const r = await fetch('/api/ingest/capture', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: String((msg && msg.text) || '').trim(),
+        source: 'conversation',
+        kind,
+        threadId: convoRef.kind + ':' + convoRef.id,
+        threadTitle: convoRef.title || '',
+        messageRef: ref,
+        origin: 'manual',
+      }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+    cap.textContent = '✓ Saved';
+    cap.className = 'cCap saved';
+    b.classList.add('captured');
+    const picker = b.querySelector('.cKinds');
+    if (picker) picker.remove();
+    log('memory saved → ingest (' + (j.title || kind) + ')', 'ok');
+  } catch (e) {
+    cap.disabled = false;
+    cap.textContent = '✕ Retry';
+    cap.className = 'cCap err';
+    log('memory save failed: ' + (e.message || e), 'warn');
+  }
+}
+
+function openMemoryPicker(b, cap, msg, idx, convoRef) {
+  if (b.querySelector('.cKinds')) return;
+  cap.style.display = 'none';
+  const row = document.createElement('div');
+  row.className = 'cKinds';
+  for (const kind of MEMORY_KINDS) {
+    const k = document.createElement('button');
+    k.type = 'button';
+    k.className = 'cKind';
+    k.textContent = kind;
+    k.onclick = (e) => { e.stopPropagation(); postMemory(msg, idx, convoRef, kind, b, cap); };
+    row.appendChild(k);
+  }
+  const x = document.createElement('button');
+  x.type = 'button';
+  x.className = 'cKind';
+  x.textContent = '✕';
+  x.onclick = (e) => { e.stopPropagation(); row.remove(); cap.style.display = ''; };
+  row.appendChild(x);
+  b.appendChild(row);
+}
+
+function threadView(messages, ctaLabel, ctaDisabled, onCta, convoRef) {
+  const wrap = document.createElement('div');
+  wrap.className = 'cThread';
+  wrap.onclick = (e) => e.stopPropagation();
+  for (const [idx, m] of messages.entries()) {
+    if (!m || !String(m.text || '').trim()) continue;
+    const b = document.createElement('div');
+    b.className = 'cMsg ' + (m.role === 'user' ? 'you' : 'ai');
+    const who = document.createElement('span');
+    who.className = 'who';
+    who.textContent = m.role === 'user' ? 'you' : 'Val';
+    b.appendChild(who);
+    b.appendChild(document.createTextNode(m.text));
+    if (convoRef && convoRef.id) {
+      const cap = document.createElement('button');
+      cap.type = 'button';
+      cap.className = 'cCap';
+      cap.textContent = '+ Memory';
+      cap.title = 'Save this message to ingest as a memory';
+      cap.onclick = (e) => { e.stopPropagation(); openMemoryPicker(b, cap, m, idx, convoRef); };
+      b.appendChild(cap);
+    }
+    wrap.appendChild(b);
+  }
+  if (!messages.length) {
+    const b = document.createElement('div');
+    b.className = 'cMsg ai';
+    b.textContent = 'Empty thread.';
+    wrap.appendChild(b);
+  }
+  const actions = document.createElement('div');
+  actions.className = 'cActions';
+  const btn = document.createElement('button');
+  btn.className = 'cGo';
+  btn.type = 'button';
+  btn.textContent = ctaLabel;
+  btn.disabled = !!ctaDisabled;
+  btn.onclick = onCta;
+  actions.appendChild(btn);
+  wrap.appendChild(actions);
+  return wrap;
+}
+
+function liveCard(c) {
+  const isActive = c.id === activeLiveId;
+  const card = cardShell({
+    key: 'live:' + c.id, title: c.title || 'Live session', source: 'live',
+    project: '', when: c.updatedAt, count: c.count, isActive,
+  });
+  if (openConvoKey === 'live:' + c.id) {
+    const cached = liveThreadCache.get(c.id);
+    const view = threadView(cached || [], isActive ? 'Current thread' : 'Continue here', isActive, () => {
+      if (!isActive) switchLive(c.id);
+    }, { kind: 'live', id: c.id, title: c.title || 'Live session' });
+    card.appendChild(view);
+    if (!cached) {
+      fetch('/api/live/conversation?id=' + encodeURIComponent(c.id))
+        .then((r) => r.json())
+        .then((j) => {
+          const msgs = (j.messages || []).filter((m) => m.role === 'user' || m.role === 'assistant');
+          liveThreadCache.set(c.id, msgs);
+          if (openConvoKey === 'live:' + c.id) renderConvos();
+        })
+        .catch(() => {});
+    }
+  }
+  return card;
+}
+
+function sauronCard(t) {
+  const card = cardShell({
+    key: t.key, title: t.title, source: t.source,
+    project: t.project, when: t.when, count: t.count, isActive: false,
+  });
+  if (openConvoKey === t.key) {
+    card.appendChild(threadView(t.messages, 'Pick up here', false, () => continueSauron(t), { kind: 'sauron', id: t.key, title: t.title || 'Session' }));
+  }
+  return card;
+}
+
+async function loadConvos(sauronQuery) {
+  try {
+    const r = await fetch('/api/live/conversations');
+    const j = await r.json();
+    liveConvos = (j.conversations || []).slice().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    const act = liveConvos.find((c) => c.active);
+    if (act) {
+      activeLiveId = act.id;
+      if (!threadTag.textContent) setThreadTag(act.title || 'Live session');
+    }
+  } catch (e) { /* keep */ }
+  try {
+    const url = sauronQuery
+      ? '/api/conversations?q=' + encodeURIComponent(sauronQuery) + '&limit=60'
+      : '/api/conversations?limit=80';
+    const r = await fetch(url);
+    const j = await r.json();
+    sauronRecs = Array.isArray(j) ? j : [];
+  } catch (e) { /* keep */ }
+  renderConvos();
+}
+
+function refreshConvosSoon() {
+  clearTimeout(convoRefreshT);
+  convoRefreshT = setTimeout(() => loadConvos(convoSearch.value.trim()), 2500);
+}
+
+/** Pick up a thread from another harness and continue it in this call. */
+async function continueSauron(t) {
+  log('continuing ← ' + t.title.slice(0, 80), 'info');
+  try {
+    const r = await fetch('/api/live/conversation/continue', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: (t.project ? t.project + ': ' : '') + t.title,
+        source: t.source + (t.project ? '/' + t.project : ''),
+        transcript: t.transcript,
+        messages: t.messages.map((m) => ({ role: m.role, text: m.text })),
+      }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || ('continue ' + r.status));
+    activeLiveId = j.id;
+    liveThreadCache.set(j.id, (j.messages || []).filter((m) => m.role === 'user' || m.role === 'assistant'));
+    openConvoKey = 'live:' + j.id;
+    renderHistory(j.messages || []);
+    setThreadTag('continuing · ' + (j.title || t.title));
+    log('thread ready — Val has the context', 'ok');
+  } catch (e) {
+    log('continue failed: ' + (e.message || e), 'err');
+    setHint('continue failed: ' + (e.message || e), true);
+  }
+  loadConvos(convoSearch.value.trim());
+}
+
+async function switchLive(id) {
+  try {
+    const r = await fetch('/api/live/conversation/switch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || ('switch ' + r.status));
+    activeLiveId = j.id;
+    liveThreadCache.set(j.id, (j.messages || []).filter((m) => m.role === 'user' || m.role === 'assistant'));
+    openConvoKey = 'live:' + j.id;
+    renderHistory(j.messages || []);
+    setThreadTag(j.title || 'Live session');
+  } catch (e) {
+    log('switch failed: ' + (e.message || e), 'err');
+  }
+  loadConvos(convoSearch.value.trim());
+}
+
+async function newConvo() {
+  try {
+    const r = await fetch('/api/live/conversation/new', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || ('new ' + r.status));
+    activeLiveId = j.id;
+    liveThreadCache.set(j.id, []);
+    openConvoKey = 'live:' + j.id;
+    caps.innerHTML = '';
+    aiEl = null;
+    setThreadTag('new conversation');
+    log('new thread', 'ok');
+  } catch (e) {
+    log('new thread failed: ' + (e.message || e), 'err');
+  }
+  loadConvos(convoSearch.value.trim());
+}
+
+$('convoNew').onclick = newConvo;
+convoSearch.addEventListener('input', () => {
+  clearTimeout(convoSearchT);
+  convoSearchT = setTimeout(() => {
+    const q = convoSearch.value.trim();
+    // Server-side semantic search for past harnesses; live threads filter client-side.
+    loadConvos(q);
+  }, 350);
+});
+convoSearch.addEventListener('keydown', (e) => e.stopPropagation());
+document.querySelectorAll('.cChip').forEach((chip) => {
+  chip.onclick = () => {
+    convoFilter = chip.dataset.f || '';
+    document.querySelectorAll('.cChip').forEach((x) => x.classList.toggle('on', x === chip));
+    renderConvos();
+  };
+});
+
+/* ---- slide-out open/close + edge-drag resize (width persists) ---- */
+const convosEl = $('convos'), convosBtn = $('convosBtn'), convosGrip = $('convosGrip');
+const CONVOS_W_KEY = 'live-convos-w';
+let convosOpen = false;
+
+function applySavedConvosWidth() {
+  try {
+    const w = Number(localStorage.getItem(CONVOS_W_KEY));
+    if (Number.isFinite(w) && w > 0) {
+      setConvosWidth(w, true);
+      convosEl.dataset.sized = '1';
+    }
+  } catch (e) {}
+}
+
+function setConvosWidth(px, quiet) {
+  const max = Math.min(760, window.innerWidth * 0.94);
+  const w = Math.max(300, Math.min(max, Math.round(px)));
+  convosEl.style.setProperty('--convos-w', w + 'px');
+  if (!quiet) {
+    convosEl.dataset.sized = '1';
+    try { localStorage.setItem(CONVOS_W_KEY, String(w)); } catch (e) {}
+  }
+}
+
+function setConvos(open, tab) {
+  if (tab) setPanelTab(tab);
+  openPanel(!!open, !!open);
+}
+/* Hover-the-edge to peek, click the handle to pin —
+   same pattern as the shared drawers. Drag the left edge to resize. */
+var panelPinned = false;
+var panelCloseT = null;
+function openPanel(on, pin) {
+  if (pin) panelPinned = true;
+  clearTimeout(panelCloseT);
+  convosOpen = !!on;
+  if (!on) panelPinned = false;
+  convosEl.classList.toggle('open', convosOpen);
+  convosEl.setAttribute('aria-hidden', convosOpen ? 'false' : 'true');
+  if (convosBtn) convosBtn.classList.toggle('primary', convosOpen);
+  const _memBtn = $('memBtn');
+  if (_memBtn) _memBtn.classList.toggle('primary', convosOpen && panelTab === 'memory');
+  if (convosOpen && panelTab === 'threads') loadConvos(convoSearch.value.trim());
+}
+function peekPanel() {
+  clearTimeout(panelCloseT);
+  if (!convosOpen) openPanel(true, false);
+}
+function schedulePanelClose() {
+  if (panelPinned) return;
+  if (convosGrip.classList.contains('dragging')) return;
+  clearTimeout(panelCloseT);
+  panelCloseT = setTimeout(function () { if (!panelPinned) openPanel(false); }, 220);
+}
+if (convosBtn) convosBtn.onclick = () => {
+  if (convosOpen && panelTab === 'threads') setConvos(false);
+  else setConvos(true, 'threads');
+};
+const _memBtn2 = $('memBtn');
+if (_memBtn2) _memBtn2.onclick = () => {
+  if (convosOpen && panelTab === 'memory') setConvos(false);
+  else setConvos(true, 'memory');
+};
+$('convoClose').onclick = () => setConvos(false);
+
+convosEl.addEventListener('mouseenter', function () { clearTimeout(panelCloseT); });
+convosEl.addEventListener('mouseleave', schedulePanelClose);
+$('panelEdge').addEventListener('mouseenter', peekPanel);
+$('panelHandle').addEventListener('mouseenter', peekPanel);
+$('panelHandle').addEventListener('click', function () {
+  if (convosOpen && panelPinned) openPanel(false);
+  else {
+    openPanel(true, true);
+    setTimeout(function () {
+      try {
+        var s = $('convoSearch');
+        if (s && typeof s.focus === 'function') s.focus({ preventScroll: true });
+      } catch (e) {}
+    }, 240);
+  }
+});
+convosGrip.addEventListener('mouseenter', peekPanel);
+convosGrip.addEventListener('mousedown', (e) => {
+  e.preventDefault();
+  convosGrip.classList.add('dragging');
+  const move = (ev) => setConvosWidth(window.innerWidth - ev.clientX);
+  const up = () => {
+    convosGrip.classList.remove('dragging');
+    window.removeEventListener('mousemove', move);
+    window.removeEventListener('mouseup', up);
+  };
+  window.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', up);
+});
+convosGrip.addEventListener('touchstart', (e) => {
+  const t = e.touches[0];
+  if (!t) return;
+  convosGrip.classList.add('dragging');
+  const move = (ev) => {
+    const p = ev.touches[0];
+    if (p) setConvosWidth(window.innerWidth - p.clientX);
+  };
+  const up = () => {
+    convosGrip.classList.remove('dragging');
+    window.removeEventListener('touchmove', move);
+    window.removeEventListener('touchend', up);
+  };
+  window.addEventListener('touchmove', move, { passive: true });
+  window.addEventListener('touchend', up);
+});
+window.addEventListener('resize', () => {
+  if (!convosEl.dataset.sized) return; // never shrink the default on transient resizes
+  setConvosWidth(
+    parseFloat(getComputedStyle(convosEl).getPropertyValue('--convos-w')) || 440, true);
+});
+applySavedConvosWidth();
+
+async function initCam() {
+  const hubCam = HubClient.embedded && HubClient.camera();
+  const hubMic = HubClient.embedded && HubClient.mic();
+  if (hubCam && hubCam.active) {
+    stream = new MediaStream([
+      ...hubCam.getVideoTracks(),
+      ...(hubMic && hubMic.active ? hubMic.getAudioTracks() : []),
+    ]);
+  } else {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { width: 1280, height: 720, facingMode: 'user' },
+      audio: true,
+    });
+  }
+  self.srcObject = stream;
+  await self.play();
+}
+
+async function ensureMic() {
+  if (micStream && micStream.active) return true;
+  if (HubClient.embedded) {
+    const m = HubClient.mic();
+    if (m && m.active) { micStream = m; return true; }
+    if (HubClient.micError()) {
+      setHint('hub mic unavailable: ' + HubClient.micError());
+      return false;
+    }
+  }
+  if (stream && stream.active && stream.getAudioTracks().length) {
+    micStream = stream; return true;
+  }
+  try { micStream = await navigator.mediaDevices.getUserMedia({ audio: true }); return true; }
+  catch (e) {
+    setHint('mic unavailable: ' + (e.name || e));
+    return false;
+  }
+}
+
+function stopVoice() {
+  HubClient.releaseSpeech(SPEECH_ID);
+  if (rec) {
+    try { rec.onend = null; rec.onerror = null; rec.onresult = null; rec.stop(); } catch (e) {}
+    rec = null;
+  }
+}
+
+function pickTtsVoice() {
+  if (!window.speechSynthesis) return null;
+  const voices = speechSynthesis.getVoices() || [];
+  if (!voices.length) return null;
+  const prefer = /male|daniel|alex|fred|david|google us english male|microsoft (david|mark|guy)/i;
+  const en = voices.filter((v) => /^en([-_]|$)/i.test(v.lang || ''));
+  const pool = en.length ? en : voices;
+  return (
+    pool.find((v) => prefer.test(v.name || '')) ||
+    pool.find((v) => /male/i.test(v.name || '')) ||
+    pool.find((v) => /^en-US/i.test(v.lang || '')) ||
+    pool[0] ||
+    null
+  );
+}
+
+function ensureTtsVoice() {
+  if (ttsVoice) return Promise.resolve(ttsVoice);
+  if (ttsVoiceReady) return ttsVoiceReady;
+  ttsVoiceReady = new Promise((resolve) => {
+    let done = false;
+    const apply = () => {
+      if (done) return;
+      done = true;
+      ttsVoice = pickTtsVoice();
+      if (ttsVoice) log('tts voice → ' + ttsVoice.name + ' (' + ttsVoice.lang + ')', 'ok');
+      resolve(ttsVoice);
+    };
+    if (pickTtsVoice()) { apply(); return; }
+    if (!window.speechSynthesis) { apply(); return; }
+    const once = () => {
+      speechSynthesis.removeEventListener('voiceschanged', once);
+      apply();
+    };
+    speechSynthesis.addEventListener('voiceschanged', once);
+    setTimeout(() => {
+      speechSynthesis.removeEventListener('voiceschanged', once);
+      apply();
+    }, 800);
+  });
+  return ttsVoiceReady;
+}
+
+async function speakBrowser(text) {
+  if (!window.speechSynthesis || !text) return;
+  await ensureTtsVoice();
+  await new Promise((resolve) => {
+    const u = new SpeechSynthesisUtterance(text);
+    if (ttsVoice) u.voice = ttsVoice;
+    u.pitch = 0.95;
+    u.rate = 1.12;
+    u.onend = () => resolve();
+    u.onerror = () => resolve();
+    speechSynthesis.speak(u);
+  });
+}
+
+async function fetchKittenBlob(text, voice) {
+  const r = await fetch('/api/tts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, voice, speed: 1.3 }),
+  });
+  if (!r.ok) {
+    const j = await r.json().catch(() => ({}));
+    throw new Error(j.error || `tts ${r.status}`);
+  }
+  return r.blob();
+}
+
+async function playKittenBlob(blob) {
+  stopKittenAudio();
+  const url = URL.createObjectURL(blob);
+  kittenObjectUrl = url;
+  await new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (err) => {
+      if (settled) return;
+      settled = true;
+      kittenPlayDone = null;
+      if (err) reject(err);
+      else resolve();
+    };
+    const a = new Audio(url);
+    kittenAudio = a;
+    kittenPlayDone = () => finish();
+    a.onended = () => finish();
+    a.onerror = () => finish(new Error('kitten playback failed'));
+    a.play().catch((e) => finish(e));
+  });
+}
+
+/** Pull the next spoken sentence off a growing reply buffer. */
+function nextSpokenChunk(buf, final) {
+  const slice = String(buf || '');
+  if (!slice.trim()) return null;
+  const m = slice.match(/^(\s*.*?[.!?]["')\]]*)(?:\s+|$)/);
+  if (m) {
+    const sentence = m[1].trim();
+    if (/[A-Za-z0-9]/.test(sentence)) return { sentence, consumed: m[0].length };
+    return { sentence: '', consumed: m[0].length };
+  }
+  if (final) return { sentence: slice.trim(), consumed: slice.length };
+  return null;
+}
+
+/**
+ * Synth each sentence as it lands; play as soon as that WAV is ready.
+ * Does not re-synth growing prefixes (that used to stall the worker).
+ */
+function createSpeakQueue(gen) {
+  const voice = selectedTtsVoice();
+  const useKitten = KITTEN_VOICES.includes(voice);
+  let queuedText = '';
+  let playChain = Promise.resolve();
+  let speaking = false;
+
+  function markSpeaking() {
+    if (speaking || gen !== turnGen) return;
+    speaking = true;
+    pauseRec('tts');
+    setStatus('speaking');
+  }
+
+  function enqueue(sentence) {
+    const t = String(sentence || '').trim();
+    if (!t || gen !== turnGen) return;
+    if (!useKitten) {
+      playChain = playChain.then(async () => {
+        if (gen !== turnGen) return;
+        markSpeaking();
+        await speakBrowser(t);
+      }).catch((e) => log('tts play — ' + (e.message || e), 'warn'));
+      return;
+    }
+    const started = Date.now();
+    const blobP = fetchKittenBlob(t, voice).then((blob) => {
+      log('tts ready in ' + (Date.now() - started) + 'ms', 'ok');
+      return blob;
+    }).catch((e) => {
+      log('tts miss — ' + (e.message || e), 'warn');
+      return null;
+    });
+    playChain = playChain.then(async () => {
+      if (gen !== turnGen) return;
+      const blob = await blobP;
+      if (gen !== turnGen) return;
+      markSpeaking();
+      if (blob) await playKittenBlob(blob);
+      else await speakBrowser(t);
+    }).catch((e) => log('tts play — ' + (e.message || e), 'warn'));
+  }
+
+  function feed(full, final) {
+    const src = String(full || '');
+    if (queuedText && !src.startsWith(queuedText)) {
+      const q = queuedText.replace(/\s+$/, '');
+      if (!src.startsWith(q)) return;
+      queuedText = q;
+    }
+    let i = queuedText.length;
+    while (i < src.length) {
+      const got = nextSpokenChunk(src.slice(i), final);
+      if (!got) break;
+      i += got.consumed;
+      queuedText = src.slice(0, i);
+      if (got.sentence) enqueue(got.sentence);
+    }
+  }
+
+  async function wait() {
+    await playChain;
+    if (gen === turnGen) stopKittenAudio();
+  }
+
+  return { feed, wait, get queued() { return queuedText.length > 0; } };
+}
+
+async function speak(text) {
+  stopAllTts();
+  if (!text) return;
+  const q = createSpeakQueue(turnGen);
+  q.feed(text, true);
+  await q.wait();
+}
+
+/** Grab a JPEG still from #self for the vision turn. CSS mirror is display-only. */
+function grabFrame(quiet) {
+  try {
+    if (!self || self.readyState < 2 || !self.videoWidth || !self.videoHeight) {
+      if (!quiet) log('frame skip: video not ready', 'warn');
+      return null;
+    }
+    const c = document.createElement('canvas');
+    c.width = self.videoWidth;
+    c.height = self.videoHeight;
+    const ctx = c.getContext('2d');
+    if (!ctx) {
+      if (!quiet) log('frame skip: no canvas context', 'warn');
+      return null;
+    }
+    ctx.drawImage(self, 0, 0);
+    const dataUrl = c.toDataURL('image/jpeg', 0.7);
+    if (!dataUrl || dataUrl.length < 32) {
+      if (!quiet) log('frame skip: empty capture', 'warn');
+      return null;
+    }
+    if (!quiet) log('frame captured', 'ok');
+    return dataUrl;
+  } catch (e) {
+    if (!quiet) log('frame skip: ' + (e.message || e), 'warn');
+    return null;
+  }
+}
+
+/** Stable fingerprint from a tiny quantized grayscale of the live video (noise-resistant). */
+function stableFrameHash() {
+  try {
+    if (!self || self.readyState < 2 || !self.videoWidth || !self.videoHeight) return 'none';
+    const w = 48, h = 27;
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return 'none';
+    ctx.drawImage(self, 0, 0, w, h);
+    const data = ctx.getImageData(0, 0, w, h).data;
+    let hash = 2166136261 >>> 0;
+    for (let i = 0; i < data.length; i += 16) {
+      const gray = (data[i] + data[i + 1] + data[i + 2]) / 3;
+      const q = Math.round(gray / 16); // quantize away webcam noise
+      hash = Math.imul(hash ^ q, 16777619) >>> 0;
+    }
+    return hash.toString(36);
+  } catch (e) {
+    return 'none';
+  }
+}
+
+function hubIsActive() {
+  return !HubClient.embedded || HubClient.isActive();
+}
+
+function mediaQuietWanted() {
+  return PAUSE_LISTEN_ON_VIDEO && (html5VideoPlaying || ytVideoPlaying || boardVideoPlaying);
+}
+
+function ticksWanted() {
+  return liveOn && hubIsActive() && document.visibilityState !== 'hidden' && !mediaQuietWanted();
+}
+
+function applyMediaQuiet() {
+  const quiet = mediaQuietWanted();
+  if (quiet === lastMediaQuiet) return;
+  lastMediaQuiet = quiet;
+  if (quiet) {
+    pauseRec('video');
+    stopTickLoop();
+    if (liveOn && !busy) setStatus('paused');
+    log('listen paused — video playing', 'info');
+  } else {
+    log('listen resume — video stopped', 'ok');
+    if (liveOn && !busy && hubIsActive() && document.visibilityState !== 'hidden') {
+      startVoice();
+      startTickLoop();
+    }
+  }
+}
+
+function scanHtml5Videos() {
+  let playing = false;
+  document.querySelectorAll('video').forEach((v) => {
+    if (v.id === 'self') return; // webcam, muted
+    if (!v.paused && !v.ended) playing = true;
+  });
+  html5VideoPlaying = playing;
+  applyMediaQuiet();
+}
+
+function ytPlayerStatePlaying(state) {
+  return state === 1 || state === 3; // YT.PlayerState PLAYING / BUFFERING
+}
+
+function parseYtPlayerState(raw) {
+  let data = raw;
+  if (typeof data === 'string') {
+    try { data = JSON.parse(data); } catch { return null; }
+  }
+  if (!data || typeof data !== 'object') return null;
+  if (data.event === 'onStateChange' && typeof data.info === 'number') return data.info;
+  if (data.info && typeof data.info.playerState === 'number') return data.info.playerState;
+  return null;
+}
+
+function isYoutubeHost(origin) {
+  try {
+    const h = new URL(origin).hostname;
+    return h === 'www.youtube.com' || h === 'youtube.com' || h === 'www.youtube-nocookie.com';
+  } catch { return false; }
+}
+
+function youtubeEmbedUrl(videoId, autoplay) {
+  const u = new URL('https://www.youtube.com/embed/' + encodeURIComponent(videoId));
+  u.searchParams.set('rel', '0');
+  u.searchParams.set('enablejsapi', '1');
+  u.searchParams.set('origin', location.origin);
+  if (autoplay) u.searchParams.set('autoplay', '1');
+  return u.toString();
+}
+
+function pingYoutubeIframe(iframe) {
+  if (!iframe || !iframe.contentWindow) return;
+  try {
+    iframe.contentWindow.postMessage(JSON.stringify({ event: 'listening', id: 1, channel: 'widget' }), '*');
+    iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'addEventListener', args: ['onStateChange'] }), '*');
+  } catch (e) {}
+}
+
+function markQuiet() {
+  quietUntil = Date.now() + TICK_QUIET_MS;
+}
+
+function stopTickLoop() {
+  if (tickTimer) {
+    clearInterval(tickTimer);
+    tickTimer = null;
+  }
+}
+
+function startTickLoop() {
+  stopTickLoop();
+  if (!PROACTIVE_TICKS) return;
+  if (!ticksWanted()) return;
+  tickTimer = setInterval(() => { void runTick(); }, 5000);
+  log('tick loop on (5s)', 'ok');
+}
+
+/** Background tick fetch — does not set busy or pause STT. */
+async function fetchTickRouter(image) {
+  const payload = {
+    text: '',
+    tick: true,
+    activeTab: getActiveTab(),
+    recentTicks: lastTickLines.slice(-3),
+  };
+  if (image) payload.image = image;
+  if (hubClientGeo) {
+    payload.latitude = hubClientGeo.latitude;
+    payload.longitude = hubClientGeo.longitude;
+  }
+  const r = await fetch('/api/live', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!r.ok) {
+    const err = await r.text();
+    throw new Error(err || ('HTTP ' + r.status));
+  }
+  const reader = r.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = '';
+  let full = '';
+  let skipped = false;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const chunks = buf.split('\n\n');
+    buf = chunks.pop() || '';
+    for (const chunk of chunks) {
+      const line = chunk.split('\n').find(l => l.startsWith('data:'));
+      if (!line) continue;
+      const payloadLine = line.slice(5).trim();
+      if (!payloadLine || payloadLine === ': ok') continue;
+      let ev;
+      try { ev = JSON.parse(payloadLine); } catch { continue; }
+      if (ev.type === 'skip') skipped = true;
+      else if (ev.type === 'token') full += ev.text;
+      else if (ev.type === 'done') {
+        if (ev.skipped) skipped = true;
+        full = (ev.text != null && ev.text !== '') ? ev.text : full;
+      } else if (ev.type === 'error') {
+        throw new Error(ev.message || 'live error');
+      }
+    }
+  }
+  const text = skipped ? '' : full.trim();
+  return { skipped: skipped || !text, text };
+}
+
+async function deliverTickSpeech(text) {
+  if (busy || !ticksWanted()) return;
+  const gen = ++turnGen;
+  busy = true;
+  pauseRec('tick speak');
+  setStatus('thinking');
+  aiEl = addCap('ai', text, false);
+  log('ai ← ' + (text.slice(0, 120) + (text.length > 120 ? '…' : '')), 'ai');
+  lastTickLines.push(text);
+  if (lastTickLines.length > 3) lastTickLines = lastTickLines.slice(-3);
+  try {
+    await speak(text);
+    if (gen !== turnGen) return;
+    await sleep(ECHO_COOLDOWN_MS);
+  } finally {
+    if (gen !== turnGen) return;
+    busy = false;
+    aiEl = null;
+    markQuiet();
+    if (ticksWanted()) {
+      setStatus('listening');
+      startVoice();
+      if (!tickTimer) startTickLoop();
+    } else {
+      setStatus('paused');
+      stopTickLoop();
+    }
+  }
+}
+
+async function runTick() {
+  if (!PROACTIVE_TICKS) return;
+  if (!ticksWanted() || busy || tickInFlight) return;
+  if (Date.now() < quietUntil) {
+    log('tick quiet', 'info');
+    return;
+  }
+  const hash = stableFrameHash();
+  const speechSince = lastUserSpeechAt > lastTickAt;
+  // Heuristic: unchanged scene + no new user speech → local skip (no API call).
+  if (hash === lastFrameHash && !speechSince) {
+    lastTickAt = Date.now();
+    log('tick skip', 'info');
+    return;
+  }
+  lastFrameHash = hash;
+  lastTickAt = Date.now();
+
+  const image = grabFrame(true);
+  const gen = tickAbortGen;
+  tickInFlight = true;
+  log('tick → router', 'info');
+  try {
+    const result = await fetchTickRouter(image);
+    // User spoke (or took a turn) while we were fetching — discard.
+    if (gen !== tickAbortGen || busy || !ticksWanted()) {
+      log('tick discarded (user won)', 'info');
+      return;
+    }
+    if (result.skipped || !result.text) {
+      log('tick skip', 'info');
+      return;
+    }
+    await deliverTickSpeech(result.text);
+  } catch (e) {
+    if (gen === tickAbortGen) log('tick err: ' + (e.message || e), 'err');
+  } finally {
+    tickInFlight = false;
+  }
+}
+
+function getActiveTab() {
+  try {
+    if (window.parent && window.parent !== window) {
+      const h = String(window.parent.location.hash || '').replace(/^#/, '').trim();
+      if (h) return h;
+    }
+  } catch (e) { /* cross-origin */ }
+  try {
+    const h = String(location.hash || '').replace(/^#/, '').trim();
+    if (h) return h;
+  } catch (e) {}
+  return 'live';
+}
+
+async function askAi(text) {
+  // Invalidate any in-flight tick; user turns always win.
+  tickAbortGen++;
+  if (liveTurnAbort) { try { liveTurnAbort.abort(); } catch (e) {} }
+  liveTurnAbort = new AbortController();
+  const ac = liveTurnAbort;
+  const gen = ++turnGen;
+  busy = true;
+  clearInterim();
+  pauseRec('turn start');
+  setStatus('thinking');
+  log('you → ' + text, 'you');
+  stopAllTts();
+  // a capture image riding along from the ingest drawer wins over the camera frame
+  const image = pendingDraftImage || grabFrame();
+  pendingDraftImage = null;
+  aiEl = null;
+  let full = '';
+  const tts = createSpeakQueue(gen);
+
+  try {
+    const payload = {
+      text: text || '',
+      tick: false,
+      activeTab: getActiveTab(),
+    };
+    if (image) payload.image = image;
+    if (hubClientGeo) {
+      payload.latitude = hubClientGeo.latitude;
+      payload.longitude = hubClientGeo.longitude;
+    }
+    const r = await fetch('/api/live', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: ac.signal,
+    });
+    if (!r.ok) {
+      const err = await r.text();
+      throw new Error(err || ('HTTP ' + r.status));
+    }
+    const reader = r.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    while (true) {
+      if (gen !== turnGen) return; // barged / superseded
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const chunks = buf.split('\n\n');
+      buf = chunks.pop() || '';
+      for (const chunk of chunks) {
+        const line = chunk.split('\n').find(l => l.startsWith('data:'));
+        if (!line) continue;
+        const payloadLine = line.slice(5).trim();
+        if (!payloadLine || payloadLine === ': ok') continue;
+        let ev;
+        try { ev = JSON.parse(payloadLine); } catch { continue; }
+        if (ev.type === 'token') {
+          if (!aiEl) aiEl = addCap('ai', '', false);
+          full += ev.text;
+          aiEl.lastChild.textContent = full;
+          scrollCaps();
+          tts.feed(full, false);
+        } else if (ev.type === 'done') {
+          full = (ev.text != null && ev.text !== '') ? ev.text : full;
+          if (!String(full).trim()) {
+            if (aiEl) aiEl.lastChild.textContent = '…';
+          } else {
+            if (!aiEl) aiEl = addCap('ai', full, false);
+            else aiEl.lastChild.textContent = full;
+            log('ai ← ' + (full.slice(0, 120) + (full.length > 120 ? '…' : '')), 'ai');
+            if (ev.persist === null) log('session memory-only (disk persist unavailable)', 'warn');
+            tts.feed(full, true);
+          }
+        } else if (ev.type === 'board') {
+          if (ev.query) runBoardSearch(ev.query, ev.kind);
+        } else if (ev.type === 'error') {
+          throw new Error(ev.message || 'live error');
+        }
+      }
+    }
+    if (gen !== turnGen) return;
+    clearInterim();
+    const say = full.trim();
+    if (!say && aiEl) aiEl.lastChild.textContent = '…';
+    if (say) {
+      tts.feed(say, true);
+      await tts.wait();
+      if (gen !== turnGen) return;
+      await sleep(ECHO_COOLDOWN_MS); // let speaker echo die before STT resumes
+    }
+  } catch (e) {
+    if (gen !== turnGen || e.name === 'AbortError') return;
+    if (!aiEl) aiEl = addCap('ai', '', false);
+    if (aiEl) aiEl.lastChild.textContent = 'error: ' + (e.message || e);
+    log(String(e.message || e), 'err');
+    setHint(String(e.message || e));
+  } finally {
+    if (gen !== turnGen) return;
+    busy = false;
+    aiEl = null;
+    liveThreadCache.delete(activeLiveId);
+    refreshConvosSoon();
+    markQuiet();
+    if (ticksWanted()) {
+      setStatus('listening');
+      startVoice();
+      if (!tickTimer) startTickLoop();
+    } else {
+      setStatus('paused');
+      stopTickLoop();
+    }
+  }
+}
+
+// Bucketed finals accumulate here until a pause means the utterance is done.
+let utterBuf = '', utterTimer = null, utterCapEl = null;
+const UTTER_SILENCE_MS = 1400;
+
+function onSpeech(e) {
+  let finals = '', interim = '';
+  for (let i = e.resultIndex; i < e.results.length; i++) {
+    const r = e.results[i];
+    if (r.isFinal) finals += r[0].transcript + ' ';
+    else interim += r[0].transcript + ' ';
+  }
+  const finalText = finals.trim();
+
+  // Half-duplex: ignore anything heard while thinking or speaking — this is what stops
+  // the agent from hearing its own TTS voice and talking to itself.
+  if (busy) return;
+  if (tickInFlight) tickAbortGen++;
+
+  if (interim.trim()) {
+    if (!youInterimEl) youInterimEl = addCap('you', interim.trim(), true);
+    else youInterimEl.lastChild.textContent = interim.trim();
+    scrollCaps();
+  }
+  if (!finalText) return;
+  // Utterance bucketing: Web Speech fires a "final" at every mid-sentence pause, which
+  // used to send fragments ("instead of opening a new tab with all if I") as full turns.
+  // Accumulate finals and only send after a silence window with no new speech.
+  utterBuf = (utterBuf ? utterBuf + ' ' : '') + finalText;
+  if (youInterimEl) {
+    youInterimEl.lastChild.textContent = utterBuf;
+    utterCapEl = youInterimEl;
+    youInterimEl = null;
+  } else if (utterCapEl) {
+    utterCapEl.lastChild.textContent = utterBuf;
+  } else {
+    utterCapEl = addCap('you', utterBuf, true);
+  }
+  scrollCaps();
+  clearTimeout(utterTimer);
+  utterTimer = setTimeout(flushUtterance, UTTER_SILENCE_MS);
+}
+
+function flushUtterance() {
+  utterTimer = null;
+  if (!liveOn) { utterBuf = ''; utterCapEl = null; return; }
+  const text = utterBuf.trim();
+  if (!text) { utterCapEl = null; return; }
+  if (busy) {
+    // A typed chat turn started mid-utterance — retry after it rather than dropping speech.
+    utterTimer = setTimeout(flushUtterance, 2000);
+    return;
+  }
+  utterBuf = '';
+  if (utterCapEl) { utterCapEl.classList.remove('interim'); utterCapEl = null; }
+  lastUserSpeechAt = Date.now();
+  markQuiet();
+  log('stt final: ' + text, 'you');
+  askAi(text);
+}
+
+async function startVoice() {
+  if (!liveOn) return;
+  if (busy) return; // half-duplex: never listen while thinking or speaking
+  if (!SR) {
+    setHint('no speech recognition — use Chrome');
+    liveOn = false; syncLiveBtn(); setStatus('paused');
+    return;
+  }
+  if (HubClient.isElectron()) {
+    setHint(HubClient.speechHint(), false);
+    liveOn = false; syncLiveBtn(); setStatus('paused');
+    return;
+  }
+  if (HubClient.embedded && !HubClient.isActive()) return;
+  if (document.visibilityState === 'hidden') return;
+  if (mediaQuietWanted()) return;
+  if (rec) return; // already listening
+  if (!await ensureMic()) { liveOn = false; syncLiveBtn(); setStatus('paused'); return; }
+  if (!liveOn) return;
+  if (busy) return;
+  if (HubClient.embedded && !HubClient.isActive()) return;
+  HubClient.claimSpeech(SPEECH_ID, () => { stopVoice(); });
+  rec = new SR();
+  rec.continuous = true;
+  rec.interimResults = true;
+  rec.lang = 'en-US';
+  rec.onresult = onSpeech;
+  rec.onerror = (e) => {
+    if (e.error === 'no-speech' || e.error === 'aborted') return;
+    if (e.error === 'network') {
+      setHint(HubClient.speechHint() + ' · click to retry', !HubClient.isElectron());
+      liveOn = false; stopVoice(); syncLiveBtn(); setStatus('paused');
+      return;
+    }
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+      setHint('mic blocked — check permission');
+      liveOn = false; stopVoice(); syncLiveBtn(); setStatus('paused');
+      return;
+    }
+    setHint('speech error: ' + e.error, true);
+  };
+  rec.onend = () => {
+    // Restart only while genuinely listening — never during a turn (half-duplex).
+    if (!liveOn || !rec || document.visibilityState === 'hidden') return;
+    if (HubClient.embedded && !HubClient.isActive()) return;
+    if (busy || mediaQuietWanted()) return;
+    try { rec.start(); } catch (e) {}
+  };
+  try { rec.start(); } catch (e) {}
+  setHint('');
+  if (!busy) setStatus('listening');
+}
+
+function syncLiveBtn() {
+  const b = $('liveBtn');
+  if (!b) return; // Live/Threads buttons removed — live stays on by default
+  b.classList.toggle('primary', liveOn);
+  b.textContent = liveOn ? 'Live on' : 'Live off';
+}
+
+async function toggleLive() {
+  liveOn = !liveOn;
+  if (liveOn) {
+    stopAllTts();
+    turnGen++;
+    tickAbortGen++;
+    busy = false;
+    await startVoice();
+    startTickLoop();
+  } else {
+    stopTickLoop();
+    tickAbortGen++;
+    stopVoice();
+    stopAllTts();
+    setStatus('paused');
+  }
+  syncLiveBtn();
+}
+
+const _liveBtn = $('liveBtn');
+if (_liveBtn) _liveBtn.onclick = toggleLive;
+
+/* ---- unified panel tabs: threads / memory / ingest ---- */
+const PANEL_TITLES = { threads: 'Conversations', memory: 'Memory' };
+let panelTab = 'threads';
+function setPanelTab(tab) {
+  panelTab = tab;
+  document.querySelectorAll('.pTab').forEach((x) => x.classList.toggle('on', x.dataset.tab === tab));
+  document.querySelectorAll('.pane').forEach((x) => x.classList.toggle('on', x.id === 'pane' + tab[0].toUpperCase() + tab.slice(1)));
+  $('panelTitle').textContent = PANEL_TITLES[tab] || 'Panel';
+  const onThreads = tab === 'threads';
+  $('convoNew').style.display = onThreads ? '' : 'none';
+  $('convosCount').style.display = onThreads ? '' : 'none';
+  if (tab === 'memory') { loadMemoryFile(); loadPromptLab(); }
+}
+document.querySelectorAll('.pTab').forEach((t) => {
+  t.onclick = () => setPanelTab(t.dataset.tab);
+});
+
+/* ---- memory file (read-only) ---- */
+async function loadMemoryFile() {
+  const pathEl = $('memPath2');
+  const body = $('memBody2');
+  if (body.dataset.loaded) return;
+  pathEl.textContent = 'loading…';
+  try {
+    const r = await fetch('/api/live/memory');
+    const j = await r.json();
+    pathEl.textContent = (j.displayPath || j.path || '') + (j.exists ? '' : ' (file not created yet)');
+    const text = String(j.text || '').trim();
+    if (j.error) {
+      body.textContent = j.error;
+    } else if (!text) {
+      body.textContent = 'Empty. Val writes here via remember; you can also open this path in the vault.';
+    } else {
+      body.textContent = text;
+      body.classList.remove('empty');
+    }
+    body.dataset.loaded = '1';
+  } catch (e) {
+    pathEl.textContent = '';
+    body.textContent = 'Could not load memory: ' + (e.message || e);
+  }
+}
+
+/* ---- system-prompt lab: edit / dry-run / feedback-refine / revert ---- */
+let lastPromptTest = { input: '', response: '' };
+function promptStatus(msg, cls) {
+  const el = $('promptStatus');
+  el.textContent = msg || '';
+  el.className = cls || '';
+}
+async function loadPromptLab() {
+  if ($('promptEditor').dataset.loaded) { renderPromptVersions(); return; }
+  promptStatus('loading…');
+  try {
+    const r = await fetch('/api/live/prompt');
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || ('prompt ' + r.status));
+    $('promptEditor').value = j.prompt || '';
+    $('promptEditor').dataset.loaded = '1';
+    $('promptEditor').dataset.versions = JSON.stringify(j.versions || []);
+    $('promptModel').textContent = j.hasKey ? '' : '(no API key)';
+    renderPromptVersions();
+    promptStatus(j.versions && j.versions.length ? '' : 'No versions yet — saving creates the first.', '');
+  } catch (e) {
+    promptStatus('load failed: ' + (e.message || e), 'err');
+  }
+}
+function renderPromptVersions() {
+  const host = $('promptVersions');
+  host.innerHTML = '';
+  let versions = [];
+  try { versions = JSON.parse($('promptEditor').dataset.versions || '[]'); } catch { versions = []; }
+  if (!versions.length) {
+    host.innerHTML = '<div class="paneHint">Versions appear here after each save.</div>';
+    return;
+  }
+  for (const v of versions.slice(0, 12)) {
+    const row = document.createElement('div');
+    row.className = 'verRow';
+    const note = document.createElement('span');
+    note.className = 'vNote';
+    note.textContent = (v.note || 'saved version');
+    note.title = note.textContent;
+    const when = document.createElement('span');
+    when.className = 'vWhen';
+    when.textContent = fmtAgo(v.ts);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = 'Revert';
+    btn.onclick = () => revertPromptVersion(v.id);
+    row.appendChild(note);
+    row.appendChild(when);
+    row.appendChild(btn);
+    host.appendChild(row);
+  }
+}
+$('promptSave').onclick = async () => {
+  const btn = $('promptSave');
+  btn.disabled = true;
+  promptStatus('deploying…');
+  try {
+    const r = await fetch('/api/live/prompt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: $('promptEditor').value, note: 'live edit' }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || ('save ' + r.status));
+    $('promptEditor').dataset.versions = JSON.stringify(j.versions || []);
+    renderPromptVersions();
+    promptStatus('deployed — next turn uses it.', 'ok');
+    log('prompt deployed (' + (j.chars || 0) + ' chars)', 'ok');
+  } catch (e) {
+    promptStatus('save failed: ' + (e.message || e), 'err');
+  }
+  btn.disabled = false;
+};
+$('promptTestBtn').onclick = async () => {
+  const btn = $('promptTestBtn');
+  const input = $('promptTestIn').value.trim();
+  if (!input) { $('promptTestIn').focus(); return; }
+  btn.disabled = true;
+  $('promptTestOut').innerHTML = '<span class="dry">running…</span>';
+  try {
+    const r = await fetch('/api/live/prompt/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: $('promptEditor').value, input }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || ('test ' + r.status));
+    lastPromptTest = { input, response: j.response || '' };
+    $('promptTestOut').innerHTML = '';
+    const tag = document.createElement('span');
+    tag.className = 'dry';
+    tag.textContent = 'dry run · no tools · ' + (j.model || '');
+    $('promptTestOut').appendChild(tag);
+    $('promptTestOut').appendChild(document.createTextNode(j.response || '(empty)'));
+  } catch (e) {
+    $('promptTestOut').textContent = 'test failed: ' + (e.message || e);
+  }
+  btn.disabled = false;
+};
+$('promptRefineBtn').onclick = async () => {
+  const btn = $('promptRefineBtn');
+  const feedback = $('promptFeedback').value.trim();
+  if (!feedback) { $('promptFeedback').focus(); return; }
+  btn.disabled = true;
+  promptStatus('refining…');
+  try {
+    const r = await fetch('/api/live/prompt/refine', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt: $('promptEditor').value,
+        testInput: lastPromptTest.input,
+        testResponse: lastPromptTest.response,
+        feedback,
+      }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || ('refine ' + r.status));
+    $('promptEditor').value = j.prompt || '';
+    $('promptFeedback').value = '';
+    promptStatus('candidate in editor — review, then Save & deploy.', 'ok');
+    log('prompt refined from feedback', 'ok');
+  } catch (e) {
+    promptStatus('refine failed: ' + (e.message || e), 'err');
+  }
+  btn.disabled = false;
+};
+async function revertPromptVersion(id) {
+  promptStatus('reverting…');
+  try {
+    const r = await fetch('/api/live/prompt/revert', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || ('revert ' + r.status));
+    const lab = await (await fetch('/api/live/prompt')).json();
+    $('promptEditor').value = lab.prompt || '';
+    $('promptEditor').dataset.versions = JSON.stringify(j.versions || []);
+    renderPromptVersions();
+    promptStatus('reverted — next turn uses it.', 'ok');
+    log('prompt reverted', 'ok');
+  } catch (e) {
+    promptStatus('revert failed: ' + (e.message || e), 'err');
+  }
+}
+
+$('promptEditor').addEventListener('keydown', (e) => e.stopPropagation());
+$('promptTestIn').addEventListener('keydown', (e) => e.stopPropagation());
+$('promptFeedback').addEventListener('keydown', (e) => e.stopPropagation());
+
+/* ---- screen: one clean pane showing the latest page/video the agent pulls up ---- */
+const screenEl = $('screen');
+const screenFrame = $('screenFrame');
+const screenTitle = $('screenTitle');
+const screenOpen = $('screenOpen');
+const screenBtn = $('screenBtn');
+const screenSpin = $('screenSpin');
+const screenLoading = $('screenLoading');
+const screenLoadingText = $('screenLoadingText');
+let lastScreenUrl = '';
+let boardSearchGen = 0;        // bump per search; stale runs bail out
+let boardSearchAbort = null;   // aborts the previous in-flight /api/agent
+
+function setScreenOpen(on) {
+  screenEl.hidden = !on;
+  document.body.classList.toggle('screen-open', !!on);
+  screenBtn.classList.toggle('primary', !!on);
+}
+
+function showLoading(text) {
+  screenLoadingText.textContent = text || 'Searching…';
+  screenLoading.hidden = false;
+}
+
+/** Point the single screen at a URL (Wikipedia/site or a YouTube embed). */
+function showScreen(url, title) {
+  if (!url) return;
+  screenTitle.textContent = title || 'Screen';
+  delete screenFrame.dataset.proxied;
+  screenFrame.src = url;
+  lastScreenUrl = url;
+  if (/^https?:/i.test(url)) { screenOpen.href = url; screenOpen.hidden = false; }
+  else screenOpen.hidden = true;
+  screenLoading.hidden = true;
+  setScreenOpen(true);
+  if (/youtube\.com\/embed/i.test(url)) {
+    ytVideoPlaying = /autoplay=1/.test(url);
+    applyMediaQuiet();
+    setTimeout(() => pingYoutubeIframe(screenFrame), 400);
+  } else {
+    ytVideoPlaying = false;
+    applyMediaQuiet();
+  }
+}
+
+// Some sites refuse framing — retry once through the same-origin proxy.
+screenFrame.addEventListener('error', () => {
+  if (lastScreenUrl && /^https?:/i.test(lastScreenUrl) && !screenFrame.dataset.proxied) {
+    screenFrame.dataset.proxied = '1';
+    screenFrame.src = '/api/proxy?url=' + encodeURIComponent(lastScreenUrl);
+  }
+});
+
+$('screenClose').onclick = () => {
+  setScreenOpen(false);
+  ytVideoPlaying = false;
+  applyMediaQuiet();
+};
+screenBtn.onclick = () => {
+  const opening = screenEl.hidden;
+  setScreenOpen(opening);
+  if (!opening) {
+    ytVideoPlaying = false;
+    applyMediaQuiet();
+  }
+};
+screenFrame.addEventListener('load', () => {
+  if (/youtube\.com\/embed/i.test(lastScreenUrl || '')) pingYoutubeIframe(screenFrame);
+});
+document.addEventListener('play', scanHtml5Videos, true);
+document.addEventListener('playing', scanHtml5Videos, true);
+document.addEventListener('pause', scanHtml5Videos, true);
+document.addEventListener('ended', scanHtml5Videos, true);
+addEventListener('message', (e) => {
+  if (isYoutubeHost(e.origin)) {
+    if (e.source !== screenFrame.contentWindow) return;
+    const st = parseYtPlayerState(e.data);
+    if (st == null) return;
+    ytVideoPlaying = ytPlayerStatePlaying(st);
+    applyMediaQuiet();
+    return;
+  }
+  if (e.origin !== location.origin || !e.data) return;
+  if (e.data.type === 'hub-video') {
+    boardVideoPlaying = !!e.data.playing;
+    applyMediaQuiet();
+  }
+});
+
+/** Turn one agent card into a screen URL — we only surface web pages and videos. */
+function cardToScreen(card) {
+  if (!card) return null;
+  const d = card.data || {};
+  if (card.kind === 'video' && d.videoId) {
+    return { url: youtubeEmbedUrl(d.videoId, true),
+             title: d.title || card.text || 'Video' };
+  }
+  if (card.kind === 'web' && d.url) {
+    return { url: d.url, title: d.title || card.text || d.url };
+  }
+  return null;
+}
+
+/** Ask the board agent for something; show the resulting web/video on the screen.
+ *  A new call always supersedes any in-flight one so re-searching is reliable. */
+async function runBoardSearch(query, kind) {
+  query = String(query || '').trim();
+  if (!query) return;
+  const gen = ++boardSearchGen;
+  if (boardSearchAbort) { try { boardSearchAbort.abort(); } catch (e) {} }
+  boardSearchAbort = new AbortController();
+  const signal = boardSearchAbort.signal;
+
+  // Open immediately with a visible loading state (spinner lives inside the pane).
+  screenTitle.textContent = query;
+  screenOpen.hidden = true;
+  showLoading('Searching for “' + query + '”…');
+  if (screenSpin) screenSpin.hidden = false;
+  setScreenOpen(true);
+  log('screen ← ' + query + (kind ? ' [' + kind + ']' : ''), 'info');
+
+  let shown = false;
+  try {
+    const payload = { transcript: query, boardState: [], history: [] };
+    if (kind === 'video' || kind === 'wiki') payload.kind = kind;
+    const res = await fetch('/api/agent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal,
+    });
+    if (!res.ok || !res.body) throw new Error('HTTP ' + res.status);
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (gen !== boardSearchGen) return; // superseded by a newer search
+      buf += dec.decode(value, { stream: true });
+      let idx;
+      while ((idx = buf.indexOf('\n\n')) >= 0) {
+        const chunk = buf.slice(0, idx); buf = buf.slice(idx + 2);
+        const line = chunk.split('\n').find(l => l.startsWith('data:'));
+        if (!line) continue;
+        let evt;
+        try { evt = JSON.parse(line.slice(5).trim()); } catch { continue; }
+        if (evt.type === 'card' && evt.card) {
+          const s = cardToScreen(evt.card);
+          if (s) { showScreen(s.url, s.title); shown = true; } // latest web/video wins
+        } else if (evt.type === 'tool.start' && evt.name) {
+          showLoading('Looking up “' + query + '”…');
+        } else if (evt.type === 'error') {
+          log('screen agent: ' + (evt.message || 'error'), 'err');
+        }
+      }
+    }
+    if (gen !== boardSearchGen) return;
+    if (!shown) { showLoading('Nothing to show for “' + query + '”.'); log('screen: no web/video result', 'warn'); }
+  } catch (e) {
+    if (e.name === 'AbortError' || gen !== boardSearchGen) return;
+    log('screen agent unreachable: ' + (e.message || e), 'err');
+    showLoading('Search failed: ' + (e.message || e));
+  } finally {
+    if (gen === boardSearchGen) {
+      if (screenSpin) screenSpin.hidden = true;
+      boardSearchAbort = null;
+    }
+  }
+}
+
+$('chat').onsubmit = (e) => {
+  e.preventDefault();
+  const inp = $('chatIn');
+  const text = String(inp.value || '').trim();
+  if (!text) return; // empty Send does not barge in
+  inp.value = '';
+  lastUserSpeechAt = Date.now();
+  markQuiet();
+  tickAbortGen++;
+  const withImage = pendingDraftImage || null;
+  const capDiv = addCap('you', text, false);
+  if (withImage && capDiv) {
+    const thumb = document.createElement('img');
+    thumb.className = 'cap-img';
+    thumb.src = withImage;
+    thumb.alt = 'attached capture image';
+    capDiv.appendChild(thumb);
+  }
+  askAi(text); // barges in even while busy (TTS / streaming)
+};
+$('chatIn').addEventListener('keydown', (e) => {
+  // don't let hub 1–9 / 0 steal keystrokes while typing
+  e.stopPropagation();
+});
+// incoming draft from another page (e.g. capture drawer's "To Plan") — fill, don't send.
+// A `live-chat-image` entry rides along when the capture had a picture; it is
+// carried on the next user turn instead of the camera frame, then consumed.
+var pendingDraftImage = null, fillingDraft = false;
+function consumeChatDraft() {
+  let d = null;
+  try { d = JSON.parse(localStorage.getItem('live-chat-draft') || 'null'); } catch {}
+  let img = null;
+  try { img = JSON.parse(localStorage.getItem('live-chat-image') || 'null'); } catch {}
+  try {
+    if (d && d.text) localStorage.removeItem('live-chat-draft');
+    if (img && img.dataUrl) localStorage.removeItem('live-chat-image');
+  } catch {}
+  if (img && img.dataUrl && (Date.now() - Number(img.ts || 0)) < 10 * 60 * 1000) {
+    pendingDraftImage = String(img.dataUrl);
+  }
+  if (!d || !d.text) return;
+  const inp = $('chatIn');
+  fillingDraft = true;
+  try { inp.value = String(d.text); } finally { fillingDraft = false; }
+  inp.focus();
+}
+consumeChatDraft();
+window.addEventListener('storage', (e) => {
+  if (e.key === 'live-chat-draft' || e.key === 'live-chat-image') consumeChatDraft();
+});
+// manual edits invalidate the attached image — it belonged to the draft text
+$('chatIn').addEventListener('input', () => { if (!fillingDraft) pendingDraftImage = null; });
+$('logClear').onclick = () => { logEl.innerHTML = ''; log('console cleared', 'ok'); };
+$('resetBtn').onclick = async () => {
+  stopAllTts();
+  if (liveTurnAbort) { try { liveTurnAbort.abort(); } catch (e) {} }
+  liveTurnAbort = null;
+  turnGen++;
+  tickAbortGen++;
+  busy = false;
+  lastTickLines = [];
+  quietUntil = 0;
+  clearInterim();
+  await fetch('/api/live', { method: 'DELETE' });
+  caps.innerHTML = '';
+  aiEl = null;
+  activeLiveId = null;
+  openConvoKey = null;
+  liveThreadCache.clear();
+  setThreadTag('');
+  log('session reset', 'warn');
+  setHint('session cleared');
+  loadConvos(convoSearch.value.trim());
+  if (liveOn && hubIsActive()) startVoice();
+};
+hintEl.onclick = () => {
+  if (!hintEl.classList.contains('retry')) return;
+  liveOn = true; syncLiveBtn(); startVoice(); startTickLoop();
+};
+
+addEventListener('keydown', (e) => {
+  const mod = e.metaKey || e.ctrlKey;
+  if (mod && e.key.toLowerCase() === 'j') {
+    e.preventDefault();
+    toggleTray();
+    return;
+  }
+  // ⌥R pins the right panel — mirror of ⌥E for the left capture drawer.
+  // e.code because macOS Option-R is a dead key (®).
+  if (e.altKey && !mod && (e.code === 'KeyR' || String(e.key || '').toLowerCase() === 'r')) {
+    const el = document.activeElement;
+    if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+    e.preventDefault();
+    if (convosOpen && panelPinned) openPanel(false);
+    else {
+      openPanel(true, true);
+      setTimeout(function () {
+        try {
+          var s = $('convoSearch');
+          if (s && typeof s.focus === 'function') s.focus({ preventScroll: true });
+        } catch (e) {}
+      }, 240);
+    }
+    return;
+  }
+  if (e.key === 'Escape' && convosOpen) { e.preventDefault(); setConvos(false); return; }
+  if (e.key === 'Escape' && trayOpen) { e.preventDefault(); setTray(false); return; }
+  if (e.key === '/' && !mod && !e.altKey) {
+    const el = document.activeElement;
+    if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+    e.preventDefault();
+    $('chatIn').focus();
+  }
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    stopTickLoop();
+    pauseRec('tab hidden');
+    HubClient.releaseSpeech(SPEECH_ID);
+    log('tab hidden — speech released', 'info');
+  } else if (liveOn && !busy && hubIsActive()) {
+    if (!rec) startVoice();
+    startTickLoop();
+  }
+});
+
+HubClient.onActive((on) => {
+  if (!on) {
+    stopTickLoop();
+    tickAbortGen++;
+    pauseRec('hub inactive');
+    HubClient.releaseSpeech(SPEECH_ID);
+    stopAllTts();
+    busy = false;
+    if (liveOn) setStatus('paused');
+    log('hub inactive — paused', 'info');
+  } else if (liveOn && !busy) {
+    log('hub active — resuming', 'ok');
+    startVoice();
+    startTickLoop();
+  }
+});
+
+(async () => {
+  log('live boot', 'ok');
+  ensureTtsVoice();
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        hubClientGeo = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+        fetch('/api/geo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(hubClientGeo),
+        }).catch(() => {});
+      },
+      () => { /* OS tz fallback on server */ },
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 30 * 60 * 1000 },
+    );
+  }
+  try { await initCam(); log('camera ready', 'ok'); }
+  catch (err) { log('camera failed: ' + err.message, 'err'); alert('Camera/mic needed for Live.\n' + err.message); }
+  try {
+    const r = await fetch('/api/live');
+    const j = await r.json();
+    renderHistory(j.messages || []);
+    loadConvos('');
+    const hm = /^#convo=(.+)$/.exec(location.hash || '');
+    if (hm) {
+      openConvoKey = decodeURIComponent(hm[1]);
+      setConvos(true, 'threads');
+      renderConvos();
+    }
+  } catch (e) { log('history load failed: ' + (e.message || e), 'warn'); }
+  syncLiveBtn();
+  if (SR && !HubClient.isElectron()) {
+    if (!HubClient.embedded || HubClient.isActive()) {
+      await startVoice();
+      startTickLoop();
+    } else setStatus('paused');
+  } else {
+    liveOn = false;
+    syncLiveBtn();
+    setStatus('paused');
+    setHint(HubClient.isElectron() ? HubClient.speechHint() : 'no speech recognition — use Chrome');
+  }
+})();
+</script>
+</body>
+</html>

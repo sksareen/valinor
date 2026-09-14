@@ -1,0 +1,12 @@
+{
+  "defaultProvider": "openrouter",
+  "defaultModel": "openai/gpt-4o-mini",
+  "defaultThinkingLevel": "off",
+  "compaction": {
+    "enabled": true
+  },
+  "retry": {
+    "enabled": true,
+    "maxRetries": 2
+  }
+}

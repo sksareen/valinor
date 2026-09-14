@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" href="/favicon.png" type="image/png" />
+<title>Music — air instrument</title>
+<style>
+  :root, html[data-theme="dark"] {
+    --bg: #05060a; --bg-elev: #0b0d14; --ink: #e2e8f0; --mute: #64748b; --accent: #7dd3fc; --accent-ink: #05060a; --accent-soft: rgba(125,211,252,.14); --accent2: #fbbf24;
+  }
+  html[data-theme="light"] {
+    --bg: #f1f5f9; --bg-elev: #ffffff; --ink: #0f172a; --mute: #64748b; --accent: #0284c7; --accent-ink: #fff; --accent-soft: rgba(2,132,199,.12); --accent2: #a16207;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
+    font-family: Lato, sans-serif; color: var(--ink); }
+  #self { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover;
+    transform: scaleX(-1); background: var(--bg); }
+  .scrim { position: fixed; inset: 0; background: rgba(5,6,10,.48); pointer-events: none; }
+  html[data-theme="light"] .scrim { background: rgba(248,250,252,.42); }
+  #lens { position: fixed; top: calc(var(--hub-pad-top, 44px) + 8px); left: 50%; transform: translateX(-50%);
+    color: var(--accent); font: 600 11px Lato, sans-serif; letter-spacing: .18em; opacity: .75; z-index: 3; }
+  #noteBig { position: fixed; top: 18%; left: 50%; transform: translateX(-50%);
+    font: 700 clamp(48px, 11vw, 96px)/1 Lato, sans-serif; letter-spacing: -.04em;
+    color: var(--ink); text-shadow: 0 4px 40px rgba(0,0,0,.35), 0 0 40px var(--accent-soft, rgba(125,211,252,.35));
+    z-index: 3; opacity: .25; transition: opacity .12s, color .12s; pointer-events: none;
+    white-space: nowrap; }
+  #noteBig.live { opacity: 1; }
+  #hint { position: fixed; top: calc(18% + 6.5rem); left: 50%; transform: translateX(-50%);
+    font: 600 13px Lato, sans-serif; color: var(--mute); z-index: 3; text-align: center; max-width: 90vw; }
+  #keys { position: fixed; left: 50%; bottom: 36px; transform: translateX(-50%);
+    display: flex; gap: 6px; z-index: 4; padding: 12px 14px;
+    background: rgba(8,10,18,.65); backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,.08); border-radius: 18px; }
+  .key {
+    width: clamp(36px, 7vw, 56px); height: clamp(72px, 14vh, 110px);
+    border-radius: 10px; border: 1px solid rgba(255,255,255,.12);
+    background: rgba(255,255,255,.05); display: flex; flex-direction: column;
+    align-items: center; justify-content: flex-end; padding-bottom: 10px;
+    font: 700 12px Lato, sans-serif; color: #94a3b8; transition: .08s; position: relative;
+  }
+  .key.on-a { background: rgba(125,211,252,.28); border-color: var(--accent); color: #f0f9ff;
+    box-shadow: 0 0 24px rgba(125,211,252,.35); transform: translateY(-4px); }
+  .key.on-b { background: rgba(251,191,36,.22); border-color: var(--accent2); color: #fffbeb;
+    box-shadow: 0 0 24px rgba(251,191,36,.3); transform: translateY(-4px); }
+  .key.on-a.on-b {
+    background: linear-gradient(135deg, rgba(125,211,252,.35), rgba(251,191,36,.3));
+    border-color: #e2e8f0; color: #fff;
+    box-shadow: 0 0 28px rgba(125,211,252,.35), 0 0 28px rgba(251,191,36,.25);
+  }
+  .key .hz { font: 500 9px Lato, sans-serif; opacity: .55; margin-top: 2px; }
+  .cursor { position: fixed; width: 18px; height: 18px; margin: -9px 0 0 -9px;
+    border-radius: 50%; border: 2px solid var(--accent); background: rgba(125,211,252,.25);
+    box-shadow: 0 0 16px rgba(125,211,252,.5); z-index: 5; pointer-events: none;
+    opacity: 0; transition: opacity .15s; }
+  .cursor.b { border-color: var(--accent2); background: rgba(251,191,36,.25);
+    box-shadow: 0 0 16px rgba(251,191,36,.5); }
+  .cursor.pinch { background: var(--accent); }
+  .cursor.b.pinch { background: var(--accent2); }
+  #gate { position: fixed; bottom: 160px; left: 50%; transform: translateX(-50%);
+    font: 600 12px Lato, sans-serif; letter-spacing: .14em; color: var(--mute); z-index: 3; }
+  #gate.on { color: #34d399; }
+  #bar { position: fixed; top: calc(var(--hub-pad-top, 44px) + 8px); right: 22px; z-index: 6; display: flex; gap: 8px; }
+  .btn { padding: 8px 14px; border-radius: 999px; border: 1px solid rgba(255,255,255,.12);
+    background: rgba(255,255,255,.06); color: var(--ink); font: 600 12px Lato, sans-serif; cursor: pointer; }
+  html[data-theme="light"] .btn { border-color: rgba(15,23,42,.14); background: rgba(255,255,255,.72); }
+  .btn.on { background: var(--accent); color: var(--accent-ink, #05060a); border-color: transparent; }
+</style>
+</head>
+<body>
+  <video id="self" autoplay playsinline muted></video>
+  <div class="scrim"></div>
+  <div id="lens">▲ AIR KEYS — TWO HANDS · PINCH TO PLAY</div>
+  <div id="noteBig">—</div>
+  <div id="hint">Each hand = a voice · Left / right = note · Up / down = volume · Pinch = sound</div>
+  <div id="gate">OPEN HANDS — muted</div>
+  <div class="cursor a" id="cursorA"></div>
+  <div class="cursor b" id="cursorB"></div>
+  <div id="keys"></div>
+  <div id="bar">
+    <button class="btn on" id="scaleBtn" title="scale">Pentatonic</button>
+    <button class="btn" id="waveBtn" title="waveform">Sine</button>
+  </div>
+
+<script src="hub-client.js"></script>
+<script>
+HubClient.forwardNavKeys();
+const $ = (id) => document.getElementById(id);
+const self = $('self'), noteBig = $('noteBig'), keysEl = $('keys'), gateEl = $('gate');
+const cursors = [$('cursorA'), $('cursorB')];
+
+const SCALES = {
+  pent: [
+    { name: 'C4',  f: 261.63 },
+    { name: 'D4',  f: 293.66 },
+    { name: 'E4',  f: 329.63 },
+    { name: 'G4',  f: 392.00 },
+    { name: 'A4',  f: 440.00 },
+    { name: 'C5',  f: 523.25 },
+    { name: 'D5',  f: 587.33 },
+    { name: 'E5',  f: 659.25 },
+  ],
+  major: [
+    { name: 'C4',  f: 261.63 },
+    { name: 'D4',  f: 293.66 },
+    { name: 'E4',  f: 329.63 },
+    { name: 'F4',  f: 349.23 },
+    { name: 'G4',  f: 392.00 },
+    { name: 'A4',  f: 440.00 },
+    { name: 'B4',  f: 493.88 },
+    { name: 'C5',  f: 523.25 },
+  ],
+};
+let scaleKey = 'pent';
+let waveType = 'sine';
+let notes = SCALES.pent;
+
+function buildKeys() {
+  keysEl.innerHTML = '';
+  notes.forEach((n, i) => {
+    const d = document.createElement('div');
+    d.className = 'key';
+    d.dataset.i = i;
+    d.innerHTML = `${n.name}<span class="hz">${Math.round(n.f)}</span>`;
+    keysEl.appendChild(d);
+  });
+}
+buildKeys();
+
+// ---- audio: two independent voices ----
+let actx = null;
+const voices = [
+  { osc: null, gain: null, filt: null, lastIdx: -1 },
+  { osc: null, gain: null, filt: null, lastIdx: -1 },
+];
+
+function makeVoice() {
+  const filt = actx.createBiquadFilter();
+  filt.type = 'lowpass';
+  filt.frequency.value = 2400;
+  const gain = actx.createGain();
+  gain.gain.value = 0;
+  const osc = actx.createOscillator();
+  osc.type = waveType;
+  osc.frequency.value = notes[0].f;
+  osc.connect(filt); filt.connect(gain); gain.connect(actx.destination);
+  osc.start();
+  return { osc, gain, filt, lastIdx: -1 };
+}
+
+function ensureAudio() {
+  if (actx) return actx;
+  actx = new (window.AudioContext || window.webkitAudioContext)();
+  voices[0] = makeVoice();
+  voices[1] = makeVoice();
+  return actx;
+}
+
+function setWave(t) {
+  waveType = t;
+  for (const v of voices) if (v.osc) v.osc.type = t;
+  $('waveBtn').textContent = t === 'sine' ? 'Sine' : t === 'triangle' ? 'Tri' : 'Saw';
+}
+
+$('waveBtn').onclick = () => {
+  ensureAudio().resume();
+  setWave(waveType === 'sine' ? 'triangle' : waveType === 'triangle' ? 'sawtooth' : 'sine');
+};
+$('scaleBtn').onclick = () => {
+  scaleKey = scaleKey === 'pent' ? 'major' : 'pent';
+  notes = SCALES[scaleKey];
+  $('scaleBtn').textContent = scaleKey === 'pent' ? 'Pentatonic' : 'Major';
+  buildKeys();
+};
+
+// ---- hand state (two slots) ----
+const hands = [
+  { x: 0.35, y: 0.5, pinch: 0, tx: 0.35, ty: 0.5, tpinch: 0, present: 0 },
+  { x: 0.65, y: 0.5, pinch: 0, tx: 0.65, ty: 0.5, tpinch: 0, present: 0 },
+];
+const SMOOTH = 0.28;
+
+function tipFromLandmarks(hand) {
+  const tip = hand[8];
+  const thumb = hand[4];
+  const wrist = hand[0], mid = hand[9];
+  const palm = Math.hypot(wrist.x - mid.x, wrist.y - mid.y) || 0.001;
+  const pd = Math.hypot(thumb.x - tip.x, thumb.y - tip.y) / palm;
+  const pinch = Math.max(0, Math.min(1, (0.55 - pd) / 0.4));
+  return { x: 1 - tip.x, y: tip.y, pinch };
+}
+
+function onHands(res) {
+  const lm = res.multiHandLandmarks || [];
+  const tips = lm.map(tipFromLandmarks).sort((a, b) => a.x - b.x); // left → right on mirrored view
+  for (let i = 0; i < 2; i++) {
+    if (tips[i]) {
+      hands[i].tx = tips[i].x;
+      hands[i].ty = tips[i].y;
+      hands[i].tpinch = tips[i].pinch;
+      hands[i].present = 1;
+    } else {
+      hands[i].present *= 0.85;
+      hands[i].tpinch *= 0.7;
+    }
+  }
+}
+
+function noteIndexFromX(x) {
+  const t = Math.max(0, Math.min(0.999, (x - 0.08) / 0.84));
+  return Math.floor(t * notes.length);
+}
+
+function tick() {
+  const activeIdx = [];
+  const liveNames = [];
+
+  for (let i = 0; i < 2; i++) {
+    const h = hands[i];
+    h.x += (h.tx - h.x) * SMOOTH;
+    h.y += (h.ty - h.y) * SMOOTH;
+    h.pinch += (h.tpinch - h.pinch) * SMOOTH;
+
+    const shown = h.present > 0.25;
+    const cur = cursors[i];
+    cur.style.opacity = shown ? '1' : '0';
+    if (shown) {
+      cur.style.left = (h.x * 100) + 'vw';
+      cur.style.top = (h.y * 100) + 'vh';
+      cur.classList.toggle('pinch', h.pinch > 0.45);
+    }
+
+    const idx = noteIndexFromX(h.x);
+    const note = notes[idx];
+    const gated = shown && h.pinch > 0.45;
+    if (shown) activeIdx.push({ i, idx, gated });
+    if (gated && note) liveNames.push(note.name);
+
+    if (actx && voices[i].osc && voices[i].gain) {
+      const v = voices[i];
+      const now = actx.currentTime;
+      if (note && idx !== v.lastIdx) {
+        v.osc.frequency.setTargetAtTime(note.f, now, 0.02);
+        v.lastIdx = idx;
+      }
+      // quieter when both may play so sum stays comfortable
+      const vol = gated ? Math.max(0.03, Math.min(0.18, (1 - h.y) * 0.22)) : 0;
+      v.gain.gain.setTargetAtTime(vol, now, gated ? 0.03 : 0.06);
+      if (v.filt) v.filt.frequency.setTargetAtTime(900 + (1 - h.y) * 2800, now, 0.05);
+    }
+  }
+
+  keysEl.querySelectorAll('.key').forEach((el) => {
+    el.classList.remove('on-a', 'on-b');
+  });
+  for (const a of activeIdx) {
+    const el = keysEl.children[a.idx];
+    if (el) el.classList.add(a.i === 0 ? 'on-a' : 'on-b');
+  }
+
+  if (liveNames.length) {
+    noteBig.textContent = liveNames.join(' · ');
+    noteBig.classList.add('live');
+    noteBig.style.color = liveNames.length > 1 ? '#f8fafc' : (activeIdx.find(a => a.gated)?.i === 1 ? 'var(--accent2)' : 'var(--accent)');
+    gateEl.textContent = liveNames.length > 1 ? 'DUET' : 'PLAYING';
+    gateEl.classList.add('on');
+  } else {
+    const hover = activeIdx.map(a => notes[a.idx]?.name).filter(Boolean);
+    noteBig.textContent = hover.length ? hover.join(' · ') : '—';
+    noteBig.classList.remove('live');
+    noteBig.style.color = '#f8fafc';
+    gateEl.textContent = activeIdx.length ? 'OPEN HAND — muted' : 'OPEN HANDS — muted';
+    gateEl.classList.remove('on');
+  }
+
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+async function initCam() {
+  const hubCam = HubClient.embedded && HubClient.camera();
+  if (hubCam && hubCam.active) {
+    self.srcObject = hubCam;
+  } else {
+    self.srcObject = await navigator.mediaDevices.getUserMedia({
+      video: { width: 1280, height: 720, facingMode: 'user' }, audio: false });
+  }
+  await self.play();
+}
+
+function wireHands() {
+  if (HubClient.embedded) {
+    HubClient.onHands(onHands);
+  } else {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js';
+    s.crossOrigin = 'anonymous';
+    s.onload = () => {
+      const hnd = new Hands({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
+      hnd.setOptions({ maxNumHands: 2, modelComplexity: 0, minDetectionConfidence: 0.6, minTrackingConfidence: 0.5 });
+      hnd.onResults(onHands);
+      async function pump() {
+        if (self.readyState >= 2) { try { await hnd.send({ image: self }); } catch (e) {} }
+        setTimeout(pump, 33);
+      }
+      pump();
+    };
+    document.head.appendChild(s);
+  }
+}
+
+HubClient.onActive(on => {
+  if (!on && actx) {
+    const now = actx.currentTime;
+    for (const v of voices) if (v.gain) v.gain.gain.setTargetAtTime(0, now, 0.04);
+  } else if (on) {
+    try { ensureAudio().resume(); } catch (e) {}
+  }
+});
+
+addEventListener('pointerdown', () => { try { ensureAudio().resume(); } catch (e) {} }, { once: true });
+addEventListener('keydown', (e) => {
+  if (e.key.toLowerCase() === 'p') { scaleKey = 'pent'; notes = SCALES.pent; $('scaleBtn').textContent = 'Pentatonic'; buildKeys(); }
+  if (e.key.toLowerCase() === 'm') { scaleKey = 'major'; notes = SCALES.major; $('scaleBtn').textContent = 'Major'; buildKeys(); }
+});
+
+(async () => {
+  try { await initCam(); } catch (e) { $('hint').textContent = 'Camera needed — ' + e.message; }
+  wireHands();
+  if (!HubClient.embedded || HubClient.isActive()) {
+    try { ensureAudio(); } catch (e) {}
+  }
+})();
+</script>
+</body>
+</html>

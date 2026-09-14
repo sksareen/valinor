@@ -1,0 +1,10 @@
+node_modules/
+.git/
+.tmp-*
+*.png
+crm.json
+drafts.json
+message-profile.json
+handviz-watchdog.log
+live-session.jsonl
+notes.json

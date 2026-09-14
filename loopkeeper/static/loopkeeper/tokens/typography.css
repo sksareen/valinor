@@ -1,0 +1,28 @@
+:root {
+  --lk-font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --lk-font-mono: "DM Mono", ui-monospace, "SF Mono", monospace;
+
+  /* Sizes */
+  --lk-text-display: 46px;
+  --lk-text-h1: 40px;
+  --lk-text-h2: 27px;
+  --lk-text-subhead: 18px;
+  --lk-text-body: 16px;
+  --lk-text-sm: 14px;
+  --lk-text-xs: 13px;
+  --lk-text-label: 11px;
+
+  /* Weights */
+  --lk-weight-regular: 400;
+  --lk-weight-medium: 500;
+  --lk-weight-semibold: 600;
+  --lk-weight-bold: 700;
+  --lk-weight-black: 800;
+
+  /* Tracking / leading */
+  --lk-tracking-display: -0.03em;
+  --lk-tracking-heading: -0.02em;
+  --lk-tracking-label: 0.1em;
+  --lk-leading-body: 1.6;
+  --lk-leading-tight: 1.02;
+}

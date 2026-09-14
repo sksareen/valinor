@@ -1,0 +1,2767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<script>(function(){
+  var root = document.documentElement;
+  if (!localStorage.getItem('hub-looks-v2')) {
+    localStorage.setItem('hub-scheme', 'ice');
+    localStorage.setItem('hub-font', 'plex');
+    localStorage.setItem('hub-layout', 'left');
+    localStorage.setItem('hub-fit', 'inset');
+    localStorage.setItem('hub-tabs', 'line');
+    localStorage.setItem('hub-radius', 'sharp');
+    localStorage.setItem('hub-looks-v2', '1');
+  }
+  var theme = localStorage.getItem('lk-theme');
+  var dark = theme === 'dark' || (theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+  root.dataset.theme = dark ? 'dark' : 'light';
+  var scheme = localStorage.getItem('hub-scheme') || 'ice';
+  if (!/^(cyan|slate|ember|pine|violet|rose|gold|ice)$/.test(scheme)) scheme = 'ice';
+  root.dataset.scheme = scheme;
+  var font = localStorage.getItem('hub-font') || 'plex';
+  if (!/^(lato|plex|source|mono)$/.test(font)) font = 'plex';
+  root.dataset.font = font;
+  var density = localStorage.getItem('hub-density') || 'cozy';
+  if (density !== 'compact') density = 'cozy';
+  root.dataset.density = density;
+  var size = localStorage.getItem('hub-size') || 'md';
+  if (!/^(sm|md|lg|xl)$/.test(size)) size = 'md';
+  root.dataset.size = size;
+  var layout = localStorage.getItem('hub-layout') || 'left';
+  root.dataset.layout = layout === 'top' ? 'top' : 'left';
+  var fit = localStorage.getItem('hub-fit') || 'inset';
+  root.dataset.fit = fit === 'overlay' ? 'overlay' : 'inset';
+  var tabs = localStorage.getItem('hub-tabs') || 'line';
+  root.dataset.tabs = /^(pills|ghost|line)$/.test(tabs) ? tabs : 'line';
+  var radius = localStorage.getItem('hub-radius') || 'sharp';
+  root.dataset.radius = radius === 'round' ? 'round' : 'sharp';
+})();</script>
+<link rel="icon" href="/favicon.png" type="image/png" />
+<title>VALINOR</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;600;700&family=Lato:wght@400;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  /* ---- appearance tokens (hub chrome) ---- */
+  :root, html[data-theme="dark"] {
+    --bg: #05060a;
+    --bg-elev: #070910;
+    --bg-panel: rgba(7,9,16,.96);
+    --text: #e2e8f0;
+    --text-dim: #94a3b8;
+    --text-mute: #64748b;
+    --text-faint: #4b5563;
+    --border: rgba(255,255,255,.08);
+    --border-strong: rgba(255,255,255,.16);
+    --chip-bg: rgba(255,255,255,.03);
+    --shadow: 0 16px 48px rgba(0,0,0,.45);
+    --ok: #4ade80;
+    --danger: #ef4444;
+    --danger-bg: rgba(127,29,29,.45);
+    --danger-text: #fecaca;
+  }
+  html[data-theme="light"] {
+    --bg: #f4f5f7;
+    --bg-elev: #ffffff;
+    --bg-panel: rgba(255,255,255,.98);
+    --text: #0f172a;
+    --text-dim: #475569;
+    --text-mute: #64748b;
+    --text-faint: #94a3b8;
+    --border: rgba(15,23,42,.1);
+    --border-strong: rgba(15,23,42,.18);
+    --chip-bg: rgba(15,23,42,.04);
+    --shadow: 0 16px 40px rgba(15,23,42,.12);
+    --ok: #15803d;
+    --danger: #dc2626;
+    --danger-bg: #fee2e2;
+    --danger-text: #991b1b;
+  }
+  html[data-scheme="cyan"]   { --accent: #7dd3fc; --accent-ink: #05060a; --accent-soft: rgba(125,211,252,.14); --accent-line: rgba(125,211,252,.22); }
+  html[data-scheme="slate"]  { --accent: #94a3b8; --accent-ink: #0f172a; --accent-soft: rgba(148,163,184,.18); --accent-line: rgba(148,163,184,.28); }
+  html[data-scheme="ember"]  { --accent: #d4a574; --accent-ink: #1a1208; --accent-soft: rgba(212,165,116,.16); --accent-line: rgba(212,165,116,.28); }
+  html[data-scheme="pine"]   { --accent: #7a9e7e; --accent-ink: #0a120c; --accent-soft: rgba(122,158,126,.16); --accent-line: rgba(122,158,126,.28); }
+  html[data-scheme="violet"] { --accent: #c4b5fd; --accent-ink: #1a1028; --accent-soft: rgba(196,181,253,.16); --accent-line: rgba(196,181,253,.28); }
+  html[data-scheme="rose"]   { --accent: #fb7185; --accent-ink: #1a080c; --accent-soft: rgba(251,113,133,.16); --accent-line: rgba(251,113,133,.28); }
+  html[data-scheme="gold"]   { --accent: #e8c547; --accent-ink: #161208; --accent-soft: rgba(232,197,71,.16); --accent-line: rgba(232,197,71,.28); }
+  html[data-scheme="ice"]    { --accent: #a5f3fc; --accent-ink: #042024; --accent-soft: rgba(165,243,252,.14); --accent-line: rgba(165,243,252,.26); }
+  html[data-theme="light"][data-scheme="cyan"]   { --accent: #0369a1; --accent-ink: #fff; }
+  html[data-theme="light"][data-scheme="slate"]  { --accent: #334155; --accent-ink: #fff; }
+  html[data-theme="light"][data-scheme="ember"]  { --accent: #9a6412; --accent-ink: #fff; }
+  html[data-theme="light"][data-scheme="pine"]   { --accent: #3f6b45; --accent-ink: #fff; }
+  html[data-theme="light"][data-scheme="violet"] { --accent: #6d28d9; --accent-ink: #fff; }
+  html[data-theme="light"][data-scheme="rose"]   { --accent: #be123c; --accent-ink: #fff; }
+  html[data-theme="light"][data-scheme="gold"]   { --accent: #a16207; --accent-ink: #fff; }
+  html[data-theme="light"][data-scheme="ice"]    { --accent: #0e7490; --accent-ink: #fff; }
+
+  html[data-font="lato"]   { --font: Lato, sans-serif; }
+  html[data-font="plex"]   { --font: "IBM Plex Sans", sans-serif; }
+  html[data-font="source"] { --font: "Source Serif 4", Georgia, serif; }
+  html[data-font="mono"]   { --font: "IBM Plex Mono", ui-monospace, monospace; }
+
+  :root { --font-scale: 1; }
+  html[data-size="sm"] { --font-scale: 0.95; }
+  html[data-size="md"] { --font-scale: 1.08; }
+  html[data-size="lg"] { --font-scale: 1.24; }
+  html[data-size="xl"] { --font-scale: 1.42; }
+
+  html[data-density="cozy"] {
+    --bar-h: calc(50px * var(--font-scale)); --side-w: calc(188px * var(--font-scale));
+    --tab-pad-y: calc(7px * var(--font-scale)); --tab-pad-x: calc(15px * var(--font-scale));
+    --tab-size: calc(13px * var(--font-scale)); --gap: calc(7px * var(--font-scale));
+    --ui-fs: calc(14px * var(--font-scale));
+  }
+  html[data-density="compact"] {
+    --bar-h: calc(42px * var(--font-scale)); --side-w: calc(164px * var(--font-scale));
+    --tab-pad-y: calc(5px * var(--font-scale)); --tab-pad-x: calc(12px * var(--font-scale));
+    --tab-size: calc(12px * var(--font-scale)); --gap: calc(5px * var(--font-scale));
+    --ui-fs: calc(13px * var(--font-scale));
+  }
+
+  html[data-radius="round"] { --r-tab: 999px; --r-btn: 8px; --r-panel: 12px; --r-chip: 10px; }
+  html[data-radius="sharp"] { --r-tab: 4px; --r-btn: 4px; --r-panel: 4px; --r-chip: 4px; }
+
+  html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
+               font-family: var(--font); color: var(--text); }
+
+  #views { position: fixed; inset: 0; }
+  #views iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: none; background: var(--bg); }
+  #views iframe.on { display: block; }
+  html[data-layout="top"] #views iframe.external,
+  html[data-layout="top"] #views iframe.framed { top: var(--bar-h); height: calc(100% - var(--bar-h)); }
+  html[data-fit="inset"][data-layout="top"] #views { top: var(--bar-h); }
+  html[data-layout="left"] #views { left: var(--side-w); top: 0; }
+  html[data-fit="overlay"][data-layout="left"] #views { left: 0; }
+  html[data-layout="left"] #views iframe,
+  html[data-layout="left"] #views iframe.external,
+  html[data-layout="left"] #views iframe.framed {
+    top: 0; left: 0; width: 100%; height: 100%;
+  }
+
+  #hot { display: none; }
+  #bar { position: fixed; top: 0; left: 0; right: 0; height: var(--bar-h); z-index: 100;
+         display: flex; align-items: stretch; gap: 0; padding: 0;
+         background: color-mix(in srgb, var(--bg-elev) 92%, transparent);
+         border-bottom: 1px solid var(--accent-line);
+         overflow: visible;
+       }
+  #barFixedLeft, #barFixedRight {
+    flex: 0 0 auto; display: flex; align-items: center; gap: var(--gap); padding: 0 10px;
+    background: color-mix(in srgb, var(--bg-elev) 98%, transparent); z-index: 3; overflow: visible;
+  }
+  #barFixedRight { padding-right: 12px; border-left: 1px solid var(--border); }
+  #barScroll {
+    flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--gap);
+    padding: 0 8px; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch;
+    z-index: 1;
+  }
+  #barScroll::-webkit-scrollbar { display: none; }
+  #bar .brand, #bar button.tab, #bar .sep, #hubClock, #ctl, #barAccount, #settingsBtn, #profileBtn { flex: 0 0 auto; }
+  #bar .brand { font-size: var(--ui-fs); font-weight: 700; letter-spacing: 0.04em;
+                color: var(--accent); user-select: none; }
+  #bar .brand-mark { width:20px; height:20px; border-radius:50%; object-fit:cover;
+                display:inline-block; vertical-align:-4px; margin-right:7px; }
+  #hubClock { font: 600 var(--ui-fs) var(--font); font-variant-numeric: tabular-nums;
+              letter-spacing: .04em; color: var(--text-dim); padding: 5px 10px;
+              border: 1px solid var(--border); border-radius: var(--r-btn);
+              background: var(--chip-bg); position: relative; cursor: pointer; }
+  #hubClock:hover { color: var(--text); border-color: var(--accent-line); }
+  #hubClock.copied { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
+  #hubClockTip {
+    display: none; position: fixed; z-index: 250; pointer-events: none;
+    white-space: nowrap; padding: 7px 10px; border-radius: var(--r-btn);
+    background: var(--bg-panel); border: 1px solid var(--accent-line);
+    box-shadow: var(--shadow);
+    font: 600 11px var(--font); letter-spacing: .03em; color: var(--text-dim);
+  }
+  #hubClockTip.show { display: block; }
+  #hubClockTip b { color: var(--accent); font-weight: 700; }
+  #hubClockTip .sep { color: var(--text-mute); margin: 0 6px; }
+  #bar button.tab { padding: var(--tab-pad-y) var(--tab-pad-x); font: 700 var(--tab-size) var(--font); letter-spacing: 0.05em;
+                    color: var(--text-faint); background: var(--chip-bg);
+                    border: 1px solid var(--border); border-radius: var(--r-tab); cursor: pointer; }
+  #bar button.tab:hover { color: var(--text-dim); }
+  #bar button.tab.on { color: var(--accent); background: var(--accent-soft); border-color: var(--accent); }
+  html[data-tabs="ghost"] #bar button.tab { background: transparent; border-color: transparent; }
+  html[data-tabs="ghost"] #bar button.tab.on { background: var(--accent-soft); border-color: transparent; }
+  html[data-tabs="line"] #bar button.tab {
+    background: transparent; border: none; border-radius: 0;
+    border-bottom: 2px solid transparent; padding-bottom: calc(var(--tab-pad-y) + 2px);
+  }
+  html[data-tabs="line"] #bar button.tab.on { background: transparent; border-bottom-color: var(--accent); color: var(--accent); }
+  #bar .sep { width: 1px; height: 20px; background: var(--border-strong); margin: 0 4px; }
+  #ctl { display: flex; gap: var(--gap); }
+  #ctl button { width: 28px; height: 28px; border-radius: var(--r-btn); border: 1px solid var(--border-strong);
+    background: color-mix(in srgb, var(--bg-elev) 78%, transparent); color: var(--text); font: 600 13px var(--font); cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; }
+  #ctl button:hover { background: color-mix(in srgb, var(--text) 12%, transparent); }
+  #ctl button.on { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
+
+  #rail { display: contents; }
+  html[data-layout="left"] #rail {
+    display: flex;
+    position: fixed;
+    z-index: 100;
+    top: 0; left: 0; bottom: 0;
+    width: var(--side-w);
+    flex-direction: column;
+    background: var(--bg-elev);
+    border-right: 1px solid var(--accent-line);
+  }
+  html[data-layout="left"] #bar {
+    position: relative;
+    inset: auto;
+    left: auto; right: auto; top: auto; bottom: auto;
+    width: 100%; height: 100%;
+    flex-direction: column;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    overflow: hidden;
+  }
+  html[data-layout="left"] #barFixedLeft,
+  html[data-layout="left"] #barFixedRight {
+    flex-direction: column; align-items: stretch; padding: 14px 10px; gap: 8px;
+  }
+  html[data-layout="left"] #barFixedRight {
+    margin-top: auto; padding-bottom: 14px; border-left: none; border-top: 1px solid var(--border);
+  }
+  html[data-layout="left"] #barScroll {
+    flex-direction: column; align-items: stretch; overflow-x: hidden; overflow-y: auto;
+    padding: 8px 8px 12px;
+  }
+  html[data-layout="left"] #bar .brand { letter-spacing: .12em; }
+  html[data-layout="left"] #bar button.tab { width: 100%; text-align: left; }
+  html[data-layout="left"][data-tabs="line"] #bar button.tab {
+    border-bottom: none; border-left: 2px solid transparent; padding-bottom: var(--tab-pad-y);
+    padding-left: calc(var(--tab-pad-x) - 2px);
+  }
+  html[data-layout="left"][data-tabs="line"] #bar button.tab.on { border-left-color: var(--accent); }
+  html[data-layout="left"] #ctl { justify-content: flex-start; }
+  html[data-layout="left"] #barAccount {
+    width: 100%; justify-content: flex-start; gap: 10px; padding-top: 2px;
+  }
+  html[data-layout="left"] #settingsBtn,
+  html[data-layout="left"] #profileBtn {
+    width: 36px; height: 36px; margin-top: 0; align-self: auto;
+  }
+  html[data-layout="left"] #settingsBtn svg { width: 20px; height: 20px; }
+  html[data-layout="left"] #bar.nav-drawer #barScroll { justify-content: flex-start; cursor: default; }
+  html[data-layout="left"] #settingsPanel {
+    top: auto; bottom: 12px; left: calc(var(--side-w) + 8px); right: auto;
+  }
+  html[data-layout="left"] #navDrawer {
+    top: 0; left: var(--side-w); right: auto; bottom: 0; width: min(420px, calc(100vw - var(--side-w)));
+    max-height: none; height: 100%; border-bottom: none; border-right: 1px solid var(--accent-line);
+    transform: translateX(-110%); transition: transform .22s ease;
+  }
+  html[data-layout="left"] #navDrawer.open { transform: translateX(0); max-height: none; }
+  html[data-layout="left"] #navDrawerBackdrop { top: 0; left: var(--side-w); }
+  html[data-layout="left"] #navDrawerInner { max-height: none; height: 100%; grid-template-columns: 1fr; }
+  #barAccount { display: flex; align-items: center; gap: 8px; }
+  #settingsBtn {
+    width: 28px; height: 28px; padding: 0; border-radius: 50%;
+    border: 1px solid var(--border-strong);
+    background: color-mix(in srgb, var(--bg-elev) 78%, transparent);
+    color: var(--text-dim); cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  #settingsBtn svg { width: 15px; height: 15px; display: block; }
+  #settingsBtn:hover { color: var(--accent); border-color: var(--accent); }
+  #settingsBtn.on {
+    color: var(--accent); border-color: var(--accent); background: var(--accent-soft);
+  }
+
+  #profileBtn {
+    width: 28px; height: 28px; border-radius: 50%; padding: 0; overflow: hidden;
+    border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent);
+    font: 700 11px var(--font); letter-spacing: .02em; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; position: relative;
+  }
+  #profileBtn:hover { border-color: var(--accent); color: var(--accent); }
+  #profileBtn.on { box-shadow: 0 0 0 2px var(--accent-soft); border-color: var(--accent); }
+  #profileBtn img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  #profileBtn img[hidden] { display: none; }
+
+  #profilePanel {
+    display: none; position: fixed; top: calc(var(--bar-h) + 6px); right: 12px; z-index: 120;
+    width: min(420px, calc(100vw - 24px)); max-height: min(82vh, 780px); overflow-y: auto;
+    padding: 16px 16px 14px;
+    background: var(--bg-panel); border: 1px solid var(--accent-line);
+    border-radius: var(--r-panel); box-shadow: var(--shadow);
+    color: var(--text); font-family: var(--font); font-size: var(--ui-fs);
+  }
+  #profilePanel.open { display: block; }
+  #profilePanel h2 { font: 700 1em var(--font); letter-spacing: .12em; color: var(--accent);
+    text-transform: uppercase; margin-bottom: 10px; }
+  #profilePanel .lbl { font: 700 0.92em var(--font); letter-spacing: .08em; color: var(--text-mute);
+    text-transform: uppercase; margin-bottom: 2px; }
+  #profilePanel .row { display: flex; flex-direction: column; gap: 8px; }
+  #profilePanel .hint { font-size: 1em; color: var(--text-mute); line-height: 1.45; }
+  #profilePanel hr { border: none; border-top: 1px solid var(--border); margin: 4px 0; }
+  #profilePanel input, #profilePanel textarea {
+    width: 100%; padding: 8px 10px; border-radius: var(--r-btn);
+    border: 1px solid var(--border); background: var(--chip-bg); color: var(--text);
+    font: 600 1em var(--font); outline: none;
+  }
+  #profilePanel input:focus, #profilePanel textarea:focus { border-color: var(--accent); }
+  #profilePanel textarea { min-height: 84px; resize: vertical; line-height: 1.45; }
+  #profilePanel .profile-ident { flex-direction: row; align-items: center; gap: 14px; }
+  #profilePanel .profile-ident-meta { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  #profileAvatarBtn {
+    width: 64px; height: 64px; border-radius: 50%; padding: 0; overflow: hidden; flex: 0 0 auto;
+    border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent);
+    font: 700 20px var(--font); cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; position: relative;
+  }
+  #profileAvatarBtn:hover { border-color: var(--accent); }
+  #profileAvatarBtn img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  #profileAvatarBtn img[hidden] { display: none; }
+  #profilePhotoClear {
+    align-self: flex-start; padding: 0; border: none; background: none; cursor: pointer;
+    font: 600 0.92em var(--font); color: var(--text-mute);
+  }
+  #profilePhotoClear:hover { color: var(--text); }
+  #profilePanel .profile-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 16px; }
+  html[data-layout="left"] #profilePanel {
+    top: auto; bottom: 12px; left: calc(var(--side-w) + 8px); right: auto;
+  }
+
+  #settingsPanel {
+    display: none; position: fixed; top: calc(var(--bar-h) + 6px); right: 12px; z-index: 120;
+    width: min(420px, calc(100vw - 24px)); max-height: min(82vh, 780px); overflow-y: auto;
+    padding: 16px 16px 14px;
+    background: var(--bg-panel); border: 1px solid var(--accent-line);
+    border-radius: var(--r-panel); box-shadow: var(--shadow);
+    color: var(--text); font-family: var(--font); font-size: var(--ui-fs);
+  }
+  #settingsPanel.open { display: block; }
+  #settingsPanel h2 { font: 700 1em var(--font); letter-spacing: .12em; color: var(--accent);
+    text-transform: uppercase; margin-bottom: 10px; }
+  #settingsPanel .lbl { font: 700 0.92em var(--font); letter-spacing: .08em; color: var(--text-mute);
+    text-transform: uppercase; margin-bottom: 2px; }
+  #settingsPanel .row { display: flex; flex-direction: column; gap: 8px; }
+  #settingsPanel .hint { font-size: 1em; color: var(--text-mute); line-height: 1.45; }
+  #settingsPanel .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  #restartBtn {
+    padding: 8px 14px; border-radius: 9px; border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent);
+    background: var(--danger-bg); color: var(--danger-text); font: 700 1em var(--font);
+    letter-spacing: .04em; cursor: pointer;
+  }
+  #restartBtn:hover { background: var(--danger); color: #fff; border-color: transparent; }
+  #restartBtn:disabled { opacity: .55; cursor: wait; }
+  #restartStatus { font-size: 0.95em; color: var(--text-dim); min-height: 16px; }
+  #settingsPanel .actions button {
+    padding: 8px 12px; border-radius: 9px; border: 1px solid var(--border);
+    background: var(--chip-bg); color: var(--text-dim); font: 600 0.92em var(--font); cursor: pointer;
+  }
+  #settingsPanel .actions button:hover { color: var(--text); border-color: var(--accent-line, var(--border-strong)); }
+  #settingsPanel #restartBtn { border-color: color-mix(in srgb, var(--danger) 45%, transparent);
+    background: var(--danger-bg); color: var(--danger-text); font-weight: 700; }
+  #settingsPanel #restartBtn:hover { background: var(--danger); color: #fff; border-color: transparent; }
+  #settingsPanel .seg {
+    display: flex; gap: 6px; padding: 4px; border-radius: var(--r-chip);
+    background: var(--chip-bg); border: 1px solid var(--border); flex-wrap: wrap;
+  }
+  #settingsPanel .seg button {
+    flex: 1; min-width: calc(50% - 6px); padding: 9px 10px; border-radius: var(--r-btn); border: none; cursor: pointer;
+    font: 700 1em var(--font); letter-spacing: .04em; color: var(--text-mute);
+    background: transparent;
+  }
+  #settingsPanel .seg.seg-4 button { min-width: calc(25% - 6px); flex: 1 1 calc(25% - 6px); padding: 8px 6px; }
+  #settingsPanel .seg button:hover { color: var(--text); }
+  #settingsPanel .seg button.on { color: var(--accent-ink); background: var(--accent); }
+  #settingsPanel .seg.seg-voice {
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px;
+  }
+  #settingsPanel .seg.seg-voice button { min-width: 0; flex: none; width: 100%; padding: 8px 6px; }
+  #settingsPanel .seg.seg-voice button[data-voice="browser"] { grid-column: 1 / -1; }
+  #settingsPanel .tts-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
+  #settingsPanel #ttsPreviewBtn {
+    padding: 7px 12px; border-radius: 9px; border: 1px solid var(--border-strong);
+    background: var(--chip-bg); color: var(--text); font: 600 1em var(--font); cursor: pointer;
+  }
+  #settingsPanel #ttsPreviewBtn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  #settingsPanel #ttsPreviewBtn:disabled { opacity: .5; cursor: default; }
+  #ttsStatus { font-size: 1em; color: var(--text-mute); line-height: 1.4; min-height: 1.2em; }
+  #settingsPanel .seg button .swatch {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px;
+    vertical-align: middle; border: 1px solid rgba(0,0,0,.2);
+  }
+  #settingsPanel hr { border: none; border-top: 1px solid var(--border); margin: 4px 0; }
+  #settingsPanel .keys { display: flex; flex-direction: column; gap: 6px; }
+  #settingsPanel .keyrow { display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    font-size: 1em; color: var(--text-dim); }
+  #settingsPanel .keyrow span { color: var(--text-mute); }
+  #settingsPanel .doc-block { display: flex; flex-direction: column; gap: 8px; }
+  #settingsPanel .doc-row {
+    display: flex; flex-direction: column; gap: 2px;
+    padding: 8px 10px; border-radius: 8px; background: var(--chip-bg); border: 1px solid var(--border);
+  }
+  #settingsPanel .doc-row .dk {
+    font: 700 0.88em var(--font); letter-spacing: .04em; color: var(--text-mute); text-transform: uppercase;
+  }
+  #settingsPanel .doc-row .dv {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 0.92em; color: var(--text);
+    word-break: break-all; line-height: 1.4;
+  }
+  #settingsPanel .doc-row .dn { font-size: 0.92em; color: var(--text-faint); line-height: 1.35; }
+  #settingsPanel .doc-meta { font-size: 0.92em; color: var(--text-mute); line-height: 1.4; }
+  #settingsPanel .doc-meta.ok { color: var(--accent); }
+  #settingsPanel .doc-meta.warn { color: var(--danger-text, #f87171); }
+  #settingsPanel #tabOrderList {
+    display: flex; flex-direction: column; gap: 0; padding: 0;
+    /* scroll with the settings panel — avoid nested overflow stacking bugs */
+  }
+  #settingsPanel .tab-zone {
+    display: flex; flex-direction: column; gap: 6px;
+    padding: 10px; border-radius: var(--r-panel); border: 1px dashed var(--border);
+    transition: border-color .12s, background .12s;
+    position: relative; z-index: 0;
+  }
+  #settingsPanel .tab-zone.zone-bar {
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 32%, transparent);
+  }
+  #settingsPanel .tab-zone.zone-overflow {
+    background: var(--chip-bg);
+    border-color: var(--border);
+  }
+  #settingsPanel .tab-zone.zone-hidden {
+    background: transparent;
+    border-style: dotted;
+  }
+  #settingsPanel .tab-zone.drag-target {
+    border-color: var(--accent);
+    border-style: solid;
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+  }
+  #settingsPanel .tab-zone-head {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+    font: 700 0.85em var(--font); letter-spacing: .08em;
+    text-transform: uppercase; color: var(--text-mute);
+  }
+  #settingsPanel .tab-zone-head .meta {
+    font-weight: 600; letter-spacing: .02em; text-transform: none; color: var(--text-faint);
+  }
+  #settingsPanel .tab-zone-empty {
+    font: 600 0.92em var(--font); color: var(--text-faint); padding: 12px 8px; text-align: center;
+  }
+  #settingsPanel .tab-bar-cut {
+    display: flex; align-items: center; gap: 10px;
+    flex: 0 0 auto; margin: 12px 0; position: relative; z-index: 1;
+    font: 700 0.85em var(--font); letter-spacing: .1em; text-transform: uppercase; color: var(--accent);
+  }
+  #settingsPanel .tab-bar-cut::before,
+  #settingsPanel .tab-bar-cut::after {
+    content: ''; flex: 1 1 auto; height: 1px; min-width: 12px;
+    background: var(--accent-line);
+  }
+  #settingsPanel .tab-bar-cut span {
+    flex: 0 0 auto; padding: 4px 10px; border-radius: var(--r-tab);
+    border: 1px solid var(--accent-line); background: var(--bg-panel); color: var(--accent);
+    white-space: nowrap;
+  }
+  #settingsPanel .tab-order-row {
+    display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+    border: 1px solid var(--border); border-radius: var(--r-btn); background: var(--bg-elev);
+    cursor: grab; user-select: none; touch-action: none;
+    position: relative; z-index: 0;
+  }
+  #settingsPanel .tab-order-row:active { cursor: grabbing; }
+  #settingsPanel .tab-order-row .grip {
+    color: var(--text-mute); font: 700 1.1em var(--font); letter-spacing: -.05em;
+    line-height: 1; opacity: .7; cursor: grab; flex: 0 0 auto;
+  }
+  #settingsPanel .tab-order-row .name {
+    flex: 1 1 auto; min-width: 0;
+    font: 600 1em var(--font); color: var(--text); letter-spacing: .04em;
+  }
+  #settingsPanel .tab-order-row .slot {
+    flex: 0 0 auto;
+    font: 600 0.85em var(--font); color: var(--text-faint); letter-spacing: .04em;
+  }
+  #settingsPanel .tab-order-row .vis {
+    flex: 0 0 auto; padding: 4px 8px; border-radius: 6px;
+    border: 1px solid var(--border); background: transparent;
+    color: var(--text-mute); font: 600 0.85em var(--font); letter-spacing: .04em;
+    text-transform: uppercase; cursor: pointer;
+  }
+  #settingsPanel .tab-order-row .vis:hover { color: var(--text); border-color: var(--accent-line); }
+  #settingsPanel .tab-order-row.is-hidden .name { color: var(--text-faint); }
+  #settingsPanel .tab-order-row.is-hidden .vis { color: var(--accent); border-color: var(--accent-line); }
+  #settingsPanel .tab-order-row.dragging { opacity: .4; border-style: dashed; }
+  #settingsPanel .tab-order-row.drag-over-before { box-shadow: inset 0 2px 0 0 var(--accent); }
+  #settingsPanel .tab-order-row.drag-over-after { box-shadow: inset 0 -2px 0 0 var(--accent); }
+  #settingsPanel .tab-order-actions { display: flex; gap: 8px; margin-top: 10px; }
+  #settingsPanel .tab-order-actions button {
+    padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border);
+    background: transparent; color: var(--text-mute); font: 600 0.92em var(--font); cursor: pointer;
+  }
+  #settingsPanel .tab-order-actions button:hover { color: var(--text); }
+  #settingsPanel kbd {
+    font: 600 0.85em ui-monospace, monospace; padding: 2px 6px; border-radius: 5px;
+    background: var(--chip-bg); border: 1px solid var(--border); color: var(--text-dim);
+  }
+
+  /* drawer nav mode — up to 5 tabs, centered with equal spacing */
+  #bar.nav-drawer #barScroll {
+    overflow: hidden; cursor: pointer; position: relative;
+    justify-content: space-evenly; align-items: center;
+    gap: 0; padding: 0 12px;
+  }
+  #bar.nav-drawer #barScroll .tab.tab-bar-hidden { display: none; }
+  #bar.nav-drawer #barScroll .tab,
+  #bar.nav-drawer #barScroll #navExpand {
+    flex: 0 0 auto;
+  }
+  #bar.nav-drawer.all-tabs-fit #navExpand { display: none; }
+  #navExpand {
+    display: none; flex: 0 0 auto; padding: var(--tab-pad-y) 11px; font: 700 var(--tab-size) var(--font);
+    letter-spacing: 0.05em; color: var(--text-mute); background: var(--chip-bg);
+    border: 1px solid var(--border); border-radius: var(--r-tab); cursor: pointer;
+  }
+  #bar.nav-drawer #navExpand { display: inline-flex; align-items: center; }
+  #navExpand:hover, #bar.nav-drawer #barScroll:hover #navExpand { color: var(--text-dim); }
+  #bar.nav-drawer.drawer-open #navExpand { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+  #navDrawerBackdrop {
+    position: fixed; inset: 0; top: var(--bar-h); z-index: 98; background: rgba(0,0,0,.38);
+    opacity: 0; pointer-events: none; transition: opacity .22s ease;
+  }
+  #navDrawerBackdrop.open { opacity: 1; pointer-events: auto; }
+  #navDrawer {
+    position: fixed; top: var(--bar-h); left: 0; right: 0; z-index: 99;
+    max-height: 0; overflow: hidden; pointer-events: none;
+    background: color-mix(in srgb, var(--bg-elev) 96%, transparent);
+    border-bottom: 1px solid var(--accent-line);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(16px);
+    transition: max-height .28s ease;
+  }
+  #navDrawer.open { max-height: min(70vh, 520px); pointer-events: auto; }
+  #navDrawerInner {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+    gap: 8px;
+    padding: 14px 16px 16px;
+    overflow-y: auto;
+    max-height: min(70vh, 520px);
+    max-width: 920px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  #navDrawerInner .tab {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 100%; min-height: calc(34px * var(--font-scale));
+    padding: var(--tab-pad-y) 12px;
+    font: 700 var(--tab-size) var(--font); letter-spacing: 0.05em;
+    color: var(--text-faint); background: var(--chip-bg);
+    border: 1px solid var(--border); border-radius: var(--r-tab);
+    cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  #navDrawerInner .tab:hover { color: var(--text-dim); border-color: var(--border-strong); }
+  #navDrawerInner .tab.on {
+    color: var(--accent); background: var(--accent-soft); border-color: var(--accent);
+  }
+  html[data-tabs="ghost"] #navDrawerInner .tab { background: transparent; border-color: transparent; }
+  html[data-tabs="ghost"] #navDrawerInner .tab.on { background: var(--accent-soft); }
+  html[data-tabs="line"] #navDrawerInner .tab {
+    background: transparent; border: none; border-radius: 0; border-bottom: 2px solid transparent; justify-content: flex-start;
+  }
+  html[data-tabs="line"] #navDrawerInner .tab.on { background: transparent; border-bottom-color: var(--accent); color: var(--accent); }
+
+  @media (hover: none), (pointer: coarse) {
+    #barScroll { -webkit-overflow-scrolling: touch; }
+    #hot { display: none; }
+    html[data-layout="top"] #views { top: var(--bar-h); }
+  }
+  @media (max-width: 720px) {
+    html[data-layout="left"] #rail {
+      display: flex;
+      top: 0; left: 0; right: 0; bottom: auto;
+      width: auto; height: var(--bar-h);
+      flex-direction: row;
+      border-right: none; border-bottom: 1px solid var(--accent-line);
+    }
+    html[data-layout="left"] #bar { flex-direction: row; overflow: visible; }
+    html[data-layout="left"] #barFixedLeft,
+    html[data-layout="left"] #barFixedRight { flex-direction: row; align-items: center; padding: 0 10px; margin-top: 0; border-top: none; }
+    html[data-layout="left"] #barFixedRight { border-left: 1px solid var(--border); }
+    html[data-layout="left"] #barAccount { width: auto; padding-top: 0; gap: 8px; }
+    html[data-layout="left"] #settingsBtn,
+    html[data-layout="left"] #profileBtn { width: 28px; height: 28px; }
+    html[data-layout="left"] #settingsBtn svg { width: 15px; height: 15px; }
+    html[data-layout="left"] #barScroll { flex-direction: row; overflow-x: auto; overflow-y: hidden; padding: 0 8px; }
+    html[data-layout="left"] #bar button.tab { width: auto; }
+    html[data-layout="left"] #views { left: 0; top: var(--bar-h); }
+    html[data-layout="left"] #settingsPanel,
+    html[data-layout="left"] #profilePanel { top: calc(var(--bar-h) + 6px); right: 12px; left: auto; bottom: auto; }
+  }
+
+  #start {
+    position: fixed; inset: 0; z-index: 200; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 0; color: var(--text);
+    background: var(--bg); text-align: center; overflow: hidden;
+    opacity: 1; transition: opacity 80ms ease, visibility 80ms ease;
+  }
+  #start.hide { opacity: 0; visibility: hidden; pointer-events: none; }
+  #start.out { opacity: 0; }
+  #start .core {
+    position: relative; z-index: 1; display: flex; flex-direction: column;
+    align-items: center; gap: 14px; padding: 0 28px;
+  }
+  #start .mark { width: 72px; height: 72px; }
+  #start .mark img { width: 100%; height: 100%; display: block; border-radius: 50%; object-fit: cover; }
+  #start h1 {
+    font-size: clamp(32px, 6vw, 48px); font-weight: 700;
+    letter-spacing: .22em; color: var(--accent); margin-right: -.22em;
+    text-indent: .22em; line-height: 1; font-family: var(--font);
+  }
+  #start .tag {
+    max-width: 380px; font-size: 13.5px; line-height: 1.5; color: var(--text-dim);
+  }
+  #startMsg {
+    color: var(--danger); font-size: 12.5px; min-height: 0; max-width: 420px;
+    line-height: 1.4;
+  }
+  #startMsg:empty { display: none; }
+  #go {
+    margin-top: 2px; padding: 11px 24px; font-size: 13px; font-weight: 700;
+    letter-spacing: .04em; color: var(--accent-ink); background: var(--accent); border: none;
+    border-radius: 999px; cursor: pointer; font-family: var(--font);
+  }
+  #go:hover { filter: brightness(1.1); }
+  #go:active { transform: scale(.98); }
+  #go:disabled { cursor: wait; opacity: .72; }
+  #start.booting #go { display: none; }
+  #start .status {
+    display: none; font: 600 11px var(--font); letter-spacing: .12em;
+    text-transform: uppercase; color: var(--text-mute);
+  }
+  #start.booting .status { display: block; }
+
+  #speechNote { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 110;
+    display: none; max-width: min(640px, 92vw); padding: 8px 14px; border-radius: 10px;
+    background: var(--danger-bg); border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent);
+    color: var(--danger-text); font: 600 12px/1.4 var(--font); text-align: center; }
+  #speechNote a { color: inherit; text-decoration: underline; }
+
+  #cmdPalette { display: none; position: fixed; inset: 0; z-index: 210; }
+  #cmdPalette.open { display: block; }
+  #cmdPaletteBackdrop { position: absolute; inset: 0; background: rgba(0,0,0,.52); }
+  #cmdPalettePanel {
+    position: absolute; top: min(18vh, 120px); left: 50%; transform: translateX(-50%);
+    width: min(560px, calc(100vw - 32px));
+    background: var(--bg-panel); border: 1px solid var(--accent-line);
+    border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; font-family: var(--font);
+  }
+  #cmdPaletteInput {
+    width: 100%; padding: 16px 18px; font: 400 calc(17px * var(--font-scale)) var(--font); color: var(--text);
+    background: transparent; border: none; border-bottom: 1px solid var(--border);
+    outline: none;
+  }
+  #cmdPaletteInput::placeholder { color: var(--text-faint); }
+  #cmdPaletteList { list-style: none; max-height: min(50vh, 420px); overflow-y: auto; padding: 6px 0; }
+  #cmdPaletteList li {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 12px 18px; cursor: pointer; font: 600 calc(15px * var(--font-scale)) var(--font); color: var(--text-dim);
+  }
+  #cmdPaletteList li:hover { background: var(--chip-bg); }
+  #cmdPaletteList li.sel { background: var(--accent-soft); color: var(--text); }
+  #cmdPaletteList li.on-tab { color: var(--accent); }
+  #cmdPaletteList .cmd-meta { font: 600 calc(12px * var(--font-scale)) var(--font); letter-spacing: .04em; color: var(--text-mute); }
+  #cmdPaletteList .cmd-meta kbd {
+    font: 600 10px ui-monospace, monospace; padding: 2px 6px; border-radius: 5px;
+    background: var(--chip-bg); border: 1px solid var(--border); color: var(--text-dim);
+  }
+  #cmdPaletteEmpty { padding: 18px 16px; text-align: center; font-size: 13px; color: var(--text-mute); }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="cursor-capture.js"></script>
+</head>
+<body>
+  <div id="views"></div>
+  <!-- feeds the shared hand tracker; kept technically visible so frames decode -->
+  <video id="camfeed" autoplay playsinline muted
+         style="position:fixed; bottom:0; left:0; width:2px; height:2px; opacity:0; pointer-events:none;"></video>
+
+  <div id="hot" style="display:none;"></div>
+  <div id="rail">
+    <div id="bar">
+      <div id="barFixedLeft">
+        <span class="brand"><img class="brand-mark" src="/valinor-mark.jpg" alt="" />VALINOR</span>
+        <time id="hubClock" aria-live="off" tabindex="0"></time>
+      </div>
+      <div id="barScroll">
+        <button type="button" id="navExpand" title="All tabs">⋯</button>
+      </div>
+      <div id="barFixedRight">
+        <div id="ctl">
+          <button id="selectBtn" title="select overlay — click/drag with the mouse">○</button>
+        </div>
+        <div id="barAccount">
+          <button type="button" id="settingsBtn" title="Settings" aria-label="Settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          </button>
+          <button type="button" id="profileBtn" title="Profile" aria-label="Profile" aria-expanded="false">
+            <span id="profileInitials">?</span>
+            <img id="profilePhoto" alt="" hidden />
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="hubClockTip" aria-hidden="true"></div>
+
+  <div id="navDrawerBackdrop" aria-hidden="true"></div>
+  <div id="navDrawer" aria-hidden="true">
+    <div id="navDrawerInner"></div>
+  </div>
+
+  <div id="settingsPanel" role="dialog" aria-label="Menu">
+    <h2>Menu</h2>
+    <div class="row">
+      <div class="lbl">Theme</div>
+      <div class="seg" id="themeSeg">
+        <button type="button" data-theme="light">Light</button>
+        <button type="button" data-theme="dark">Dark</button>
+      </div>
+    </div>
+    <hr />
+    <div class="row">
+      <div class="lbl">Color</div>
+      <div class="seg seg-4" id="schemeSeg">
+        <button type="button" data-scheme="cyan"><span class="swatch" style="background:#7dd3fc"></span>Cyan</button>
+        <button type="button" data-scheme="slate"><span class="swatch" style="background:#94a3b8"></span>Slate</button>
+        <button type="button" data-scheme="ember"><span class="swatch" style="background:#d4a574"></span>Ember</button>
+        <button type="button" data-scheme="pine"><span class="swatch" style="background:#7a9e7e"></span>Pine</button>
+        <button type="button" data-scheme="violet"><span class="swatch" style="background:#c4b5fd"></span>Violet</button>
+        <button type="button" data-scheme="rose"><span class="swatch" style="background:#fb7185"></span>Rose</button>
+        <button type="button" data-scheme="gold"><span class="swatch" style="background:#e8c547"></span>Gold</button>
+        <button type="button" data-scheme="ice"><span class="swatch" style="background:#a5f3fc"></span>Ice</button>
+      </div>
+    </div>
+    <hr />
+    <div class="row">
+      <div class="lbl">Font</div>
+      <div class="seg seg-4" id="fontSeg">
+        <button type="button" data-font="lato" style="font-family:Lato,sans-serif">Lato</button>
+        <button type="button" data-font="plex" style="font-family:'IBM Plex Sans',sans-serif">Plex</button>
+        <button type="button" data-font="source" style="font-family:'Source Serif 4',Georgia,serif">Serif</button>
+        <button type="button" data-font="mono" style="font-family:'IBM Plex Mono',monospace">Mono</button>
+      </div>
+    </div>
+    <hr />
+    <div class="row">
+      <div class="lbl">Size</div>
+      <div class="seg seg-4" id="sizeSeg">
+        <button type="button" data-size="sm">S</button>
+        <button type="button" data-size="md">M</button>
+        <button type="button" data-size="lg">L</button>
+        <button type="button" data-size="xl">XL</button>
+      </div>
+    </div>
+    <hr />
+    <div class="row">
+      <div class="lbl">Spacing</div>
+      <div class="seg" id="densitySeg">
+        <button type="button" data-density="cozy">Cozy</button>
+        <button type="button" data-density="compact">Compact</button>
+      </div>
+    </div>
+    <hr />
+    <div class="row">
+      <div class="lbl">Layout</div>
+      <div class="seg" id="layoutSeg">
+        <button type="button" data-layout="top">Top bar</button>
+        <button type="button" data-layout="left">Left side</button>
+      </div>
+    </div>
+    <hr />
+    <div class="row">
+      <div class="lbl">Fit</div>
+      <div class="hint">Overlay sits on the view. Inset carves a column or row for chrome.</div>
+      <div class="seg" id="fitSeg">
+        <button type="button" data-fit="overlay">Overlay</button>
+        <button type="button" data-fit="inset">Inset</button>
+      </div>
+    </div>
+    <hr />
+    <div class="row">
+      <div class="lbl">Tabs</div>
+      <div class="seg" id="tabsSeg">
+        <button type="button" data-tabs="pills">Pills</button>
+        <button type="button" data-tabs="ghost">Ghost</button>
+        <button type="button" data-tabs="line">Line</button>
+      </div>
+    </div>
+    <hr />
+    <div class="row">
+      <div class="lbl">Corners</div>
+      <div class="seg" id="radiusSeg">
+        <button type="button" data-radius="round">Round</button>
+        <button type="button" data-radius="sharp">Sharp</button>
+      </div>
+    </div>
+    <hr />
+    <div class="row">
+      <div class="lbl">Live voice</div>
+      <div class="hint">Local Kitten TTS (~80MB). Browser uses the system voice as fallback.</div>
+      <div class="seg seg-voice" id="ttsVoiceSeg">
+        <button type="button" data-voice="Jasper">Jasper</button>
+        <button type="button" data-voice="Bruno">Bruno</button>
+        <button type="button" data-voice="Hugo">Hugo</button>
+        <button type="button" data-voice="Leo">Leo</button>
+        <button type="button" data-voice="Bella">Bella</button>
+        <button type="button" data-voice="Luna">Luna</button>
+        <button type="button" data-voice="Rosie">Rosie</button>
+        <button type="button" data-voice="Kiki">Kiki</button>
+        <button type="button" data-voice="browser">Browser</button>
+      </div>
+      <div class="tts-actions">
+        <button type="button" id="ttsPreviewBtn">Preview</button>
+        <div id="ttsStatus"></div>
+      </div>
+    </div>
+    <hr />
+    <div class="row">
+      <div class="lbl">Navigation</div>
+      <div class="hint">Classic scrolls all tabs; drawer shows up to five, rest via ⋯.</div>
+      <div class="seg" id="navModeSeg">
+        <button type="button" data-mode="classic">Classic</button>
+        <button type="button" data-mode="drawer">Drawer</button>
+      </div>
+    </div>
+    <hr />
+    <div class="row">
+      <div class="lbl">Tab order</div>
+      <div class="hint">Drag between boxes. Hide with Show/Hide, or drag into Hidden. Top box = chrome (max 5).</div>
+      <div id="tabOrderList"></div>
+      <div class="tab-order-actions">
+        <button type="button" id="tabOrderReset">Reset tabs</button>
+      </div>
+    </div>
+    <hr />
+    <div class="row">
+      <div class="lbl">Valinor memory</div>
+      <div class="hint">Val’s notes file (valinor.md). Same file as Live → Memory. Path from VALINOR_MEMORY_PATH or ~/Savar/memory/valinor.md.</div>
+      <div class="doc-block">
+        <div class="doc-row">
+          <div class="dk">Path</div>
+          <div class="dv" id="memFilePath">Loading…</div>
+          <div class="dn" id="memFileNote"></div>
+        </div>
+      </div>
+      <div class="actions">
+        <button type="button" id="memCopyBtn">Copy path</button>
+        <button type="button" id="memOpenBtn">Open file</button>
+      </div>
+      <div id="memFileStatus" class="doc-meta"></div>
+    </div>
+    <hr />
+    <div class="row">
+      <div class="lbl">Data</div>
+      <div class="hint">Where Valinor writes. Ingest timestamps live in each .md frontmatter.</div>
+      <div class="doc-block" id="dataDoc"><div class="doc-meta">Loading…</div></div>
+    </div>
+    <hr />
+    <div class="row">
+      <div class="lbl">Models</div>
+      <div class="hint">Resolved from .env (OpenRouter unless noted). Override via the env key shown.</div>
+      <div id="modelsMeta" class="doc-meta">Loading…</div>
+      <div class="doc-block" id="modelsDoc"></div>
+    </div>
+    <hr />
+    <div class="row">
+      <div class="lbl">Shortcuts</div>
+      <div class="keys">
+        <div class="keyrow"><span>Go to tab</span><span><kbd>⌘</kbd><kbd>P</kbd></span></div>
+        <div class="keyrow"><span>Toggle theme</span><span><kbd>⌘</kbd><kbd>I</kbd></span></div>
+        <div class="keyrow"><span>Cursor capture</span><span><kbd>⌘</kbd><kbd>U</kbd></span></div>
+        <div class="keyrow"><span>Open menu</span><span><kbd>⌘</kbd><kbd>K</kbd></span></div>
+        <div class="keyrow"><span>Valinor overlay</span><span><kbd>⌘</kbd><kbd>J</kbd></span></div>
+        <div class="keyrow"><span>Tabs 1–10</span><span><kbd>1</kbd>–<kbd>9</kbd> <kbd>0</kbd></span></div>
+        <div class="keyrow"><span>Close overlay</span><span><kbd>Esc</kbd></span></div>
+      </div>
+    </div>
+    <hr />
+    <div class="row">
+      <div class="hint">Restart the Valinor Node server on :4777. Reloads when it’s back.</div>
+      <div class="actions">
+        <button id="restartBtn" type="button">Restart server</button>
+      </div>
+      <div id="restartStatus"></div>
+    </div>
+  </div>
+
+  <div id="profilePanel" role="dialog" aria-label="Profile" aria-hidden="true">
+    <h2>Profile</h2>
+    <div class="row profile-ident">
+      <button type="button" id="profileAvatarBtn" title="Add a photo" aria-label="Add a photo">
+        <span id="profileAvatarInitials">?</span>
+        <img id="profileAvatarImg" alt="" hidden />
+      </button>
+      <input type="file" id="profilePhotoInput" accept="image/*" hidden />
+      <div class="profile-ident-meta">
+        <div class="hint">A photo of you, or initials from your name. Stays on this device for now.</div>
+        <button type="button" id="profilePhotoClear" hidden>Remove photo</button>
+      </div>
+    </div>
+    <hr />
+    <div class="row">
+      <label class="lbl" for="profileName">Name</label>
+      <input id="profileName" type="text" autocomplete="name" placeholder="Your name" />
+    </div>
+    <div class="row">
+      <label class="lbl" for="profileCallMe">Call me</label>
+      <input id="profileCallMe" type="text" autocomplete="nickname" placeholder="What Val should call you" />
+    </div>
+    <div class="row">
+      <label class="lbl" for="profileRole">What you do</label>
+      <input id="profileRole" type="text" placeholder="Builder, student, …" />
+    </div>
+    <div class="row">
+      <label class="lbl" for="profileLocation">Where you are</label>
+      <input id="profileLocation" type="text" autocomplete="address-level2" placeholder="City, region" />
+    </div>
+    <hr />
+    <div class="row">
+      <label class="lbl" for="profileAbout">About you</label>
+      <textarea id="profileAbout" rows="4" placeholder="Facts Val should know — people, work, how you operate."></textarea>
+    </div>
+    <div class="row">
+      <label class="lbl" for="profileVoice">How to talk to you</label>
+      <textarea id="profileVoice" rows="3" placeholder="Tone, length, things to skip."></textarea>
+    </div>
+    <div class="profile-foot">
+      <div id="profileSaveStatus" class="doc-meta">Not saved yet</div>
+    </div>
+  </div>
+
+  <div id="speechNote"></div>
+
+  <div id="cmdPalette" aria-hidden="true">
+    <div id="cmdPaletteBackdrop"></div>
+    <div id="cmdPalettePanel" role="dialog" aria-label="Go to tab">
+      <input id="cmdPaletteInput" type="search" placeholder="Go to tab…  ⌘P" autocomplete="off" spellcheck="false" />
+      <ul id="cmdPaletteList"></ul>
+    </div>
+  </div>
+
+  <div id="start" class="hide" aria-live="polite">
+    <div class="core">
+      <div class="mark" aria-hidden="true">
+        <img src="/valinor-mark.jpg" alt="" />
+      </div>
+      <h1>VALINOR</h1>
+      <p class="tag">Camera and mic stay on this computer.</p>
+      <div id="startMsg"></div>
+      <button id="go">Enter</button>
+      <div class="status" id="startStatus">Starting…</div>
+    </div>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const host = $('views'), rail = $('rail'), bar = $('bar'), barScroll = $('barScroll'), hot = $('hot'), camVid = $('camfeed');
+const navDrawer = $('navDrawer'), navDrawerInner = $('navDrawerInner'), navDrawerBackdrop = $('navDrawerBackdrop');
+const navExpand = $('navExpand');
+const cmdPalette = $('cmdPalette'), cmdPaletteInput = $('cmdPaletteInput'), cmdPaletteList = $('cmdPaletteList');
+const cmdPaletteBackdrop = $('cmdPaletteBackdrop'), cmdPalettePanel = $('cmdPalettePanel');
+const THEME_KEY = 'lk-theme';
+const SCHEME_KEY = 'hub-scheme';
+const FONT_KEY = 'hub-font';
+const SIZE_KEY = 'hub-size';
+const DENSITY_KEY = 'hub-density';
+const LAYOUT_KEY = 'hub-layout';
+const FIT_KEY = 'hub-fit';
+const TABS_KEY = 'hub-tabs';
+const RADIUS_KEY = 'hub-radius';
+const NAV_MODE_KEY = 'hub-nav-mode';
+const TTS_VOICE_KEY = 'hub-tts-voice';
+const DRAWER_BAR_MAX = 5;
+const SCHEMES = ['cyan', 'slate', 'ember', 'pine', 'violet', 'rose', 'gold', 'ice'];
+const FONTS = ['lato', 'plex', 'source', 'mono'];
+const SIZES = ['sm', 'md', 'lg', 'xl'];
+const LAYOUTS = ['top', 'left'];
+const FITS = ['overlay', 'inset'];
+const TAB_STYLES = ['pills', 'ghost', 'line'];
+const RADII = ['round', 'sharp'];
+const TTS_VOICES = ['Jasper', 'Bruno', 'Hugo', 'Leo', 'Bella', 'Luna', 'Rosie', 'Kiki', 'browser'];
+
+function resolvedTheme() {
+  const s = localStorage.getItem(THEME_KEY);
+  if (s === 'dark' || s === 'light') return s;
+  return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+function currentScheme() {
+  const s = localStorage.getItem(SCHEME_KEY) || 'ice';
+  return SCHEMES.includes(s) ? s : 'ice';
+}
+function currentFont() {
+  const s = localStorage.getItem(FONT_KEY) || 'plex';
+  return FONTS.includes(s) ? s : 'plex';
+}
+function currentSize() {
+  const s = localStorage.getItem(SIZE_KEY) || 'md';
+  return SIZES.includes(s) ? s : 'md';
+}
+function currentDensity() {
+  return localStorage.getItem(DENSITY_KEY) === 'compact' ? 'compact' : 'cozy';
+}
+function currentLayout() {
+  const s = localStorage.getItem(LAYOUT_KEY) || 'left';
+  return LAYOUTS.includes(s) ? s : 'left';
+}
+function currentFit() {
+  const s = localStorage.getItem(FIT_KEY) || 'inset';
+  return FITS.includes(s) ? s : 'inset';
+}
+function currentTabs() {
+  const s = localStorage.getItem(TABS_KEY) || 'line';
+  return TAB_STYLES.includes(s) ? s : 'line';
+}
+function currentRadius() {
+  const s = localStorage.getItem(RADIUS_KEY) || 'sharp';
+  return RADII.includes(s) ? s : 'sharp';
+}
+function currentTtsVoice() {
+  const s = localStorage.getItem(TTS_VOICE_KEY) || 'Jasper';
+  return TTS_VOICES.includes(s) ? s : 'Jasper';
+}
+function syncTtsVoiceSeg() {
+  const v = currentTtsVoice();
+  document.querySelectorAll('#ttsVoiceSeg button').forEach((b) => {
+    b.classList.toggle('on', b.dataset.voice === v);
+  });
+}
+function setTtsVoice(voice) {
+  const v = TTS_VOICES.includes(voice) ? voice : 'Jasper';
+  localStorage.setItem(TTS_VOICE_KEY, v);
+  syncTtsVoiceSeg();
+}
+async function refreshTtsStatus() {
+  const el = $('ttsStatus');
+  if (!el) return;
+  try {
+    const r = await fetch('/api/tts');
+    const j = await r.json();
+    if (j.disabled) { el.textContent = 'Disabled — using browser voice.'; return; }
+    if (j.ready) { el.textContent = 'Kitten TTS ready.'; return; }
+    if (j.starting) { el.textContent = 'Installing / loading Kitten TTS…'; return; }
+    el.textContent = j.error ? `Unavailable — ${j.error}` : 'Unavailable — browser fallback.';
+  } catch (e) {
+    el.textContent = 'Unavailable — browser fallback.';
+  }
+}
+let ttsPreviewAudio = null;
+async function previewTtsVoice() {
+  const btn = $('ttsPreviewBtn');
+  const voice = currentTtsVoice();
+  const sample = 'Hey Savar — this is the live companion voice.';
+  if (btn) btn.disabled = true;
+  try {
+    if (ttsPreviewAudio) { try { ttsPreviewAudio.pause(); } catch (e) {} ttsPreviewAudio = null; }
+    try { speechSynthesis.cancel(); } catch (e) {}
+    if (voice === 'browser') {
+      if (!window.speechSynthesis) throw new Error('no browser speech');
+      await new Promise((resolve) => {
+        const u = new SpeechSynthesisUtterance(sample);
+        u.onend = () => resolve();
+        u.onerror = () => resolve();
+        speechSynthesis.speak(u);
+      });
+      return;
+    }
+    const r = await fetch('/api/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: sample, voice, speed: 1.25 }),
+    });
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      throw new Error(j.error || `tts ${r.status}`);
+    }
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    await new Promise((resolve, reject) => {
+      const a = new Audio(url);
+      ttsPreviewAudio = a;
+      a.onended = () => { URL.revokeObjectURL(url); resolve(); };
+      a.onerror = () => { URL.revokeObjectURL(url); reject(new Error('playback failed')); };
+      a.play().catch(reject);
+    });
+  } catch (e) {
+    if ($('ttsStatus')) $('ttsStatus').textContent = String(e.message || e);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+function appearancePayload() {
+  return {
+    theme: resolvedTheme(),
+    scheme: currentScheme(),
+    font: currentFont(),
+    size: currentSize(),
+    density: currentDensity(),
+    layout: currentLayout(),
+    fit: currentFit(),
+    tabs: currentTabs(),
+    radius: currentRadius(),
+  };
+}
+function applyHubAppearance(prefs) {
+  const root = document.documentElement;
+  const theme = prefs.theme === 'light' ? 'light' : 'dark';
+  const scheme = SCHEMES.includes(prefs.scheme) ? prefs.scheme : 'ice';
+  const font = FONTS.includes(prefs.font) ? prefs.font : 'plex';
+  const size = SIZES.includes(prefs.size) ? prefs.size : 'md';
+  const density = prefs.density === 'compact' ? 'compact' : 'cozy';
+  const layout = LAYOUTS.includes(prefs.layout) ? prefs.layout : 'left';
+  const fit = FITS.includes(prefs.fit) ? prefs.fit : 'inset';
+  const tabs = TAB_STYLES.includes(prefs.tabs) ? prefs.tabs : 'line';
+  const radius = RADII.includes(prefs.radius) ? prefs.radius : 'sharp';
+  root.dataset.theme = theme;
+  root.dataset.scheme = scheme;
+  root.dataset.font = font;
+  root.dataset.size = size;
+  root.dataset.density = density;
+  root.dataset.layout = layout;
+  root.dataset.fit = fit;
+  root.dataset.tabs = tabs;
+  root.dataset.radius = radius;
+  syncAppearanceSegs();
+}
+function stampAppearanceOnFrame(f, prefs) {
+  // Same-origin iframes: write data-theme onto the document itself so CSS updates
+  // even if the view's postMessage listener missed the toggle (or hasn't loaded).
+  try {
+    const root = f.contentDocument && f.contentDocument.documentElement;
+    if (!root || !prefs) return;
+    if (prefs.theme === 'dark' || prefs.theme === 'light') {
+      root.dataset.theme = prefs.theme;
+      root.style.colorScheme = prefs.theme;
+    }
+    if (prefs.scheme) root.dataset.scheme = prefs.scheme;
+    if (prefs.font) root.dataset.font = prefs.font;
+    if (prefs.size) root.dataset.size = prefs.size;
+    if (prefs.density) root.dataset.density = prefs.density;
+  } catch (e) {}
+}
+function broadcastAppearance(prefs, skip) {
+  const msg = { type: 'appearance', ...prefs };
+  for (const fr of frames.values()) {
+    if (skip && fr.contentWindow === skip) continue;
+    stampAppearanceOnFrame(fr, prefs);
+    try { fr.contentWindow.postMessage(msg, location.origin); } catch (e) {}
+    try { fr.contentWindow.postMessage({ type: 'theme', theme: prefs.theme }, location.origin); } catch (e) {}
+  }
+}
+function setGlobalAppearance(partial, skip) {
+  const prefs = { ...appearancePayload(), ...partial };
+  localStorage.setItem(THEME_KEY, prefs.theme);
+  localStorage.setItem(SCHEME_KEY, prefs.scheme);
+  localStorage.setItem(FONT_KEY, prefs.font);
+  localStorage.setItem(SIZE_KEY, prefs.size);
+  localStorage.setItem(DENSITY_KEY, prefs.density);
+  localStorage.setItem(LAYOUT_KEY, prefs.layout);
+  localStorage.setItem(FIT_KEY, prefs.fit);
+  localStorage.setItem(TABS_KEY, prefs.tabs);
+  localStorage.setItem(RADIUS_KEY, prefs.radius);
+  applyHubAppearance(prefs);
+  broadcastAppearance(prefs, skip);
+}
+// Live updates pushed by the standalone SETTINGS tab (settings.html posts here;
+// same-origin only, whitelisted fields). Lets the settings page drive the hub.
+window.addEventListener('message', (e) => {
+  if (e.origin !== location.origin || !e.data || typeof e.data !== 'object') return;
+  const d = e.data;
+  if (d.type === 'appearance') {
+    const pick = {};
+    for (const k of ['theme', 'scheme', 'font', 'size', 'density', 'layout', 'fit', 'tabs', 'radius']) {
+      if (typeof d[k] === 'string') pick[k] = d[k];
+    }
+    if (Object.keys(pick).length) setGlobalAppearance(pick, e.source || undefined);
+  } else if (d.type === 'tabs-changed') {
+    applyStoredTabOrder();
+    hiddenKeys = loadHiddenKeys();
+    rebuildTabDom();
+    buildTabOrderUI();
+  } else if (d.type === 'nav-mode' && typeof d.mode === 'string') {
+    applyNavMode(d.mode);
+  }
+});
+function applyHubTheme(theme) {
+  setGlobalAppearance({ theme });
+}
+function broadcastTheme(theme, skip) {
+  broadcastAppearance({ ...appearancePayload(), theme }, skip);
+}
+function setGlobalTheme(theme, skip) {
+  setGlobalAppearance({ theme }, skip);
+}
+function toggleGlobalTheme(skip) {
+  setGlobalTheme(resolvedTheme() === 'dark' ? 'light' : 'dark', skip);
+}
+function syncThemeToFrame(f) {
+  const prefs = appearancePayload();
+  stampAppearanceOnFrame(f, prefs);
+  try {
+    f.contentWindow.postMessage({ type: 'appearance', ...prefs }, location.origin);
+    f.contentWindow.postMessage({ type: 'theme', theme: prefs.theme }, location.origin);
+  } catch (e) {}
+}
+function syncAppearanceSegs() {
+  const prefs = appearancePayload();
+  document.querySelectorAll('#themeSeg button').forEach((b) => {
+    b.classList.toggle('on', b.dataset.theme === prefs.theme);
+  });
+  document.querySelectorAll('#schemeSeg button').forEach((b) => {
+    b.classList.toggle('on', b.dataset.scheme === prefs.scheme);
+  });
+  document.querySelectorAll('#fontSeg button').forEach((b) => {
+    b.classList.toggle('on', b.dataset.font === prefs.font);
+  });
+  document.querySelectorAll('#sizeSeg button').forEach((b) => {
+    b.classList.toggle('on', b.dataset.size === prefs.size);
+  });
+  document.querySelectorAll('#densitySeg button').forEach((b) => {
+    b.classList.toggle('on', b.dataset.density === prefs.density);
+  });
+  document.querySelectorAll('#layoutSeg button').forEach((b) => {
+    b.classList.toggle('on', b.dataset.layout === prefs.layout);
+  });
+  document.querySelectorAll('#fitSeg button').forEach((b) => {
+    b.classList.toggle('on', b.dataset.fit === prefs.fit);
+  });
+  document.querySelectorAll('#tabsSeg button').forEach((b) => {
+    b.classList.toggle('on', b.dataset.tabs === prefs.tabs);
+  });
+  document.querySelectorAll('#radiusSeg button').forEach((b) => {
+    b.classList.toggle('on', b.dataset.radius === prefs.radius);
+  });
+  syncTtsVoiceSeg();
+}
+
+// Set BEFORE any iframe can exist (views are only created from show(), which only runs
+// after user interaction or begin() — both strictly after this line). hub-client.js's
+// embedded-detection just checks for this object's presence, not for a finished camera/mic
+// grant — so a view opened while begin() is still awaiting getUserMedia is still correctly
+// recognized as embedded, instead of silently falling back to its own standalone device grab.
+window.hubShared = {
+  cam: null,
+  mic: null,
+  micError: null,
+  cameraEnabled: false,
+  setCamera: null, // filled in after begin() helpers are defined
+  speechOwner: null,
+  speechStopper: null,
+};
+
+// One entry per view. Same src = same iframe (BREATHE shares breathe.html), so
+// switching between them is instant; `mode` is posted to the HUD via hub-client.
+// Canonical vocabulary: tab label = file stem = button verb
+// (PLAN=plan.html, CAPTURE=capture.html, WRITING=writing.html, LEARN=learn.html,
+// BRICK BREAKER=breaker.html, BREATHE=breathe.html). Old keys/srcs migrate below.
+const TAB_ORDER_KEY = 'hub-tab-order';
+const TAB_HIDDEN_KEY = 'hub-tab-hidden';
+const DEFAULT_HIDDEN = ['loops', 'factory', 'board', 'rehearse', 'adventures', 'oss', 'logact', 'buzz'];
+const KEY_ALIASES = { live: 'plan', ingest: 'capture', ingrain: 'learn', waves: 'breaker' };
+const SRC_ALIASES = {
+  'live.html': 'plan.html', 'ingest.html': 'capture.html', 'letters.html': 'writing.html',
+  'ingrain.html': 'learn.html', 'index.html': 'breaker.html', 'hud.html': 'breathe.html',
+};
+const DEFAULT_VIEWS = [
+  { key: 'loops',    label: 'LOOPS',    src: '/loops?embed=1', external: true },
+  { key: 'factory',  label: 'FACTORY',  src: 'http://localhost:3000', external: true },
+  { key: 'plan',     label: 'PLAN',     src: 'plan.html' },
+  { key: 'capture',  label: 'CAPTURE',  src: 'capture.html', framed: true },
+  { key: 'execute',  label: 'EXECUTE',  src: 'execute.html' },
+  { key: 'review',   label: 'REVIEW',   src: 'review.html' },
+  { key: 'board',    label: 'BOARD',    src: 'board.html' },
+  { key: 'draw',     label: 'DRAW',     src: 'draw.html', framed: true },
+  { key: 'writing',  label: 'WRITING',  src: 'writing.html', framed: true },
+  { key: 'learn',    label: 'LEARN',    src: 'learn.html' },
+  { key: 'rehearse', label: 'REHEARSE', src: 'rehearse.html' },
+  { key: 'breaker',  label: 'BRICK BREAKER', src: 'breaker.html' },
+  { key: 'music',    label: 'MUSIC',    src: 'music.html' },
+  { key: 'breathe',  label: 'BREATHE',  src: 'breathe.html',  mode: 'BREATHE' },
+  { key: 'activity', label: 'ACTIVITY', src: 'activity.html' },
+  { key: 'convos',   label: 'CONVOS',   src: 'convos.html' },
+  { key: 'messages', label: 'MESSAGES', src: 'messages.html' },
+  { key: 'adventures', label: 'ADVENTURES', src: 'adventures.html' },
+  { key: 'oss',      label: 'OSS',      src: 'oss.html' },
+  { key: 'logact',   label: 'LOGACT',   src: 'logact.html' },
+  { key: 'buzz',     label: 'BUZZ',     src: 'buzz.html' },
+  { key: 'settings', label: 'SETTINGS', src: 'settings.html' },
+];
+let VIEWS = DEFAULT_VIEWS.slice();
+
+function applyStoredTabOrder() {
+  try {
+    const raw = localStorage.getItem(TAB_ORDER_KEY);
+    const keys = raw ? JSON.parse(raw) : null;
+    if (!Array.isArray(keys) || !keys.length) { VIEWS = DEFAULT_VIEWS.slice(); return; }
+    const byKey = new Map(DEFAULT_VIEWS.map((v) => [v.key, v]));
+    const next = [];
+    for (let k of keys) {
+      k = KEY_ALIASES[k] || k;
+      if (byKey.has(k)) { next.push(byKey.get(k)); byKey.delete(k); }
+    }
+    for (const v of DEFAULT_VIEWS) {
+      if (byKey.has(v.key)) next.push(v);
+    }
+    VIEWS = next;
+  } catch (e) {
+    VIEWS = DEFAULT_VIEWS.slice();
+  }
+}
+function persistTabOrder() {
+  localStorage.setItem(TAB_ORDER_KEY, JSON.stringify(VIEWS.map((v) => v.key)));
+}
+function loadHiddenKeys() {
+  try {
+    const raw = localStorage.getItem(TAB_HIDDEN_KEY);
+    if (raw == null) return new Set(DEFAULT_HIDDEN);
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return new Set(DEFAULT_HIDDEN);
+    const known = new Set(DEFAULT_VIEWS.map((v) => v.key));
+    return new Set(arr.map((k) => KEY_ALIASES[k] || k).filter((k) => known.has(k)));
+  } catch (e) {
+    return new Set(DEFAULT_HIDDEN);
+  }
+}
+function persistHidden() {
+  localStorage.setItem(TAB_HIDDEN_KEY, JSON.stringify([...hiddenKeys]));
+}
+function visibleViews() {
+  return VIEWS.filter((v) => !hiddenKeys.has(v.key));
+}
+function navTabViews() {
+  return visibleViews().filter((v) => v.key !== 'settings');
+}
+function fallbackTabKey() {
+  return navTabViews()[0]?.key || 'plan';
+}
+applyStoredTabOrder();
+let hiddenKeys = loadHiddenKeys();
+
+// ---- Electron overlay bridge (no-op in a plain browser tab) ----
+const ipc = (() => { try { return window.require ? window.require('electron').ipcRenderer : null; } catch (e) { return null; } })();
+function interactiveOn(el) {
+  if (!ipc || !el) return;
+  el.addEventListener('mouseenter', () => ipc.send('interactive', true));
+  el.addEventListener('mouseleave', () => ipc.send('interactive', false));
+}
+let mouseSelect = false;
+$('selectBtn').onclick = () => {
+  mouseSelect = !mouseSelect;
+  if (ipc) ipc.send('lock', mouseSelect);
+  $('selectBtn').textContent = mouseSelect ? '◉' : '○';
+  $('selectBtn').style.background = mouseSelect ? '#7dd3fc' : '';
+  $('selectBtn').style.color = mouseSelect ? '#05060a' : '';
+};
+if (!ipc) $('selectBtn').style.display = 'none';
+
+// ---- settings: restart Valinor server ----
+const settingsPanel = $('settingsPanel');
+const profilePanel = $('profilePanel');
+const profileBtn = $('profileBtn');
+const settingsBtn = $('settingsBtn');
+const restartBtn = $('restartBtn');
+const restartStatus = $('restartStatus');
+const navModeSeg = $('navModeSeg');
+let navMode = localStorage.getItem(NAV_MODE_KEY) === 'drawer' ? 'drawer' : 'classic';
+let navDrawerOpen = false;
+let cmdPaletteOpen = false;
+
+function setNavDrawerOpen(on) {
+  navDrawerOpen = on;
+  navDrawer.classList.toggle('open', on);
+  navDrawerBackdrop.classList.toggle('open', on);
+  bar.classList.toggle('drawer-open', on);
+  navDrawer.setAttribute('aria-hidden', on ? 'false' : 'true');
+  navDrawerBackdrop.setAttribute('aria-hidden', on ? 'false' : 'true');
+  if (on && typeof setSysOverlayOpen === 'function') setSysOverlayOpen(false);
+}
+
+function syncDrawerTabStates() {
+  const key = active?.key;
+  for (const b of navDrawerInner.querySelectorAll('.tab')) {
+    b.classList.toggle('on', b.dataset.key === key);
+  }
+}
+
+function updateDrawerBarTabs() {
+  const tabs = [...barScroll.querySelectorAll('.tab')];
+  tabs.forEach((t) => t.classList.remove('tab-bar-hidden'));
+  if (navMode !== 'drawer') {
+    bar.classList.remove('all-tabs-fit');
+    return;
+  }
+
+  const vis = navTabViews();
+  const reserveExpand = vis.length > DRAWER_BAR_MAX;
+  bar.classList.toggle('all-tabs-fit', !reserveExpand);
+  // First DRAWER_BAR_MAX *visible* tabs = navbar; curated in settings.
+  const visibleKeys = new Set(vis.slice(0, DRAWER_BAR_MAX).map((v) => v.key));
+  tabs.forEach((t) => {
+    if (!visibleKeys.has(t.dataset.key)) t.classList.add('tab-bar-hidden');
+  });
+}
+
+function applyNavMode(mode) {
+  navMode = mode === 'drawer' ? 'drawer' : 'classic';
+  localStorage.setItem(NAV_MODE_KEY, navMode);
+  bar.classList.toggle('nav-drawer', navMode === 'drawer');
+  navModeSeg.querySelectorAll('button').forEach((b) => {
+    b.classList.toggle('on', b.dataset.mode === navMode);
+  });
+  if (navMode === 'classic') setNavDrawerOpen(false);
+  updateDrawerBarTabs();
+  syncDrawerTabStates();
+}
+
+function buildNavDrawerTabs() {
+  navDrawerInner.innerHTML = '';
+  for (const v of navTabViews()) {
+    const b = document.createElement('button');
+    b.className = 'tab';
+    b.textContent = v.label;
+    b.title = `${v.key} · ${v.src}`;
+    b.dataset.key = v.key;
+    b.onclick = (e) => {
+      e.stopPropagation();
+      show(v.key);
+      setNavDrawerOpen(false);
+    };
+    navDrawerInner.appendChild(b);
+  }
+  syncDrawerTabStates();
+}
+
+function setSettingsOpen(on) {
+  settingsPanel.classList.toggle('open', on);
+  if (on) {
+    profilePanel.classList.remove('open');
+    profileBtn.classList.remove('on');
+    profileBtn.setAttribute('aria-expanded', 'false');
+    profilePanel.setAttribute('aria-hidden', 'true');
+    setNavDrawerOpen(false);
+    if (typeof setSysOverlayOpen === 'function') setSysOverlayOpen(false);
+    syncTtsVoiceSeg();
+    refreshTtsStatus();
+    refreshServerInfo();
+    refreshMemoryFile();
+  }
+}
+
+function escDoc(s) {
+  const d = document.createElement('div');
+  d.textContent = String(s == null ? '' : s);
+  return d.innerHTML;
+}
+
+function renderDocRows(el, rows) {
+  if (!el) return;
+  if (!rows || !rows.length) {
+    el.innerHTML = '<div class="doc-meta">Nothing to show.</div>';
+    return;
+  }
+  el.innerHTML = rows.map((r) => {
+    const note = r.note || (r.env ? `env ${r.env}` : '');
+    return `<div class="doc-row">` +
+      `<div class="dk">${escDoc(r.key)}</div>` +
+      `<div class="dv">${escDoc(r.value)}</div>` +
+      (note ? `<div class="dn">${escDoc(note)}</div>` : '') +
+      `</div>`;
+  }).join('');
+}
+
+let memFileDisplay = '';
+async function refreshMemoryFile() {
+  const pathEl = $('memFilePath');
+  const noteEl = $('memFileNote');
+  const stEl = $('memFileStatus');
+  if (!pathEl) return;
+  try {
+    const r = await fetch('/api/live/memory');
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || ('memory ' + r.status));
+    memFileDisplay = j.displayPath || j.path || '';
+    pathEl.textContent = memFileDisplay || '(unknown)';
+    if (noteEl) {
+      noteEl.textContent = j.exists
+        ? (j.bytes != null ? `${j.bytes} bytes` : 'File exists')
+        : 'File not created yet';
+    }
+    if (stEl) { stEl.className = 'doc-meta'; stEl.textContent = ''; }
+  } catch (e) {
+    memFileDisplay = '';
+    pathEl.textContent = 'Could not load path';
+    if (noteEl) noteEl.textContent = String(e.message || e);
+  }
+}
+$('memCopyBtn').onclick = async () => {
+  const stEl = $('memFileStatus');
+  const text = memFileDisplay || $('memFilePath').textContent;
+  try {
+    await navigator.clipboard.writeText(text);
+    if (stEl) { stEl.className = 'doc-meta ok'; stEl.textContent = 'Path copied'; }
+  } catch (e) {
+    if (stEl) { stEl.className = 'doc-meta warn'; stEl.textContent = 'Copy failed — select the path above'; }
+  }
+};
+$('memOpenBtn').onclick = async () => {
+  const stEl = $('memFileStatus');
+  if (stEl) { stEl.className = 'doc-meta'; stEl.textContent = 'Opening…'; }
+  try {
+    const r = await fetch('/api/live/memory/open', { method: 'POST' });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.ok) throw new Error(j.error || ('open ' + r.status));
+    if (stEl) { stEl.className = 'doc-meta ok'; stEl.textContent = 'Opened in the default app'; }
+  } catch (e) {
+    if (stEl) { stEl.className = 'doc-meta warn'; stEl.textContent = String(e.message || e); }
+  }
+};
+
+async function refreshServerInfo() {
+  const dataEl = $('dataDoc');
+  const modelsEl = $('modelsDoc');
+  const metaEl = $('modelsMeta');
+  if (!dataEl || !modelsEl) return;
+  try {
+    const r = await fetch('/api/server/info');
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || `info ${r.status}`);
+    renderDocRows(dataEl, j.storage || []);
+    renderDocRows(modelsEl, j.models || []);
+    if (metaEl) {
+      metaEl.className = 'doc-meta ' + (j.openRouterKey ? 'ok' : 'warn');
+      metaEl.textContent = j.openRouterKey
+        ? 'OPENROUTER_API_KEY loaded'
+        : 'OPENROUTER_API_KEY missing — STT / agent / live will fail';
+    }
+  } catch (e) {
+    dataEl.innerHTML = `<div class="doc-meta warn">${escDoc(e.message || e)}</div>`;
+    modelsEl.innerHTML = '';
+    if (metaEl) {
+      metaEl.className = 'doc-meta warn';
+      metaEl.textContent = 'Could not load model info';
+    }
+  }
+}
+document.addEventListener('click', (e) => {
+  if (!settingsPanel.classList.contains('open')) return;
+  if (settingsPanel.contains(e.target)) return;
+  setSettingsOpen(false);
+});
+
+const PROFILE_KEY = 'hub-user-profile-v1';
+function emptyProfile() {
+  return { name: '', callMe: '', role: '', location: '', about: '', voice: '', photo: '', updatedAt: 0 };
+}
+function loadProfile() {
+  try {
+    const raw = localStorage.getItem(PROFILE_KEY);
+    if (!raw) return emptyProfile();
+    return { ...emptyProfile(), ...JSON.parse(raw) };
+  } catch {
+    return emptyProfile();
+  }
+}
+function profileInitials(p) {
+  const letters = (s) => {
+    const parts = String(s || '').trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return '';
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return parts[0].slice(0, 2).toUpperCase();
+  };
+  return letters(p && p.name) || letters(p && p.callMe) || '?';
+}
+function paintProfileAvatars(p) {
+  const initials = profileInitials(p);
+  const ini = $('profileInitials');
+  const avIni = $('profileAvatarInitials');
+  if (ini) ini.textContent = initials;
+  if (avIni) avIni.textContent = initials;
+  for (const img of [$('profilePhoto'), $('profileAvatarImg')]) {
+    if (!img) continue;
+    if (p.photo) { img.src = p.photo; img.hidden = false; }
+    else { img.removeAttribute('src'); img.hidden = true; }
+  }
+  const clear = $('profilePhotoClear');
+  if (clear) clear.hidden = !p.photo;
+}
+function fillProfileForm(p) {
+  $('profileName').value = p.name || '';
+  $('profileCallMe').value = p.callMe || '';
+  $('profileRole').value = p.role || '';
+  $('profileLocation').value = p.location || '';
+  $('profileAbout').value = p.about || '';
+  $('profileVoice').value = p.voice || '';
+  paintProfileAvatars(p);
+  const st = $('profileSaveStatus');
+  if (st) {
+    st.className = 'doc-meta' + (p.updatedAt ? ' ok' : '');
+    st.textContent = p.updatedAt ? 'Saved on this device' : 'Not saved yet';
+  }
+}
+function readProfileForm() {
+  const prev = loadProfile();
+  return {
+    name: $('profileName').value.trim(),
+    callMe: $('profileCallMe').value.trim(),
+    role: $('profileRole').value.trim(),
+    location: $('profileLocation').value.trim(),
+    about: $('profileAbout').value.trim(),
+    voice: $('profileVoice').value.trim(),
+    photo: prev.photo || '',
+    updatedAt: Date.now(),
+  };
+}
+function saveProfile(p) {
+  localStorage.setItem(PROFILE_KEY, JSON.stringify(p));
+  paintProfileAvatars(p);
+  const st = $('profileSaveStatus');
+  if (st) { st.className = 'doc-meta ok'; st.textContent = 'Saved on this device'; }
+}
+let profileSaveTimer = 0;
+function scheduleProfileSave() {
+  const st = $('profileSaveStatus');
+  if (st) { st.className = 'doc-meta'; st.textContent = 'Saving…'; }
+  clearTimeout(profileSaveTimer);
+  profileSaveTimer = setTimeout(() => saveProfile(readProfileForm()), 400);
+}
+function compressPhoto(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const max = 256;
+      const scale = Math.min(1, max / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(img.width * scale));
+      canvas.height = Math.max(1, Math.round(img.height * scale));
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/jpeg', 0.84));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Could not read photo')); };
+    img.src = url;
+  });
+}
+
+function setProfileOpen(on) {
+  profilePanel.classList.toggle('open', on);
+  profileBtn.classList.toggle('on', on);
+  profileBtn.setAttribute('aria-expanded', on ? 'true' : 'false');
+  profilePanel.setAttribute('aria-hidden', on ? 'false' : 'true');
+  if (on) {
+    settingsPanel.classList.remove('open');
+    setNavDrawerOpen(false);
+    if (typeof setSysOverlayOpen === 'function') setSysOverlayOpen(false);
+    fillProfileForm(loadProfile());
+  }
+}
+
+profileBtn.onclick = (e) => {
+  e.stopPropagation();
+  setProfileOpen(!profilePanel.classList.contains('open'));
+};
+settingsBtn.onclick = (e) => {
+  e.stopPropagation();
+  setProfileOpen(false);
+  setSettingsOpen(false);
+  setNavDrawerOpen(false);
+  show('settings');
+};
+$('profileAvatarBtn').onclick = () => $('profilePhotoInput').click();
+$('profilePhotoClear').onclick = () => {
+  const p = readProfileForm();
+  p.photo = '';
+  saveProfile(p);
+};
+$('profilePhotoInput').onchange = async (e) => {
+  const file = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  try {
+    const p = readProfileForm();
+    p.photo = await compressPhoto(file);
+    saveProfile(p);
+  } catch (err) {
+    const st = $('profileSaveStatus');
+    if (st) { st.className = 'doc-meta warn'; st.textContent = String(err.message || err); }
+  }
+};
+['profileName', 'profileCallMe', 'profileRole', 'profileLocation', 'profileAbout', 'profileVoice'].forEach((id) => {
+  $(id).addEventListener('input', () => {
+    if (id === 'profileName' || id === 'profileCallMe') paintProfileAvatars(readProfileForm());
+    scheduleProfileSave();
+  });
+});
+document.addEventListener('click', (e) => {
+  if (!profilePanel.classList.contains('open')) return;
+  if (profilePanel.contains(e.target) || profileBtn.contains(e.target)) return;
+  setProfileOpen(false);
+});
+
+paintProfileAvatars(loadProfile());
+navModeSeg.querySelectorAll('button').forEach((b) => {
+  b.onclick = () => applyNavMode(b.dataset.mode);
+});
+$('themeSeg').querySelectorAll('button').forEach((b) => {
+  b.onclick = () => setGlobalAppearance({ theme: b.dataset.theme });
+});
+$('schemeSeg').querySelectorAll('button').forEach((b) => {
+  b.onclick = () => setGlobalAppearance({ scheme: b.dataset.scheme });
+});
+$('fontSeg').querySelectorAll('button').forEach((b) => {
+  b.onclick = () => setGlobalAppearance({ font: b.dataset.font });
+});
+$('sizeSeg').querySelectorAll('button').forEach((b) => {
+  b.onclick = () => setGlobalAppearance({ size: b.dataset.size });
+});
+$('densitySeg').querySelectorAll('button').forEach((b) => {
+  b.onclick = () => setGlobalAppearance({ density: b.dataset.density });
+});
+$('layoutSeg').querySelectorAll('button').forEach((b) => {
+  b.onclick = () => setGlobalAppearance({ layout: b.dataset.layout });
+});
+$('fitSeg').querySelectorAll('button').forEach((b) => {
+  b.onclick = () => setGlobalAppearance({ fit: b.dataset.fit });
+});
+$('tabsSeg').querySelectorAll('button').forEach((b) => {
+  b.onclick = () => setGlobalAppearance({ tabs: b.dataset.tabs });
+});
+$('radiusSeg').querySelectorAll('button').forEach((b) => {
+  b.onclick = () => setGlobalAppearance({ radius: b.dataset.radius });
+});
+$('ttsVoiceSeg').querySelectorAll('button').forEach((b) => {
+  b.onclick = () => setTtsVoice(b.dataset.voice);
+});
+$('ttsPreviewBtn').onclick = () => previewTtsVoice();
+syncTtsVoiceSeg();
+applyHubAppearance(appearancePayload());
+navExpand.onclick = (e) => {
+  e.stopPropagation();
+  setNavDrawerOpen(!navDrawerOpen);
+};
+barScroll.onclick = (e) => {
+  if (navMode !== 'drawer') return;
+  if (e.target.closest('.tab') || e.target === navExpand) return;
+  setNavDrawerOpen(!navDrawerOpen);
+};
+navDrawerBackdrop.onclick = () => setNavDrawerOpen(false);
+
+// ---- command palette (⌘P) ----
+let cmdPaletteIdx = 0;
+let cmdPaletteMatches = [];
+
+function closeCmdPalette() {
+  cmdPaletteOpen = false;
+  cmdPalette.classList.remove('open');
+  cmdPalette.setAttribute('aria-hidden', 'true');
+}
+
+function openCmdPalette() {
+  setSettingsOpen(false);
+  setProfileOpen(false);
+  setNavDrawerOpen(false);
+  if (typeof setSysOverlayOpen === 'function') setSysOverlayOpen(false);
+  cmdPaletteOpen = true;
+  cmdPalette.classList.add('open');
+  cmdPalette.setAttribute('aria-hidden', 'false');
+  cmdPaletteInput.value = '';
+  cmdPaletteIdx = 0;
+  renderCmdPalette('');
+  cmdPaletteInput.focus();
+  cmdPaletteInput.select();
+}
+
+function toggleCmdPalette() {
+  if (cmdPaletteOpen) closeCmdPalette();
+  else openCmdPalette();
+}
+
+function filterPaletteViews(q) {
+  const tabs = navTabViews();
+  const settings = VIEWS.find((v) => v.key === 'settings');
+  const all = settings ? tabs.concat(settings) : tabs;
+  const s = q.trim().toLowerCase();
+  if (!s) return all;
+  return all.filter((v) =>
+    v.label.toLowerCase().includes(s) ||
+    v.key.toLowerCase().includes(s) ||
+    v.src.toLowerCase().includes(s));
+}
+
+function paletteHotkey(idx) {
+  if (idx < 9) return String(idx + 1);
+  if (idx === 9) return '0';
+  return '';
+}
+
+function renderCmdPalette(q) {
+  cmdPaletteMatches = filterPaletteViews(q);
+  cmdPaletteIdx = cmdPaletteMatches.length
+    ? Math.min(cmdPaletteIdx, cmdPaletteMatches.length - 1)
+    : 0;
+  cmdPaletteList.innerHTML = '';
+  if (!cmdPaletteMatches.length) {
+    const empty = document.createElement('li');
+    empty.id = 'cmdPaletteEmpty';
+    empty.textContent = 'No matching tabs';
+    cmdPaletteList.appendChild(empty);
+    return;
+  }
+  cmdPaletteMatches.forEach((v, i) => {
+    const li = document.createElement('li');
+    li.className = (i === cmdPaletteIdx ? 'sel ' : '') + (active?.key === v.key ? 'on-tab' : '');
+    const label = document.createElement('span');
+    label.textContent = v.label;
+    const meta = document.createElement('span');
+    meta.className = 'cmd-meta';
+    const hk = paletteHotkey(navTabViews().indexOf(v));
+    meta.innerHTML = hk ? `<kbd>${hk}</kbd> · ${v.key}` : v.key;
+    li.append(label, meta);
+    li.onclick = () => pickCmdPalette(i);
+    cmdPaletteList.appendChild(li);
+  });
+  const sel = cmdPaletteList.querySelector('.sel');
+  if (sel) sel.scrollIntoView({ block: 'nearest' });
+}
+
+function pickCmdPalette(idx) {
+  const v = cmdPaletteMatches[idx];
+  if (!v) return;
+  closeCmdPalette();
+  show(v.key);
+}
+
+cmdPaletteInput.addEventListener('input', () => {
+  cmdPaletteIdx = 0;
+  renderCmdPalette(cmdPaletteInput.value);
+});
+cmdPaletteInput.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (cmdPaletteMatches.length) {
+      cmdPaletteIdx = (cmdPaletteIdx + 1) % cmdPaletteMatches.length;
+      renderCmdPalette(cmdPaletteInput.value);
+    }
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (cmdPaletteMatches.length) {
+      cmdPaletteIdx = (cmdPaletteIdx - 1 + cmdPaletteMatches.length) % cmdPaletteMatches.length;
+      renderCmdPalette(cmdPaletteInput.value);
+    }
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    pickCmdPalette(cmdPaletteIdx);
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    closeCmdPalette();
+  }
+});
+cmdPaletteBackdrop.onclick = () => closeCmdPalette();
+
+function handleCmdPaletteHotkey(e) {
+  if (!(e.metaKey || e.ctrlKey) || e.altKey || e.key.toLowerCase() !== 'p') return false;
+  const el = document.activeElement;
+  if (el && el !== cmdPaletteInput &&
+      (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return false;
+  e.preventDefault();
+  toggleCmdPalette();
+  return true;
+}
+
+addEventListener('keydown', (e) => {
+  if (handleCmdPaletteHotkey(e)) return;
+  if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'k') {
+    const el = document.activeElement;
+    if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+    e.preventDefault();
+    setSettingsOpen(!settingsPanel.classList.contains('open'));
+    return;
+  }
+  if (e.key === 'Escape') {
+    if (cmdPaletteOpen) { closeCmdPalette(); return; }
+    if (profilePanel.classList.contains('open')) { setProfileOpen(false); return; }
+    if (settingsPanel.classList.contains('open')) { setSettingsOpen(false); return; }
+    if (navDrawerOpen) setNavDrawerOpen(false);
+  }
+});
+
+// Shared geo for clock tip
+window.hubGeo = { loc: 'local', ip: '', tz: '' };
+
+async function waitForServer(timeoutMs = 20000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const res = await fetch('/hub.html', { cache: 'no-store' });
+      if (res.ok) return true;
+    } catch { /* still down */ }
+    await new Promise((r) => setTimeout(r, 400));
+  }
+  return false;
+}
+restartBtn.onclick = async () => {
+  restartBtn.disabled = true;
+  restartStatus.textContent = 'Restarting…';
+  restartStatus.style.color = '#94a3b8';
+  try {
+    const res = await fetch('/api/server/restart', { method: 'POST' });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+    restartStatus.textContent = 'Server stopping — waiting for it to come back…';
+    const ok = await waitForServer();
+    if (ok) {
+      restartStatus.textContent = 'Back — reloading…';
+      location.reload();
+      return;
+    }
+    restartStatus.textContent = 'Server did not come back. Start it with npm run server.';
+    restartStatus.style.color = '#f87171';
+  } catch (e) {
+    // Expected once the old process dies mid-flight — poll for the replacement.
+    restartStatus.textContent = 'Waiting for server…';
+    const ok = await waitForServer();
+    if (ok) {
+      restartStatus.textContent = 'Back — reloading…';
+      location.reload();
+      return;
+    }
+    restartStatus.textContent = 'Restart failed: ' + (e.message || e);
+    restartStatus.style.color = '#f87171';
+  } finally {
+    restartBtn.disabled = false;
+  }
+};
+
+interactiveOn(rail); interactiveOn(bar); interactiveOn(hot); interactiveOn($('go'));
+interactiveOn(settingsPanel); interactiveOn(restartBtn);
+interactiveOn(settingsBtn); interactiveOn(profileBtn); interactiveOn(profilePanel);
+interactiveOn(navExpand); interactiveOn(navDrawer); interactiveOn(navDrawerBackdrop);
+interactiveOn(cmdPalette); interactiveOn(cmdPalettePanel); interactiveOn(cmdPaletteInput);
+
+// ---- views (declare before nav drawer sync — syncDrawerTabStates reads active) ----
+const frames = new Map();   // src -> iframe (created on first visit)
+let active = null;
+
+function rebuildTabDom() {
+  barScroll.querySelectorAll('.tab').forEach((t) => t.remove());
+  for (const v of navTabViews()) {
+    const b = document.createElement('button');
+    b.className = 'tab'; b.textContent = v.label; b.title = `${v.key} · ${v.src}`;
+    b.dataset.key = v.key;
+    b.onclick = (e) => {
+      e.stopPropagation();
+      show(v.key);
+      if (navMode === 'drawer') setNavDrawerOpen(false);
+    };
+    barScroll.insertBefore(b, navExpand);
+  }
+  buildNavDrawerTabs();
+  applyNavMode(navMode);
+  if (active) {
+    for (const b of bar.querySelectorAll('.tab')) b.classList.toggle('on', b.dataset.key === active.key);
+    syncDrawerTabStates();
+    if (settingsBtn) {
+      settingsBtn.classList.toggle('on', active.key === 'settings');
+      if (active.key === 'settings') settingsBtn.setAttribute('aria-current', 'page');
+      else settingsBtn.removeAttribute('aria-current');
+    }
+  }
+}
+
+function buildTabOrderUI() {
+  const list = $('tabOrderList');
+  if (!list) return;
+  list.innerHTML = '';
+  let dragKey = null;
+
+  const vis = navTabViews();
+  const barViews = vis.slice(0, DRAWER_BAR_MAX);
+  const overflowViews = vis.slice(DRAWER_BAR_MAX);
+  const hiddenList = VIEWS.filter((v) => v.key !== 'settings' && hiddenKeys.has(v.key));
+
+  function clearDragMarks() {
+    list.querySelectorAll('.tab-order-row').forEach((r) => {
+      r.classList.remove('dragging', 'drag-over-before', 'drag-over-after');
+    });
+    list.querySelectorAll('.tab-zone').forEach((z) => z.classList.remove('drag-target'));
+  }
+
+  function commitOrder(next) {
+    VIEWS = next;
+    persistTabOrder();
+    persistHidden();
+    rebuildTabDom();
+    buildTabOrderUI();
+    if (active && hiddenKeys.has(active.key) && active.key !== 'settings') {
+      const first = navTabViews()[0];
+      if (first) show(first.key);
+    }
+  }
+
+  function reorderByKeys(fromKey, toKey, placeAfter) {
+    const from = VIEWS.findIndex((v) => v.key === fromKey);
+    let to = VIEWS.findIndex((v) => v.key === toKey);
+    if (from < 0 || to < 0 || fromKey === toKey) return;
+    const next = VIEWS.slice();
+    const [item] = next.splice(from, 1);
+    to = next.findIndex((v) => v.key === toKey);
+    if (to < 0) return;
+    next.splice(placeAfter ? to + 1 : to, 0, item);
+    commitOrder(next);
+  }
+
+  function insertAmongVisible(next, item, targetVisibleIndex) {
+    let visCount = -1;
+    for (let i = 0; i < next.length; i++) {
+      if (hiddenKeys.has(next[i].key) || next[i].key === 'settings') continue;
+      visCount++;
+      if (visCount === targetVisibleIndex) {
+        next.splice(i, 0, item);
+        return;
+      }
+    }
+    next.push(item);
+  }
+
+  function placeInZone(fromKey, zone) {
+    const from = VIEWS.findIndex((v) => v.key === fromKey);
+    if (from < 0) return;
+    const next = VIEWS.slice();
+    const [item] = next.splice(from, 1);
+    if (zone === 'hidden') {
+      if (navTabViews().filter((v) => v.key !== fromKey).length < 1) return;
+      hiddenKeys.add(fromKey);
+      next.push(item);
+    } else {
+      hiddenKeys.delete(fromKey);
+      if (zone === 'bar') {
+        const visCount = next.filter((v) => !hiddenKeys.has(v.key) && v.key !== 'settings').length;
+        if (visCount >= DRAWER_BAR_MAX) insertAmongVisible(next, item, DRAWER_BAR_MAX - 1);
+        else next.push(item);
+      } else {
+        next.push(item);
+      }
+    }
+    commitOrder(next);
+  }
+
+  function setTabHidden(key, hide) {
+    if (hide) {
+      if (navTabViews().length <= 1) return;
+      hiddenKeys.add(key);
+    } else {
+      hiddenKeys.delete(key);
+    }
+    persistHidden();
+    rebuildTabDom();
+    buildTabOrderUI();
+    if (hide && active?.key === key) {
+      const first = navTabViews()[0];
+      if (first) show(first.key);
+    }
+  }
+
+  function makeRow(v, zone, slotNum) {
+    const row = document.createElement('div');
+    row.className = 'tab-order-row' + (hiddenKeys.has(v.key) ? ' is-hidden' : '');
+    row.draggable = true;
+    row.dataset.key = v.key;
+    const visLabel = hiddenKeys.has(v.key) ? 'Show' : 'Hide';
+    row.innerHTML =
+      `<span class="grip" aria-hidden="true">⠿</span>` +
+      `<span class="name">${v.label}</span>` +
+      (zone === 'bar' ? `<span class="slot">${slotNum}</span>` : '') +
+      `<button type="button" class="vis">${visLabel}</button>`;
+
+    const visBtn = row.querySelector('.vis');
+    visBtn.addEventListener('mousedown', (e) => e.stopPropagation());
+    visBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setTabHidden(v.key, !hiddenKeys.has(v.key));
+    });
+    if (!hiddenKeys.has(v.key) && vis.length <= 1) visBtn.disabled = true;
+
+    row.addEventListener('dragstart', (e) => {
+      if (e.target === visBtn || visBtn.contains(e.target)) {
+        e.preventDefault();
+        return;
+      }
+      dragKey = v.key;
+      row.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', v.key);
+      try { e.dataTransfer.setDragImage(row, 24, 16); } catch (err) {}
+    });
+    row.addEventListener('dragend', () => {
+      dragKey = null;
+      clearDragMarks();
+    });
+    row.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      e.dataTransfer.dropEffect = 'move';
+      if (!dragKey || dragKey === v.key) return;
+      const rect = row.getBoundingClientRect();
+      const after = e.clientY > rect.top + rect.height / 2;
+      clearDragMarks();
+      row.classList.add(after ? 'drag-over-after' : 'drag-over-before');
+      row.closest('.tab-zone')?.classList.add('drag-target');
+    });
+    row.addEventListener('dragleave', () => {
+      row.classList.remove('drag-over-before', 'drag-over-after');
+    });
+    row.addEventListener('drop', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const fromKey = dragKey || e.dataTransfer.getData('text/plain');
+      const rect = row.getBoundingClientRect();
+      const after = e.clientY > rect.top + rect.height / 2;
+      clearDragMarks();
+      if (!fromKey || fromKey === v.key) return;
+      if (zone === 'hidden') {
+        if (navTabViews().filter((x) => x.key !== fromKey).length < 1) return;
+        hiddenKeys.add(fromKey);
+      } else {
+        hiddenKeys.delete(fromKey);
+      }
+      persistHidden();
+      reorderByKeys(fromKey, v.key, after);
+    });
+    return row;
+  }
+
+  function wireZone(zoneEl, zone) {
+    zoneEl.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      zoneEl.classList.add('drag-target');
+    });
+    zoneEl.addEventListener('dragleave', (e) => {
+      if (!zoneEl.contains(e.relatedTarget)) zoneEl.classList.remove('drag-target');
+    });
+    zoneEl.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const fromKey = dragKey || e.dataTransfer.getData('text/plain');
+      clearDragMarks();
+      if (fromKey && !e.target.closest('.tab-order-row')) placeInZone(fromKey, zone);
+    });
+  }
+
+  function zoneHead(title, meta) {
+    const h = document.createElement('div');
+    h.className = 'tab-zone-head';
+    h.innerHTML = `<span>${title}</span><span class="meta">${meta}</span>`;
+    return h;
+  }
+
+  // --- Navbar zone (header inside the box) ---
+  const barZone = document.createElement('div');
+  barZone.className = 'tab-zone zone-bar';
+  barZone.dataset.zone = 'bar';
+  barZone.appendChild(zoneHead('In chrome', `${barViews.length} / ${DRAWER_BAR_MAX}`));
+  if (!barViews.length) {
+    const empty = document.createElement('div');
+    empty.className = 'tab-zone-empty';
+    empty.textContent = 'Drag tabs here for the chrome bar';
+    barZone.appendChild(empty);
+  } else {
+    barViews.forEach((v, i) => barZone.appendChild(makeRow(v, 'bar', i + 1)));
+  }
+  wireZone(barZone, 'bar');
+  list.appendChild(barZone);
+
+  // --- Cut line between zones ---
+  const cut = document.createElement('div');
+  cut.className = 'tab-bar-cut';
+  cut.innerHTML = '<span>Bar cutoff</span>';
+  cut.title = 'Tabs above appear in the top bar. Tabs below open from ⋯.';
+  list.appendChild(cut);
+
+  // --- Overflow zone ---
+  const overZone = document.createElement('div');
+  overZone.className = 'tab-zone zone-overflow';
+  overZone.dataset.zone = 'overflow';
+  overZone.appendChild(zoneHead('Overflow · ⋯', String(overflowViews.length)));
+  if (!overflowViews.length) {
+    const empty = document.createElement('div');
+    empty.className = 'tab-zone-empty';
+    empty.textContent = 'All visible tabs fit in the navbar';
+    overZone.appendChild(empty);
+  } else {
+    overflowViews.forEach((v) => overZone.appendChild(makeRow(v, 'overflow')));
+  }
+  wireZone(overZone, 'overflow');
+  list.appendChild(overZone);
+
+  const hideCut = document.createElement('div');
+  hideCut.className = 'tab-bar-cut';
+  hideCut.innerHTML = '<span>Hidden</span>';
+  hideCut.title = 'Hidden tabs stay out of the bar, overflow, and ⌘P until you show them.';
+  list.appendChild(hideCut);
+
+  const hideZone = document.createElement('div');
+  hideZone.className = 'tab-zone zone-hidden';
+  hideZone.dataset.zone = 'hidden';
+  hideZone.appendChild(zoneHead('Hidden', String(hiddenList.length)));
+  if (!hiddenList.length) {
+    const empty = document.createElement('div');
+    empty.className = 'tab-zone-empty';
+    empty.textContent = 'Drag a tab here, or press Hide';
+    hideZone.appendChild(empty);
+  } else {
+    hiddenList.forEach((v) => hideZone.appendChild(makeRow(v, 'hidden')));
+  }
+  wireZone(hideZone, 'hidden');
+  list.appendChild(hideZone);
+}
+
+$('tabOrderReset').onclick = () => {
+  localStorage.removeItem(TAB_ORDER_KEY);
+  hiddenKeys = new Set(DEFAULT_HIDDEN);
+  persistHidden();
+  VIEWS = DEFAULT_VIEWS.slice();
+  rebuildTabDom();
+  buildTabOrderUI();
+  if (active && hiddenKeys.has(active.key)) show(fallbackTabKey());
+};
+
+rebuildTabDom();
+buildTabOrderUI();
+
+function postMode(f, mode) { try { f.contentWindow.postMessage({ type: 'mode', mode }, location.origin); } catch (e) {} }
+
+function show(key) {
+  if (key === 'system') {
+    setSysOverlayOpen(true);
+    return;
+  }
+  if (key === 'agent') key = 'activity';
+  if (KEY_ALIASES[key]) key = KEY_ALIASES[key];
+  const v = VIEWS.find(x => x.key === key) || VIEWS.find(x => x.key === fallbackTabKey()) || VIEWS[0];
+  active = v;
+  if (!frames.has(v.src)) {
+    const f = document.createElement('iframe');
+    f.src = v.src;
+    // opaque external apps (proxied) sit below the hub bar — see .external CSS
+    if (v.external || (typeof v.src === 'string' && v.src.startsWith('/'))) f.classList.add('external');
+    // full-page internal views with their own header sit below the hub bar (see .framed CSS)
+    if (v.framed) f.classList.add('framed');
+    f.allow = 'camera; microphone; display-capture; fullscreen; autoplay; clipboard-write';
+    f.allowFullscreen = true;
+    // the view's scripts may not have run yet when we post the first signals — resend on load
+    f.addEventListener('load', () => {
+      if (!active || active.src !== v.src) return;
+      try { f.contentWindow.postMessage({ type: 'active', on: true }, location.origin); } catch (e) {}
+      if (active.mode) postMode(f, active.mode);
+      syncThemeToFrame(f);
+      try { f.contentWindow.scrollTo(0, 0); } catch (e) {}
+    });
+    host.appendChild(f);
+    frames.set(v.src, f);
+  }
+  const f = frames.get(v.src);
+  // Deactivate others FIRST so SpeechRecognition stops before the new view starts one.
+  // (Posting true+false in one Map loop raced: both iframes briefly held a recognizer → Chrome 'network'.)
+  for (const [s, fr] of frames) {
+    if (s === v.src) continue;
+    fr.classList.remove('on');
+    try { fr.contentWindow.postMessage({ type: 'active', on: false }, location.origin); } catch (e) {}
+  }
+  f.classList.add('on');
+  try { f.contentWindow.postMessage({ type: 'active', on: true }, location.origin); } catch (e) {}
+  if (v.mode) postMode(f, v.mode);
+  syncThemeToFrame(f);
+  try { f.contentWindow.scrollTo(0, 0); } catch (e) {}
+  for (const b of bar.querySelectorAll('.tab')) b.classList.toggle('on', b.dataset.key === v.key);
+  if (settingsBtn) {
+    settingsBtn.classList.toggle('on', v.key === 'settings');
+    if (v.key === 'settings') settingsBtn.setAttribute('aria-current', 'page');
+    else settingsBtn.removeAttribute('aria-current');
+  }
+  syncDrawerTabStates();
+  updateDrawerBarTabs();
+  document.title = `VALINOR — ${v.label}`;
+  location.hash = v.key;
+  f.focus();
+}
+
+// 1–9 then 0 switch views (0 = the 10th tab) — handled here when the hub has focus,
+// and forwarded by embedded views (via hub-client) when an iframe has focus
+function navKey(k) { const idx = k === '0' ? 9 : +k - 1; const v = navTabViews()[idx]; if (v && window.hubShared) show(v.key); }
+addEventListener('keydown', (e) => {
+  if (handleCmdPaletteHotkey(e)) return;
+  if (e.metaKey || e.ctrlKey) {
+    if (!e.altKey && !e.shiftKey && e.key.toLowerCase() === 'k') {
+      const el = document.activeElement;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+      e.preventDefault();
+      setSettingsOpen(!settingsPanel.classList.contains('open'));
+      return;
+    }
+    if (!e.altKey && !e.shiftKey && e.key.toLowerCase() === 'i') {
+      const el = document.activeElement;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+      e.preventDefault();
+      toggleGlobalTheme();
+    }
+    return;
+  }
+  if (/^[0-9]$/.test(e.key)) navKey(e.key);
+});
+addEventListener('message', (e) => {
+  if (e.origin !== location.origin || !e.data) return;
+  if (e.data.type === 'navkey') navKey(e.data.key);
+  if (e.data.type === 'cmd-palette') toggleCmdPalette();
+  if (e.data.type === 'settings-toggle') {
+    setSettingsOpen(!settingsPanel.classList.contains('open'));
+  }
+  if (e.data.type === 'appearance') {
+    setGlobalAppearance({
+      theme: e.data.theme,
+      scheme: e.data.scheme,
+      font: e.data.font,
+      size: e.data.size,
+      density: e.data.density,
+      layout: e.data.layout,
+      fit: e.data.fit,
+      tabs: e.data.tabs,
+      radius: e.data.radius,
+    }, e.source);
+  }
+  if (e.data.type === 'theme' && (e.data.theme === 'dark' || e.data.theme === 'light')) {
+    setGlobalAppearance({ theme: e.data.theme }, e.source);
+  }
+  if (e.data.type === 'theme-toggle') toggleGlobalTheme(e.source);
+  if (e.data.type === 'cursor-toggle' && window.hubCursor) window.hubCursor.toggle();
+  if (e.data.type === 'hub-video') {
+    for (const fr of frames.values()) {
+      try { fr.contentWindow.postMessage({ type: 'hub-video', playing: !!e.data.playing }, location.origin); } catch (err) {}
+    }
+  }
+});
+
+// ---- shared hand tracker: one camera, one MediaPipe instance, broadcast to the active view ----
+let handsPaused = false;
+let handsInited = false;
+
+function initHands(videoEl) {
+  if (handsInited) return;
+  handsInited = true;
+  const hnd = new Hands({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
+  hnd.setOptions({ maxNumHands: 2, modelComplexity: 0, minDetectionConfidence: 0.6, minTrackingConfidence: 0.6 });
+  hnd.onResults((res) => {
+    if (handsPaused) return;
+    const f = active && frames.get(active.src);
+    if (!f || !f.classList.contains('on')) return;
+    const lm = (res.multiHandLandmarks || []).map(h => h.map(p => ({ x: p.x, y: p.y, z: p.z })));
+    try { f.contentWindow.postMessage({ type: 'hands', multiHandLandmarks: lm }, location.origin); } catch (e) {}
+  });
+  (async function pump() {
+    const s = performance.now();
+    if (!handsPaused && videoEl.readyState >= 2) {
+      try { await hnd.send({ image: videoEl }); } catch (e) {}
+    }
+    setTimeout(pump, Math.max(0, 33 - (performance.now() - s)));
+  })();
+}
+
+function camLive() {
+  const cam = window.hubShared && window.hubShared.cam;
+  return !!(cam && cam.getVideoTracks().some((t) => t.readyState === 'live'));
+}
+
+function notifyCamera(on) {
+  window.dispatchEvent(new CustomEvent('hub-camera', { detail: { on: !!on } }));
+}
+
+// Stop/start the shared camera without touching the mic. Keeps the same MediaStream
+// object identity so views that already hold srcObject = hubShared.cam pick up the
+// new track automatically when the camera comes back on.
+async function setCameraEnabled(on) {
+  const shared = window.hubShared;
+  on = !!on;
+  if (!on) {
+    handsPaused = true;
+    if (shared.cam) {
+      for (const t of [...shared.cam.getVideoTracks()]) {
+        shared.cam.removeTrack(t);
+        try { t.stop(); } catch (e) {}
+      }
+    }
+    try { camVid.srcObject = shared.cam; } catch (e) {}
+    shared.cameraEnabled = false;
+    notifyCamera(false);
+    return true;
+  }
+  try {
+    if (!shared.cam) shared.cam = new MediaStream();
+    if (!camLive()) {
+      const fresh = await withTimeout(
+        navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false }),
+        15000, 'camera enable');
+      for (const t of [...shared.cam.getVideoTracks()]) {
+        shared.cam.removeTrack(t);
+        try { t.stop(); } catch (e) {}
+      }
+      for (const t of fresh.getVideoTracks()) shared.cam.addTrack(t);
+    }
+    camVid.srcObject = shared.cam;
+    await camVid.play().catch(() => {});
+    initHands(camVid);
+    handsPaused = false;
+    shared.cameraEnabled = true;
+    notifyCamera(true);
+    return true;
+  } catch (err) {
+    console.warn('[hub] camera enable failed:', err.message || err);
+    shared.cameraEnabled = false;
+    notifyCamera(false);
+    return false;
+  }
+}
+window.hubShared.setCamera = setCameraEnabled;
+
+// getUserMedia can hang forever with no error and no resolution in some sandboxed /
+// embedded browser contexts (no real device broker) — race it so the user always sees
+// SOME outcome instead of a silently stuck hub.
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)),
+  ]);
+}
+
+// ---- boot: ONE prompt for camera+mic; both streams shared with every view ----
+let booting = false;
+
+function revealStart() {
+  const el = $('start');
+  el.classList.remove('hide', 'out', 'booting');
+  $('go').disabled = false;
+}
+
+function dismissStart() {
+  const el = $('start');
+  el.classList.add('out');
+  return new Promise((resolve) => {
+    const done = () => {
+      el.classList.add('hide');
+      el.classList.remove('out', 'booting');
+      resolve();
+    };
+    el.addEventListener('transitionend', done, { once: true });
+    setTimeout(done, 100);
+  });
+}
+
+async function begin() {
+  if (booting) return;
+  booting = true;
+  const start = $('start');
+  start.classList.remove('hide', 'out');
+  start.classList.add('booting');
+  $('go').disabled = true;
+  $('startMsg').textContent = '';
+  let cam = null, mic = null, micError = null;
+  try {
+    const s = await withTimeout(
+      navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: true }),
+      15000, 'camera+mic request');
+    cam = new MediaStream(s.getVideoTracks());
+    mic = new MediaStream(s.getAudioTracks());
+  } catch (err) {
+    micError = err.name ? (err.name + ': ' + err.message) : String(err.message || err);
+    try {
+      cam = await withTimeout(
+        navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false }),
+        15000, 'camera-only request');
+    } catch (err2) {
+      console.warn('[hub] no camera — views load without hand tracking:', err2.message);
+    }
+  }
+  Object.assign(window.hubShared, { cam, mic, micError, cameraEnabled: !!cam });
+  if (micError) console.warn('[hub] mic unavailable, camera-only:', micError);
+  if (cam) {
+    camVid.srcObject = cam; await camVid.play();
+    initHands(camVid);
+    notifyCamera(true);
+  } else {
+    console.warn('[hub] continuing without camera — hand tracking disabled:', micError);
+    notifyCamera(false);
+  }
+  await dismissStart();
+  let k = location.hash.slice(1);
+  if (KEY_ALIASES[k]) k = KEY_ALIASES[k];
+  // legacy #system hash → brand overlay instead of a tab
+  if (k === 'system') {
+    show('breathe');
+    setSysOverlayOpen(true);
+  } else {
+    show(k && VIEWS.some(v => v.key === k) && !hiddenKeys.has(k) ? k : fallbackTabKey());
+  }
+  booting = false;
+}
+$('go').onclick = () => begin();
+
+// Electron's Chromium ships without Google's proprietary STT — webkitSpeechRecognition
+// always errors with 'network'. Surface that up front; Chrome tab is the supported path.
+(function electronSpeechBanner() {
+  const inElectron = !!(ipc || (typeof process !== 'undefined' && process.versions && process.versions.electron)
+    || /Electron/i.test(navigator.userAgent || ''));
+  if (!inElectron) return;
+  const note = $('speechNote');
+  note.style.display = 'block';
+  note.innerHTML = 'Voice/dictation needs <b>Chrome</b> — Electron has no Google speech service. '
+    + 'Open <a href="http://localhost:4777/" target="_blank">http://localhost:4777</a> in Chrome '
+    + '(overlay still works for hands/camera).';
+})();
+
+(function hubClock() {
+  const el = $('hubClock');
+  const tip = $('hubClockTip');
+  if (!el || !tip) return;
+
+  let locLabel = 'local';
+  let ipLabel = '';
+  let tipPlain = '';
+  let copyFlash = null;
+
+  function shortDate(d) {
+    const wd = d.toLocaleDateString([], { weekday: 'short' });
+    const md = d.toLocaleDateString([], { month: 'numeric', day: 'numeric' });
+    return `${wd} ${md}`;
+  }
+  function shortTz(d) {
+    try {
+      const parts = new Intl.DateTimeFormat([], { timeZoneName: 'short' }).formatToParts(d);
+      return (parts.find((p) => p.type === 'timeZoneName') || {}).value || 'local';
+    } catch {
+      const off = -d.getTimezoneOffset();
+      const sign = off >= 0 ? '+' : '-';
+      const abs = Math.abs(off);
+      return `UTC${sign}${Math.floor(abs / 60)}`;
+    }
+  }
+  function shortLoc(city, region, country) {
+    const c = String(city || '').trim();
+    const r = String(region || '').trim();
+    const cc = String(country || '').trim().toUpperCase();
+    if (c && cc) {
+      const abbrev = c.includes(' ')
+        ? c.split(/\s+/).map((w) => w[0]).join('').toUpperCase().slice(0, 3)
+        : (c.length > 10 ? c.slice(0, 8) : c);
+      return `${abbrev}, ${cc}`;
+    }
+    if (r && cc) return `${r.slice(0, 8)}, ${cc}`;
+    if (cc) return cc;
+    return 'local';
+  }
+
+  function placeTip() {
+    const r = el.getBoundingClientRect();
+    if (document.documentElement.dataset.layout === 'left' && innerWidth > 720) {
+      tip.style.left = (r.right + 8) + 'px';
+      tip.style.top = Math.max(8, r.top) + 'px';
+    } else {
+      tip.style.left = Math.max(8, r.left) + 'px';
+      tip.style.top = (r.bottom + 8) + 'px';
+    }
+  }
+  function showTip() {
+    placeTip();
+    tip.classList.add('show');
+    tip.setAttribute('aria-hidden', 'false');
+  }
+  function hideTip() {
+    tip.classList.remove('show');
+    tip.setAttribute('aria-hidden', 'true');
+  }
+
+  const tick = () => {
+    const now = new Date();
+    el.textContent = now.toLocaleTimeString([], {
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+    });
+    const date = shortDate(now);
+    const tz = shortTz(now);
+    window.hubGeo = window.hubGeo || {};
+    window.hubGeo.tz = tz;
+    tipPlain = ipLabel
+      ? `${date} · ${tz} · ${locLabel} · ${ipLabel}`
+      : `${date} · ${tz} · ${locLabel}`;
+    tip.innerHTML =
+      `<b>${date}</b><span class="sep">·</span>` +
+      `<b>${tz}</b><span class="sep">·</span>` +
+      `<b>${locLabel}</b>` +
+      (ipLabel ? `<span class="sep">·</span><b>${ipLabel}</b>` : '');
+    el.title = tipPlain + ' — click to copy';
+    if (tip.classList.contains('show')) placeTip();
+  };
+
+  tick();
+  setInterval(tick, 1000);
+  interactiveOn(el);
+  interactiveOn(tip);
+
+  el.addEventListener('mouseenter', showTip);
+  el.addEventListener('mouseleave', hideTip);
+  el.addEventListener('focus', showTip);
+  el.addEventListener('blur', hideTip);
+  el.addEventListener('click', async () => {
+    if (!tipPlain) return;
+    try {
+      await navigator.clipboard.writeText(tipPlain);
+      el.classList.add('copied');
+      clearTimeout(copyFlash);
+      copyFlash = setTimeout(() => el.classList.remove('copied'), 900);
+    } catch { /* ignore */ }
+  });
+  addEventListener('resize', () => { if (tip.classList.contains('show')) placeTip(); });
+  addEventListener('scroll', () => { if (tip.classList.contains('show')) placeTip(); }, true);
+
+  function applyGeo(j) {
+    if (!j) return;
+    locLabel = shortLoc(j.city, j.region_code || j.region, j.country_code || j.country);
+    if (j.approximate) locLabel = locLabel === 'local' ? 'approx' : locLabel + ' ~';
+    ipLabel = String(j.ip || '').trim();
+    window.hubGeo = {
+      loc: locLabel,
+      ip: ipLabel,
+      tz: shortTz(new Date()),
+      city: j.city || null,
+      region: j.region || j.region_code || null,
+      country: j.country_code || j.country || null,
+      source: j.source || null,
+    };
+    tick();
+  }
+
+  fetch('/api/geo')
+    .then((r) => (r.ok ? r.json() : null))
+    .then(applyGeo)
+    .catch(() => { /* keep local */ });
+
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        fetch('/api/geo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+          }),
+        })
+          .then((r) => (r.ok ? r.json() : null))
+          .then(applyGeo)
+          .catch(() => {});
+      },
+      () => { /* permission denied — OS tz + approximate city */ },
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 30 * 60 * 1000 },
+    );
+  }
+})();
+
+(async () => {
+  try {
+    const c = await navigator.permissions.query({ name: 'camera' });
+    const m = await navigator.permissions.query({ name: 'microphone' }).catch(() => null);
+    if (c.state === 'granted' && (!m || m.state !== 'prompt')) {
+      begin();
+      return;
+    }
+  } catch (e) {}
+  revealStart();
+})();
+
+// ---- global cursor capture (all tabs + parked iframes) ----
+window.hubCursor = HubCursor.init({
+  storageKey: 'hub-cursor-on',
+  endpoint: '/api/activity/cursor-context',
+  getContext() {
+    const parked = [];
+    const loaded = [];
+    for (const v of VIEWS) {
+      if (!frames.has(v.src)) continue;
+      loaded.push(v.label);
+      if (!active || v.key !== active.key) parked.push(v.label);
+    }
+    return {
+      surface: 'hub',
+      activeTab: active?.label || active?.key || null,
+      activeKey: active?.key || null,
+      activeSrc: active?.src || null,
+      parked,
+      loaded,
+      statusLine: `VALINOR · ${active?.label || '—'} · ${loaded.length} loaded · ${parked.length} parked`,
+      panel: active?.label || null,
+    };
+  },
+  getCaptureTarget() {
+    const f = active && frames.get(active.src);
+    if (!f) {
+      return {
+        root: document.body,
+        originX: 0, originY: 0,
+        frameW: window.innerWidth, frameH: window.innerHeight,
+      };
+    }
+    const r = f.getBoundingClientRect();
+    try {
+      const doc = f.contentDocument;
+      if (doc && doc.body) {
+        return {
+          root: doc.body,
+          originX: r.left,
+          originY: r.top,
+          frameW: r.width,
+          frameH: r.height,
+        };
+      }
+    } catch { /* cross-origin (factory etc.) */ }
+    return {
+      root: document.body,
+      originX: 0, originY: 0,
+      frameW: window.innerWidth, frameH: window.innerHeight,
+    };
+  },
+  isUiChrome(t) {
+    return !!(t.closest && (
+      t.closest('#hubCornerPill') ||
+      t.closest('#cbWrap') ||
+      t.closest('#cursorToggle') ||
+      t.closest('#cursorDock') ||
+      t.closest('#liveCursor') ||
+      t.closest('#rail') ||
+      t.closest('#bar') ||
+      t.closest('#settingsPanel') ||
+      t.closest('#profilePanel') ||
+      t.closest('#navDrawer') ||
+      t.closest('#cmdPalette') ||
+      t.closest('#start')
+    ));
+  },
+});
+</script>
+<!-- always-there voice ingest bubble (hold ` to talk → refine → plan → ~/Savar/memory/ingest) -->
+<script src="capture-bubble.js"></script>
+</body>
+</html>

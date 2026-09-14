@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" href="/favicon.png" type="image/png" />
+<title>BrickBreaker — play with your hand</title>
+<style>
+  :root, html[data-theme="dark"] {
+    --bg: #05060a; --bg-elev: #0b0d14; --ink: #e2e8f0; --mute: #64748b; --accent: #7dd3fc; --accent-ink: #05060a;
+  }
+  html[data-theme="light"] {
+    --bg: #f8fafc; --bg-elev: #ffffff; --ink: #0f172a; --mute: #64748b; --accent: #0284c7; --accent-ink: #fff;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg); }
+  #stage { display: block; width: 100vw; height: 100vh; }
+  /* tiny webcam preview so you can see the tracking */
+  #cam { position: fixed; bottom: 12px; right: 12px; width: 180px; height: 135px;
+         transform: scaleX(-1); border-radius: 10px; opacity: 0.25; z-index: 5;
+         pointer-events: none; transition: opacity .2s; }
+  #cam.show { opacity: 0.75; }
+  #hud { position: fixed; top: calc(var(--hub-pad-top, 44px) + 8px); left: 16px; z-index: 10; color: var(--ink);
+         font: 13px/1.5 Lato, sans-serif;
+         background: rgba(8,10,18,.55); backdrop-filter: blur(8px);
+         padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,.08); }
+  html[data-theme="light"] #hud { background: rgba(255,255,255,.78); border-color: rgba(15,23,42,.1); }
+  #hud b { color: var(--accent); }
+  #hud .dim { color: var(--mute); }
+  #hud kbd { background: var(--bg-elev); padding: 1px 6px; border-radius: 4px; color: var(--ink); border: 1px solid rgba(127,127,127,.25); }
+  #start { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column;
+           align-items: center; justify-content: center; gap: 20px; color: var(--ink);
+           background: var(--bg);
+           font: 16px/1.5 Lato, sans-serif; text-align: center; }
+  #start h1 { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; color: var(--accent); }
+  #start p { color: var(--mute); max-width: 460px; }
+  #go { padding: 14px 32px; font-size: 16px; font-weight: 600; color: var(--accent-ink);
+        background: var(--accent); border: none; border-radius: 999px; cursor: pointer; transition: transform .15s; }
+  #go:hover { transform: scale(1.04); }
+  #start.hide { display: none; }
+  @media (hover: none), (pointer: coarse) { #hud { display: none !important; } }
+</style>
+</head>
+<body>
+  <canvas id="stage"></canvas>
+  <video id="cam" autoplay playsinline muted></video>
+  <div id="hud"></div>
+
+  <div id="start">
+    <h1>BrickBreaker</h1>
+    <p>Move your hand left and right to steer the paddle.
+       Pinch (thumb + index) to launch the ball. Mouse works too.</p>
+    <button id="go">Start — allow camera</button>
+  </div>
+
+<!-- MediaPipe Hands (CDN, no install) -->
+<script src="hub-client.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<script>
+const cv = document.getElementById('stage');
+const ctx = cv.getContext('2d');
+const cam = document.getElementById('cam');
+const hud = document.getElementById('hud');
+const startScreen = document.getElementById('start');
+let W, H, DPR = Math.min(window.devicePixelRatio || 1, 2);
+const dp = (n) => n * DPR;
+
+function resize() {
+  W = cv.width = Math.floor(innerWidth * DPR);
+  H = cv.height = Math.floor(innerHeight * DPR);
+  cv.style.width = innerWidth + 'px';
+  cv.style.height = innerHeight + 'px';
+  buildBricks(true);   // keep brick layout matched to the viewport
+}
+addEventListener('resize', resize);
+
+// ---- hand state (smoothed; x mirrored to match the flipped preview) ----
+function newHand(){ return { x:0.5, y:0.5, tx:0.5, ty:0.5, pinch:0, tpinch:0, present:0, seen:false }; }
+const L = newHand(), R = newHand();
+let hands = 0;
+let HAND_SWAP = false;   // press S if left/right feel reversed
+const RESP = 0.55;       // paddle-tracking snappiness
+
+function initHands(videoEl) {
+  const hnd = new Hands({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
+  hnd.setOptions({ maxNumHands: 2, modelComplexity: 0, minDetectionConfidence: 0.6, minTrackingConfidence: 0.6 });
+  hnd.onResults(onHands);
+  // inference throttled to ~30fps so it never starves the 60fps draw loop
+  async function pump() {
+    const start = performance.now();
+    if (videoEl.readyState >= 2) { try { await hnd.send({ image: videoEl }); } catch(e){} }
+    setTimeout(pump, Math.max(0, 33 - (performance.now() - start)));
+  }
+  pump();
+}
+
+function onHands(res) {
+  const lm = res.multiHandLandmarks || [];
+  hands = lm.length;
+  L.seen = R.seen = false;
+  const found = lm.map(hand => {
+    let ax = 0, ay = 0;
+    for (const p of hand) { ax += p.x; ay += p.y; }
+    ax /= hand.length; ay /= hand.length;
+    const wrist = hand[0], midMcp = hand[9];
+    const palm = Math.hypot(wrist.x - midMcp.x, wrist.y - midMcp.y) || 0.001;
+    const pd = Math.hypot(hand[4].x - hand[8].x, hand[4].y - hand[8].y) / palm;
+    const pinch = Math.max(0, Math.min(1, (0.55 - pd) / 0.4));
+    return { dx: 1 - ax, dy: ay, pinch };
+  });
+  // assign by screen position (MediaPipe's handedness label is unreliable)
+  let aL = null, aR = null;
+  if (found.length === 1) (found[0].dx < 0.5 ? (aL = found[0]) : (aR = found[0]));
+  else if (found.length >= 2) { found.sort((a, b) => a.dx - b.dx); aL = found[0]; aR = found[found.length - 1]; }
+  if (HAND_SWAP) { const t = aL; aL = aR; aR = t; }
+  const apply = (h, a) => { if (!a) return; h.seen = true; h.tx = a.dx; h.ty = a.dy; h.tpinch = a.pinch; };
+  apply(L, aL); apply(R, aR);
+  for (const h of [L, R]) h.present += ((h.seen ? 1 : 0) - h.present) * 0.5;
+}
+
+function stepHand(h, dt) {
+  const k = dt > 0 ? 1 - Math.pow(1 - RESP, dt * 60) : 0;
+  h.x += (h.tx - h.x) * k;
+  h.y += (h.ty - h.y) * k;
+  h.pinch += (h.tpinch - h.pinch) * k;
+}
+// the controlling hand: whichever is most confidently present
+const ctrlHand = () => (L.present > R.present ? L : R);
+
+// ================= the game =================
+const PAL = [[244,114,182],[192,132,252],[96,165,250],[125,211,252],[52,211,153]];  // row colors, top->bottom
+const ROWS = 5, COLS = 9;
+let bricks = [];                       // {x,y,w,h,col,pts,alive}
+let paddle = { x: 0.5, w: 0, h: 0, y: 0 };   // px, set in buildBricks
+let ball = { x: 0, y: 0, vx: 0, vy: 0, r: 0 };
+let score = 0, lives = 3, level = 1, alive = 0;
+let state = 'serve';                   // serve | play | over | win
+let mouseX = null;                     // mouse fallback for the paddle
+let pinchPrev = false;
+
+function buildBricks(keep) {
+  // geometry in device px, derived from the viewport
+  paddle.w = Math.max(dp(90), W * 0.14); paddle.h = dp(14); paddle.y = H - dp(46);
+  ball.r = Math.max(dp(7), H * 0.011);
+  const top = dp(72), gap = dp(6);
+  const bw = (W - gap * (COLS + 1)) / COLS, bh = Math.min(dp(26), H * 0.035);
+  const old = keep ? bricks : null;
+  bricks = [];
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+    bricks.push({
+      x: gap + c * (bw + gap), y: top + r * (bh + gap), w: bw, h: bh,
+      col: PAL[r], pts: (ROWS - r) * 10,
+      alive: old ? old[r * COLS + c]?.alive ?? true : true,
+    });
+  }
+  alive = bricks.filter(b => b.alive).length;
+}
+
+function serve() {
+  state = 'serve';
+  ball.vx = 0; ball.vy = 0;
+}
+function launch() {
+  if (!W) return;   // not booted yet (stray click on the start screen)
+  if (state === 'over' || state === 'win') { resetGame(); return; }
+  if (state !== 'serve') return;
+  state = 'play';
+  const speed = H * (0.55 + level * 0.05);           // px/sec, scales with level
+  const a = (Math.random() * 0.6 - 0.3) - Math.PI / 2;  // mostly straight up
+  ball.vx = Math.cos(a) * speed; ball.vy = Math.sin(a) * speed;
+}
+function resetGame() {
+  score = 0; lives = 3; level = 1;
+  bricks.forEach(b => b.alive = true); alive = bricks.length;
+  serve();
+}
+function nextLevel() {
+  level++;
+  bricks.forEach(b => b.alive = true); alive = bricks.length;
+  serve();
+}
+
+function update(dt) {
+  // paddle follows the hand (or the mouse when no hand is up)
+  const h = ctrlHand();
+  const targetX = h.present > 0.3 ? h.x * W : (mouseX !== null ? mouseX : paddle.x);
+  paddle.x += (targetX - paddle.x) * Math.min(1, dt * 14);
+  paddle.x = Math.max(paddle.w / 2, Math.min(W - paddle.w / 2, paddle.x));
+
+  // pinch DOWN launches (and restarts after game over)
+  const pinched = h.present > 0.3 && h.pinch > 0.6;
+  if (pinched && !pinchPrev) launch();
+  pinchPrev = pinched;
+
+  if (state === 'serve') { ball.x = paddle.x; ball.y = paddle.y - paddle.h / 2 - ball.r - dp(1); return; }
+  if (state !== 'play') return;
+
+  ball.x += ball.vx * dt; ball.y += ball.vy * dt;
+
+  // walls
+  if (ball.x < ball.r)     { ball.x = ball.r;     ball.vx =  Math.abs(ball.vx); }
+  if (ball.x > W - ball.r) { ball.x = W - ball.r; ball.vx = -Math.abs(ball.vx); }
+  if (ball.y < ball.r + dp(52)) { ball.y = ball.r + dp(52); ball.vy = Math.abs(ball.vy); }  // below the HUD strip
+
+  // paddle: reflect up, angle set by where the ball lands on it
+  if (ball.vy > 0 && ball.y + ball.r >= paddle.y - paddle.h / 2 && ball.y - ball.r < paddle.y + paddle.h / 2 &&
+      Math.abs(ball.x - paddle.x) < paddle.w / 2 + ball.r) {
+    const hit = Math.max(-1, Math.min(1, (ball.x - paddle.x) / (paddle.w / 2)));
+    const speed = Math.hypot(ball.vx, ball.vy);
+    const a = -Math.PI / 2 + hit * 1.05;              // up, tilted toward the edge you hit
+    ball.vx = Math.cos(a) * speed; ball.vy = Math.sin(a) * speed;
+    ball.y = paddle.y - paddle.h / 2 - ball.r;
+  }
+
+  // bricks: AABB, bounce off the axis of least penetration
+  for (const b of bricks) {
+    if (!b.alive) continue;
+    const cx = Math.max(b.x, Math.min(ball.x, b.x + b.w));
+    const cy = Math.max(b.y, Math.min(ball.y, b.y + b.h));
+    if (Math.hypot(ball.x - cx, ball.y - cy) > ball.r) continue;
+    b.alive = false; alive--; score += b.pts;
+    const px = Math.min(ball.x + ball.r - b.x, b.x + b.w - (ball.x - ball.r));
+    const py = Math.min(ball.y + ball.r - b.y, b.y + b.h - (ball.y - ball.r));
+    if (px < py) ball.vx = ball.x < b.x + b.w / 2 ? -Math.abs(ball.vx) : Math.abs(ball.vx);
+    else         ball.vy = ball.y < b.y + b.h / 2 ? -Math.abs(ball.vy) : Math.abs(ball.vy);
+    if (alive === 0) { state = 'win'; setTimeout(nextLevel, 1600); }
+    break;
+  }
+
+  // dropped it
+  if (ball.y - ball.r > H) {
+    lives--;
+    if (lives <= 0) state = 'over';
+    else serve();
+  }
+}
+
+// ================= drawing =================
+function draw(now) {
+  const dt = lastT ? Math.min(0.033, (now - lastT) / 1000) : 0;
+  lastT = now;
+  stepHand(L, dt); stepHand(R, dt);
+  update(dt);
+
+  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#05060a';
+  ctx.fillRect(0, 0, W, H);
+
+  // bricks
+  for (const b of bricks) {
+    if (!b.alive) continue;
+    const [r, g, bl] = b.col;
+    ctx.fillStyle = `rgba(${r},${g},${bl},0.85)`;
+    ctx.beginPath(); ctx.roundRect(b.x, b.y, b.w, b.h, dp(5)); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.14)';
+    ctx.beginPath(); ctx.roundRect(b.x, b.y, b.w, b.h / 2.4, dp(5)); ctx.fill();
+  }
+
+  // paddle (accent-aware; falls back to cyan standalone)
+  const accent = (getComputedStyle(document.documentElement).getPropertyValue('--accent') || '').trim() || '#7dd3fc';
+  ctx.save();
+  ctx.shadowColor = accent; ctx.shadowBlur = dp(18);
+  ctx.fillStyle = accent;
+  ctx.beginPath(); ctx.roundRect(paddle.x - paddle.w / 2, paddle.y - paddle.h / 2, paddle.w, paddle.h, paddle.h / 2); ctx.fill();
+  ctx.restore();
+
+  // ball
+  ctx.save();
+  ctx.shadowColor = '#fff'; ctx.shadowBlur = dp(14);
+  ctx.fillStyle = '#f8fafc';
+  ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+
+  // hand cursor: faint ring where the controlling hand is
+  const h = ctrlHand();
+  if (h.present > 0.15) {
+    ctx.globalAlpha = Math.min(0.5, h.present);
+    ctx.strokeStyle = h === L ? '#38bdf8' : '#f472b6';
+    ctx.lineWidth = dp(2);
+    ctx.beginPath(); ctx.arc(h.x * W, h.y * H, dp(22 + h.pinch * 8), 0, Math.PI * 2); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  // center messages
+  const msg = state === 'serve' ? 'pinch to launch'
+            : state === 'over'  ? `game over — ${score} pts · pinch to retry`
+            : state === 'win'   ? `level ${level} clear!` : null;
+  if (msg) {
+    ctx.font = `700 ${dp(state === 'serve' ? 17 : 26)}px Lato, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = state === 'over' ? '#f87171' : '#e2e8f0';
+    ctx.fillText(msg, W / 2, H * 0.58);
+    ctx.textAlign = 'left';
+  }
+
+  updateHud();
+  requestAnimationFrame(draw);
+}
+let lastT = 0;
+
+function updateHud() {
+  const h = ctrlHand();
+  hud.innerHTML =
+    `<b>BrickBreaker</b>  <span class="dim">lvl ${level}</span><br>` +
+    `score <b>${score}</b> · lives ${'●'.repeat(Math.max(0, lives))}${'○'.repeat(Math.max(0, 3 - lives))}<br>` +
+    `<span class="dim">hand ${h.present > 0.3 ? '● tracking' : '○ show a hand (or use the mouse)'}</span><br>` +
+    `<span class="dim"><kbd>space</kbd> launch <kbd>C</kbd> cam <kbd>S</kbd> swap <kbd>R</kbd> reset <kbd>F</kbd> full</span>`;
+}
+
+// ---- input fallbacks ----
+addEventListener('mousemove', (e) => { mouseX = e.clientX * DPR; });
+addEventListener('mousedown', launch);
+addEventListener('keydown', (e) => {
+  const k = e.key.toLowerCase();
+  if (e.code === 'Space') { e.preventDefault(); launch(); }
+  if (k === 'c') cam.classList.toggle('show');
+  if (k === 's') HAND_SWAP = !HAND_SWAP;
+  if (k === 'r') resetGame();
+  if (k === 'f') document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+});
+
+// ---- boot: camera only (no mic — the game is silent) ----
+async function boot(sharedCam) {
+  startScreen.classList.add('hide');
+  const vstream = sharedCam || await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false });
+  cam.srcObject = vstream;
+  await cam.play();
+  if (HubClient.embedded) HubClient.onHands(onHands);   // hand frames come from the hub's tracker
+  else initHands(cam);
+  resize(); resetGame();
+  requestAnimationFrame(draw);
+}
+HubClient.forwardNavKeys();
+document.getElementById('go').addEventListener('click', () =>
+  boot(HubClient.embedded ? HubClient.camera() : null)
+    .catch(err => { startScreen.classList.remove('hide'); alert('Need camera permission to play.\n' + err.message); }));
+</script>
+</body>
+</html>

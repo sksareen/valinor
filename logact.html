@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" href="/favicon.png" type="image/png" />
+<title>LogAct — parked</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root, html[data-theme="dark"] {
+    --bg: #05060a;
+    --ink: #e2e8f0;
+    --dim: #94a3b8;
+    --mute: #64748b;
+    --faint: #475569;
+    --accent: #7dd3fc;
+    --chip-bg: rgba(255,255,255,.04);
+    --chip-line: rgba(255,255,255,.08);
+    --glow-a: rgba(125,211,252,.12);
+    --glow-b: rgba(251,191,36,.06);
+    --plan-ink: #05060a;
+  }
+  html[data-theme="light"] {
+    --bg: #f8fafc;
+    --ink: #0f172a;
+    --dim: #475569;
+    --mute: #64748b;
+    --faint: #94a3b8;
+    --accent: #0284c7;
+    --chip-bg: rgba(15,23,42,.04);
+    --chip-line: rgba(15,23,42,.1);
+    --glow-a: rgba(2,132,199,.1);
+    --glow-b: rgba(161,98,7,.06);
+    --plan-ink: #fff;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden;
+    font-family: Lato, sans-serif; color: var(--ink);
+    background:
+      radial-gradient(ellipse 80% 50% at 50% -10%, var(--glow-a), transparent 55%),
+      radial-gradient(ellipse 60% 40% at 80% 100%, var(--glow-b), transparent 50%),
+      var(--bg); }
+
+  #wrap {
+    position: fixed; inset: 0; padding-top: var(--hub-pad-top, 44px);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 22px; text-align: center; padding-left: 24px; padding-right: 24px;
+  }
+
+  .sign {
+    display: inline-flex; align-items: center; gap: 12px;
+    padding: 14px 22px; border-radius: 4px;
+    background: repeating-linear-gradient(
+      -45deg,
+      #fbbf24,
+      #fbbf24 10px,
+      #111827 10px,
+      #111827 20px
+    );
+    box-shadow: 0 12px 40px rgba(0,0,0,.45);
+    transform: rotate(-2.5deg);
+    animation: sway 4.5s ease-in-out infinite;
+  }
+  .sign-inner {
+    background: #111827; color: #fbbf24;
+    font: 700 15px/1 Lato, sans-serif; letter-spacing: .14em; text-transform: uppercase;
+    padding: 14px 28px; border: 2px solid #fbbf24;
+  }
+  @keyframes sway {
+    0%, 100% { transform: rotate(-2.5deg) translateY(0); }
+    50% { transform: rotate(-1deg) translateY(-4px); }
+  }
+
+  h1 {
+    font-size: clamp(28px, 5vw, 42px); font-weight: 700; letter-spacing: -.02em;
+    color: #fbbf24; margin-top: 8px;
+  }
+  p {
+    max-width: 460px; font-size: 15px; line-height: 1.55; color: var(--dim);
+  }
+  .meta {
+    display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 4px;
+  }
+  .chip {
+    font: 600 11px Lato, sans-serif; letter-spacing: .04em;
+    padding: 6px 12px; border-radius: 999px;
+    color: var(--mute); background: var(--chip-bg);
+    border: 1px solid var(--chip-line);
+  }
+  a.plan {
+    margin-top: 6px; font: 700 12px Lato, sans-serif; letter-spacing: .04em;
+    color: #05060a; background: #fbbf24; text-decoration: none;
+    padding: 10px 18px; border-radius: 999px;
+  }
+  a.plan:hover { filter: brightness(1.08); }
+  .ghost {
+    font: 600 12px Lato, sans-serif; color: var(--faint); text-decoration: none;
+  }
+  .ghost:hover { color: var(--dim); }
+  @media (prefers-reduced-motion: reduce) { .sign { animation: none; } }
+</style>
+</head>
+<body>
+  <div id="wrap">
+    <div class="sign" aria-hidden="true"><div class="sign-inner">Parked · big move</div></div>
+    <h1>LogAct</h1>
+    <p>Reliable router and rule enforcer — Intent → Vote → Commit before egress or private reads. AgentBus + Classic voters. <b style="color:#fbbf24;font-weight:700">Not started</b> until OSS scrub ships.</p>
+    <div class="meta">
+      <span class="chip">AgentBus</span>
+      <span class="chip">Classic voters</span>
+      <span class="chip">arxiv:2604.07988</span>
+    </div>
+    <a class="plan" href="/plans/logact-privacy-gate.md" target="_blank" rel="noopener">read the plan</a>
+    <a class="ghost" href="/oss.html">OSS scrub · ships first</a>
+  </div>
+  <script src="hub-client.js"></script>
+  <script>if (typeof HubClient !== 'undefined' && HubClient.forwardNavKeys) HubClient.forwardNavKeys();</script>
+</body>
+</html>

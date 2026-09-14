@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" href="/favicon.png" type="image/png" />
+<title>Draw — Excalidraw</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; background: #05060a; }
+  :root[data-theme="light"] body { background: #f8fafc; }
+  #app { position: fixed; inset: 0; }
+  /* Excalidraw injects its own styles; this just fills the frame. */
+  .excalidraw { width: 100%; height: 100%; }
+  #boot { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: #64748b; font: 500 13px Lato, system-ui, sans-serif; }
+</style>
+</head>
+<body>
+<div id="boot">loading canvas…</div>
+<div id="app"></div>
+
+<!-- Excalidraw loads its assets (fonts, etc.) relative to this path -->
+<script>window.EXCALIDRAW_ASSET_PATH = "https://unpkg.com/@excalidraw/excalidraw@0.17.6/dist/";</script>
+<script src="hub-client.js"></script>
+<!-- React + ReactDOM + Excalidraw via UMD (no build step in this repo) -->
+<script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@excalidraw/excalidraw@0.17.6/dist/excalidraw.production.min.js"></script>
+<script>
+(function () {
+  const SCENE_KEY = 'hub-draw-scene';        // local autosave (per-browser) until server save lands
+  const h = React.createElement;
+
+  // ---- persistence (localStorage for now; server-side + agent access is the next step) ----
+  // appState carries a few runtime-only fields that must NOT be restored verbatim:
+  // `collaborators` must be a Map (JSON makes it an object → Excalidraw throws), and the
+  // viewport size fields should be recomputed, not pinned.
+  function sanitizeAppState(appState) {
+    if (!appState) return appState;
+    const a = { ...appState };
+    delete a.collaborators;
+    delete a.width; delete a.height;
+    delete a.offsetTop; delete a.offsetLeft;
+    return a;
+  }
+  function loadScene() {
+    try {
+      const raw = localStorage.getItem(SCENE_KEY);
+      if (!raw) return null;
+      const data = JSON.parse(raw);
+      return {
+        elements: Array.isArray(data.elements) ? data.elements : [],
+        appState: sanitizeAppState(data.appState),
+        files: data.files || undefined,
+      };
+    } catch (e) { return null; }
+  }
+  let saveTimer = null;
+  function saveScene(elements, appState, files) {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      try {
+        localStorage.setItem(SCENE_KEY, JSON.stringify({
+          elements,
+          appState: sanitizeAppState(appState),
+          files: files || {},
+        }));
+      } catch (e) { /* quota exceeded (large embedded images) — skip this save */ }
+    }, 500);
+  }
+
+  // ---- theme: follow the hub shell ----
+  function currentTheme() {
+    return document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
+  }
+
+  function App() {
+    const [theme, setTheme] = React.useState(currentTheme());
+    React.useEffect(() => {
+      try { window.HubClient && HubClient.onTheme && HubClient.onTheme((t) => setTheme(t)); } catch (e) {}
+    }, []);
+    return h(ExcalidrawLib.Excalidraw, {
+      initialData: loadScene(),
+      theme: theme,
+      onChange: (elements, appState, files) => saveScene(elements, appState, files),
+      UIOptions: { canvasActions: { toggleTheme: false } }, // theme is driven by the hub
+    });
+  }
+
+  const boot = document.getElementById('boot');
+  if (!window.ExcalidrawLib || !window.React || !window.ReactDOM) {
+    if (boot) boot.textContent = 'Could not load the drawing library (offline?). Reconnect and reload.';
+    return;
+  }
+  if (boot) boot.remove();
+  ReactDOM.createRoot(document.getElementById('app')).render(h(App));
+})();
+</script>
+</body>
+</html>

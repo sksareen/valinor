@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" href="/favicon.png" type="image/png" />
+<title>Review — reflection &amp; eval loop</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root { --bg:#05060a; --panel:#0b1120; --card:#0f172a; --line:#1e293b; --ink:#e2e8f0; --dim:#94a3b8; --faint:#64748b; --accent:#7dd3fc; --good:#34d399; }
+  :root[data-theme="light"] { --bg:#f8fafc; --panel:#fff; --card:#fff; --line:#e2e8f0; --ink:#0f172a; --dim:#475569; --faint:#94a3b8; --accent:#0284c7; --good:#059669; }
+  html,body { height:100%; background:var(--bg); color:var(--ink); font-family:Lato,system-ui,sans-serif; }
+  #app { display:flex; flex-direction:column; height:100vh; }
+  #head { display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:14px 18px; border-bottom:1px solid var(--line); background:var(--panel); }
+  #head h1 { font-size:14px; letter-spacing:.08em; font-weight:700; }
+  #head .dir { font-size:11px; color:var(--faint); margin-top:2px; }
+  #headActs { display:flex; align-items:center; gap:8px; }
+  #headActs a { font-size:12px; color:var(--accent); text-decoration:none; }
+  #headActs a:hover { text-decoration:underline; }
+  #evalBar { display:flex; gap:8px; padding:0 0 8px; }
+  .ev-stat { flex:1; min-width:0; border:1px solid var(--line); border-radius:8px; padding:8px 12px; background:var(--panel); }
+  .ev-stat .v { font-size:18px; font-weight:650; }
+  .ev-stat .k { font-size:10px; color:var(--faint); letter-spacing:.05em; margin-top:2px; }
+  #board { flex:1; display:grid; grid-template-columns:repeat(2,minmax(280px,1fr)); gap:14px;
+    padding:16px 18px; overflow:auto; align-items:start; }
+  .col { background:var(--panel); border:1px solid var(--line); border-radius:12px; min-height:120px;
+    display:flex; flex-direction:column; }
+  .col > h2 { font-size:11px; letter-spacing:.09em; color:var(--dim); font-weight:700;
+    padding:12px 14px 8px; display:flex; justify-content:space-between; }
+  .col > h2 .n { color:var(--faint); }
+  .col .stack { display:flex; flex-direction:column; gap:10px; padding:0 12px 14px; container-type:inline-size; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:9px; padding:11px 12px; }
+  .card.has-media {
+    display:grid; grid-template-columns:120px minmax(0,1fr); gap:10px 12px; align-items:stretch;
+  }
+  .card .body { min-width:0; }
+  .card .media {
+    position:relative; display:block; width:120px; min-height:120px; border-radius:7px;
+    overflow:hidden; border:1px solid var(--line); background:#000; align-self:stretch;
+  }
+  .card .media:hover { border-color:var(--accent); }
+  .card .media.over { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
+  .card .proof {
+    position:absolute; inset:0; width:100%; height:100%;
+    object-fit:cover; object-position:top center; display:block; margin:0;
+  }
+  @container (max-width: 400px) {
+    .card.has-media { grid-template-columns:1fr; }
+    .card .media { width:100%; height:120px; min-height:120px; }
+  }
+  .card .title { font-size:13.5px; font-weight:650; margin-bottom:5px; }
+  .card .outcome { font-size:12.5px; color:var(--dim); line-height:1.45; }
+  .card .src { font-size:10.5px; color:var(--faint); margin-top:6px; }
+  .card .srclink { color:var(--accent); text-decoration:none; }
+  .card .srclink:hover { text-decoration:underline; }
+  .card .srcdet { margin-top:5px; }
+  .card .srcdet summary { cursor:pointer; font-size:10.5px; color:var(--dim); }
+  .card .srcdet summary:hover { color:var(--accent); }
+  .card .srcbody { white-space:pre-wrap; font-size:11.5px; color:var(--dim); line-height:1.5;
+    max-height:220px; overflow:auto; margin-top:5px; padding:8px 10px;
+    border:1px solid var(--line); border-radius:7px; background:var(--panel); }
+  .card .timer { font-size:15px; font-weight:700; color:var(--good); margin:8px 0 4px; font-variant-numeric:tabular-nums; }
+  .card .elapsed { font-size:11px; color:var(--faint); margin-top:6px; }
+  .card .q { font-size:12.5px; color:var(--accent); line-height:1.45; margin:8px 0 6px; }
+  .card .a { font-size:12px; color:var(--dim); line-height:1.45; margin-top:6px; }
+  .card.has-media .q { margin-top:2px; }
+  .card .filechip { display:flex; align-items:center; gap:8px; margin:8px 0 4px; padding:8px 10px;
+    border:1px solid var(--line); border-radius:7px; text-decoration:none; color:var(--ink); font-size:12px; }
+  .card .filechip:hover { border-color:var(--accent); color:var(--accent); }
+  .card .filechip .name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .row { display:flex; gap:7px; margin-top:9px; flex-wrap:wrap; }
+  button.act { border:1px solid var(--line); background:transparent; color:var(--ink);
+    border-radius:6px; font-size:11px; padding:5px 9px; cursor:pointer; font-family:inherit; }
+  button.act:hover:not(:disabled) { border-color:var(--accent); color:var(--accent); }
+  button.act:disabled { opacity:.5; cursor:default; }
+  button.primary { background:var(--accent); color:var(--bg); border-color:var(--accent); font-weight:650; }
+  button.primary:hover:not(:disabled) { color:var(--bg); opacity:.9; }
+  button.danger { color:#f87171; border-color:color-mix(in srgb,#f87171 40%,var(--line)); }
+  button.danger:hover:not(:disabled) { background:rgba(248,113,113,.12); color:#f87171; }
+  textarea.inp { width:100%; background:var(--panel); color:var(--ink); border:1px solid var(--line);
+    border-radius:7px; padding:7px 9px; font:inherit; font-size:12.5px; margin-top:7px; resize:vertical; }
+  .msg { font-size:11px; color:#f87171; margin-top:6px; }
+  .msg:empty { display:none; }
+  .drop { border:1px dashed var(--line); border-radius:8px; padding:12px; text-align:center; font-size:11.5px;
+    color:var(--faint); cursor:pointer; margin-top:9px; }
+  .drop.over { border-color:var(--accent); color:var(--accent); }
+  .empty { color:var(--faint); font-size:12px; padding:14px; text-align:center; }
+  .ev-run { border:1px solid var(--line); border-radius:9px; padding:10px 12px; margin-bottom:10px; background:var(--card); }
+  .ev-run .t { font-size:13px; font-weight:650; margin-bottom:3px; }
+  .ev-run .m { font-size:11px; color:var(--faint); margin-bottom:6px; }
+  .ev-run .flags { display:flex; gap:6px; flex-wrap:wrap; margin-top:7px; }
+  .ev-flag { font-size:10.5px; color:var(--dim); border:1px solid var(--line); border-radius:20px; padding:2px 8px; }
+  .ev-flag.warn { color:#fbbf24; border-color:color-mix(in srgb,#fbbf24 40%,var(--line)); }
+  .ev-link { font-size:11px; color:var(--accent); text-decoration:none; }
+  .ev-link:hover { text-decoration:underline; }
+  #evalSec { flex:none; padding:10px 18px 0; }
+  #evalSec h2 { font-size:11px; letter-spacing:.09em; color:var(--dim); font-weight:700; padding:2px 0 8px; }
+  .colact { padding:0 12px 10px; }
+  .colact .mini { width:100%; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="head">
+    <div>
+      <h1>REVIEW</h1>
+      <div class="dir" id="dir">reflection → done → eval loop</div>
+    </div>
+    <div id="headActs"><a href="/execute.html" id="backAct" title="Back to the backlog">← Execute</a></div>
+  </div>
+  <div id="evalSec"><h2>EVALS · COMPLETED TRAJECTORIES</h2><div id="evalBody"><div class="empty">loading…</div></div></div>
+  <div id="board"><div class="empty">loading…</div></div>
+</div>
+<script src="hub-client.js"></script>
+<script src="capture-drawer.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+if (window.HubClient) { HubClient.forwardNavKeys?.(); HubClient.onTheme?.((t) => document.documentElement.dataset.theme = t); }
+if (window.CaptureDrawer) CaptureDrawer.attach(); else if (window.IngestDrawer) IngestDrawer.attach(); // global left-edge capture drawer (⌥E; ⌘I = theme)
+let tasks = [];
+let evalRuns = [], evalSummary = null;
+
+function esc(s){ const d=document.createElement('div'); d.textContent=String(s==null?'':s); return d.innerHTML; }
+function fmtClock(ms){
+  const s = Math.max(0, Math.floor(ms/1000));
+  const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
+  const p = (n)=>String(n).padStart(2,'0');
+  return (h?`${h}:`:'') + `${p(m)}:${p(sec)}`;
+}
+function fmtDur(ms){
+  if (ms == null || !Number.isFinite(ms)) return '—';
+  const m = Math.round(ms / 60000);
+  if (m < 1) return '<1m';
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 48) return `${h}h${m % 60 ? ` ${m % 60}m` : ''}`;
+  return `${Math.floor(h / 24)}d ${h % 24}h`;
+}
+function fmtDate(iso){
+  const ms = Date.parse(iso || '');
+  if (!Number.isFinite(ms)) return '';
+  return new Date(ms).toLocaleDateString(undefined, { month:'short', day:'numeric' });
+}
+async function api(path, opts){
+  const r = await fetch(path, opts);
+  const j = await r.json().catch(()=>({}));
+  if (!r.ok) throw new Error(j.error || `${r.status}`);
+  return j;
+}
+async function load(){
+  try {
+    const [j, e] = await Promise.all([
+      api('/api/execute'),
+      api('/api/execute/evals?limit=50').catch(() => ({ runs: [], summary: null })),
+    ]);
+    tasks = j.tasks || [];
+    evalRuns = e.runs || [];
+    evalSummary = e.summary || null;
+    if (!evalRuns.length) evalRuns = tasks.filter(t => t.status === 'done'); // offline fallback
+    render();
+    renderEvalStats();
+  } catch(e){ $('board').innerHTML = `<div class="empty">${esc(e.message||e)}</div>`; }
+}
+function sourceHtml(t){
+  if (!t.sourceIngestId) return '';
+  const title = t.sourceTitle || 'captured note';
+  const link = `<a class="srclink" href="/capture.html?id=${encodeURIComponent(t.sourceIngestId)}" target="_blank" rel="noopener">from: ${esc(title)}</a>`;
+  if (!t.sourceBody) return `<div class="src">${link}</div>`;
+  return `<div class="src">${link}<details class="srcdet"><summary>original note</summary><div class="srcbody">${esc(t.sourceBody)}</div></details></div>`;
+}
+function proofMedia(t){
+  if (!t.proofUrl || !t.proofIsImage) return '';
+  return `<a class="media" href="${esc(t.proofUrl)}" target="_blank" rel="noopener" title="Open full image — drop a file here to replace"><img class="proof" src="${esc(t.proofUrl)}" alt="proof" /></a>`;
+}
+function proofFile(t){
+  if (!t.proofUrl || t.proofIsImage) return '';
+  const label = t.proofName || 'attached file';
+  return `<a class="filechip" href="${esc(t.proofUrl)}" target="_blank" rel="noopener" download="${esc(label)}"><span>file</span><span class="name">${esc(label)}</span></a>`;
+}
+function reviewCard(t){
+  const q = t.review?.question ? `<div class="q">${esc(t.review.question)}</div>` : '';
+  const img = proofMedia(t);
+  const drop = img
+    ? ''
+    : `<div class="drop" data-drop>drop / paste / click to attach a file</div>`;
+  return `<div class="card${img ? ' has-media' : ''}" data-id="${esc(t.id)}">
+    ${img}
+    <div class="body">
+      <div class="title">${esc(t.title)}</div>${q}${sourceHtml(t)}${proofFile(t)}
+      <textarea class="inp" data-ans placeholder="Your answer…" rows="2"></textarea>
+      <div class="msg" data-msg></div>
+      <div class="row">
+        <button class="act primary" data-do="complete">Complete</button>
+        <button class="act" data-do="proof">${img ? 'Change file' : 'Attach file'}</button>
+        <button class="act" data-do="back">↩ Active</button>
+      </div>
+      ${drop}
+    </div>
+  </div>`;
+}
+function doneCard(r){
+  // A completed trajectory: live dones stay actionable, archived ones are read-only eval fuel.
+  const live = r.status === 'done' ? tasks.find(t => t.id === r.id && t.status === 'done') : null;
+  const q = r.review?.question ? `<div class="q">${esc(r.review.question)}</div>` : '';
+  const a = r.review?.answer ? `<div class="a">${esc(r.review.answer)}</div>` : '';
+  const flags = [
+    `<span class="ev-flag">${fmtClock(r.elapsedMs || 0)} worked</span>`,
+    r.timeToCompletionMs != null ? `<span class="ev-flag">${fmtDur(r.timeToCompletionMs)} to done</span>` : '',
+    (r.reenters || 0) > 0 ? `<span class="ev-flag warn">${r.reenters} re-enter${r.reenters === 1 ? '' : 's'}</span>` : '',
+    r.shallow ? `<span class="ev-flag warn">shallow answer</span>` : '',
+    r.review?.answer ? `<span class="ev-flag" title="The review Q&A was saved back to Capture as a note">reflected → Capture</span>` : '',
+    r.proofUrl ? `<a class="ev-link" href="${esc(r.proofUrl)}" target="_blank" rel="noopener">proof</a>` : '',
+    r.sourceIngestId ? `<a class="ev-link" href="/capture.html?id=${encodeURIComponent(r.sourceIngestId)}" target="_blank" rel="noopener">source</a>` : '',
+  ].filter(Boolean).join('');
+  const actions = live
+    ? `<div class="row">
+        <button class="act" data-do="back">↩ Review</button>
+        <button class="act danger" data-do="del">Delete</button>
+      </div>`
+    : '';
+  const img = proofMedia(r);
+  return `<div class="card${img ? ' has-media' : ''}" data-id="${esc(r.id)}">
+    ${img}
+    <div class="body">
+      <div class="title">${esc(r.title)}</div>${q}${a}${proofFile(r)}
+      <div class="elapsed">${r.completedAt ? esc(fmtDate(r.completedAt)) + ' · ' : ''}${esc(r.outcome || '')}</div>
+      <div class="flags" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:7px;">${flags}</div>
+      ${actions}
+    </div>
+  </div>`;
+}
+function render(){
+  const review = tasks.filter(t => t.status === 'review');
+  const backlogN = tasks.filter(t => t.status === 'backlog').length;
+  const backAct = $('backAct');
+  if (backAct) backAct.textContent = backlogN ? `← Backlog (${backlogN})` : '← Execute';
+  $('board').innerHTML =
+    `<div class="col"><h2>REVIEW<span class="n">${review.length}</span></h2><div class="stack">${review.map(reviewCard).join('') || '<div class="empty">Nothing awaiting review.<br>Attach proof on an Active card in Execute.</div>'}</div></div>` +
+    `<div class="col"><h2>DONE<span class="n">${evalRuns.length}</span></h2><div class="stack">${evalRuns.map(doneCard).join('') || '<div class="empty">No completed runs yet.<br>Answer a review above — its trajectory lands here.</div>'}</div></div>`;
+  wire();
+}
+function wire(){
+  document.querySelectorAll('.card[data-id]').forEach(card => {
+    const id = card.dataset.id;
+    card.querySelectorAll('[data-do]').forEach(btn => { btn.onclick = () => onAction(btn.dataset.do, id, card, btn); });
+    const drop = card.querySelector('[data-drop]');
+    if (drop) attachDrop(drop, id);
+    const media = card.querySelector('.media');
+    if (media) attachDrop(media, id, { clickToPick: false });
+  });
+}
+async function onAction(action, id, card, btn){
+  try {
+    if (action === 'back') {
+      if (btn) btn.disabled = true;
+      await api('/api/execute/unstep?id='+encodeURIComponent(id), {method:'POST'}); await load();
+    }
+    else if (action === 'del') {
+      if (!confirm('Delete this task?')) return;
+      await api('/api/execute/item?id='+encodeURIComponent(id), {method:'DELETE'}); await load();
+    }
+    else if (action === 'proof') { pickFile(id); }
+    else if (action === 'complete') {
+      const answer = (card.querySelector('[data-ans]')?.value||'').trim();
+      const msg = card.querySelector('[data-msg]');
+      if (!answer) {
+        if (msg) msg.textContent = 'Write an answer first — one line on what it unlocked is enough.';
+        card.querySelector('[data-ans]')?.focus();
+        return;
+      }
+      if (msg) msg.textContent = '';
+      btn.disabled = true;
+      await api('/api/execute/review?id='+encodeURIComponent(id), {method:'POST',
+        headers:{'Content-Type':'application/json'}, body: JSON.stringify({ answer })}); await load();
+    }
+  } catch(e){ alert(String(e.message||e)); if (btn) btn.disabled = false; }
+}
+async function sendProof(id, file){
+  if (!file) { alert('choose a file'); return; }
+  if (file.size > 12 * 1024 * 1024) { alert('file is too large (12 MB max)'); return; }
+  const dataUrl = await new Promise((res, rej) => {
+    const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(file);
+  });
+  await api('/api/execute/proof?id='+encodeURIComponent(id), {method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ file: dataUrl, name: file.name || 'proof', mime: file.type || '' })});
+  await load();
+}
+function pickFile(id){
+  const inp = document.createElement('input');
+  inp.type = 'file';
+  inp.onchange = () => { if (inp.files[0]) sendProof(id, inp.files[0]).catch(e=>alert(String(e.message||e))); };
+  inp.click();
+}
+function attachDrop(el, id, opts){
+  if (opts?.clickToPick !== false) el.onclick = () => pickFile(id);
+  el.ondragover = (e) => { e.preventDefault(); el.classList.add('over'); };
+  el.ondragleave = () => el.classList.remove('over');
+  el.ondrop = (e) => {
+    e.preventDefault(); el.classList.remove('over');
+    const f = e.dataTransfer?.files?.[0];
+    if (f) sendProof(id, f).catch(err=>alert(String(err.message||err)));
+  };
+}
+document.addEventListener('paste', (e) => {
+  const item = [...(e.clipboardData?.items||[])].find(i => i.type.startsWith('image/'));
+  if (!item) return;
+  const file = item.getAsFile();
+  if (!file) return;
+  const review = tasks.filter(t => t.status === 'review');
+  if (review.length === 1) sendProof(review[0].id, file).catch(err=>alert(String(err.message||err)));
+});
+async function renderEvalStats(){
+  const host = $('evalBody');
+  if (!host) return;
+  const runs = evalRuns, summary = evalSummary;
+  if (!runs.length) {
+    host.innerHTML = `<div style="font-size:12.5px;color:var(--dim);line-height:1.55;">No completed runs yet. Complete a task — its trajectory (time, re-enters, review Q&amp;A, proof) lands in DONE below as eval fuel.</div>`;
+    return;
+  }
+  const tot = summary ? summary.total : runs.length;
+  const avg = summary ? summary.avgTimeToCompletionMs
+    : (() => { const v = runs.map(r => r.timeToCompletionMs).filter(Number.isFinite);
+        return v.length ? Math.round(v.reduce((a,b) => a+b, 0) / v.length) : null; })();
+  const shallow = summary ? summary.shallowCount : runs.filter(r => r.shallow).length;
+  const reent = summary ? summary.reenterTotal : runs.reduce((s,r) => s + (r.reenters||0), 0);
+  host.innerHTML = `
+    <div id="evalBar">
+      <div class="ev-stat"><div class="v">${tot}</div><div class="k">COMPLETED</div></div>
+      <div class="ev-stat"><div class="v">${avg == null ? '—' : fmtDur(avg)}</div><div class="k">AVG TIME TO DONE</div></div>
+      <div class="ev-stat"><div class="v">${shallow}</div><div class="k">SHALLOW ANSWERS</div></div>
+      <div class="ev-stat"><div class="v">${reent}</div><div class="k">RE-ENTERS</div></div>
+    </div>`;
+}
+function isEditing(){
+  const el = document.activeElement;
+  return !!el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') && el.closest('#board');
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !isEditing()) load(); });
+setInterval(() => { if (!document.hidden && !isEditing()) load(); }, 15000);
+load();
+</script>
+</body>
+</html>

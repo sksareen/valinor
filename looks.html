@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark" data-scheme="cyan" data-font="lato" data-size="md" data-density="cozy" data-layout="top" data-chrome="overlay" data-tabs="pills" data-radius="round">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Looks — hub chrome lab</title>
+<link rel="icon" href="/favicon.png" type="image/png" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;600;700&family=Lato:wght@400;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root, html[data-theme="dark"] {
+    --bg: #05060a;
+    --bg-elev: #070910;
+    --bg-panel: rgba(7,9,16,.96);
+    --text: #e2e8f0;
+    --text-dim: #94a3b8;
+    --text-mute: #64748b;
+    --text-faint: #4b5563;
+    --border: rgba(255,255,255,.08);
+    --border-strong: rgba(255,255,255,.16);
+    --chip-bg: rgba(255,255,255,.03);
+    --shadow: 0 16px 48px rgba(0,0,0,.45);
+    --ok: #4ade80;
+    --danger: #ef4444;
+    --lab-w: 320px;
+  }
+  html[data-theme="light"] {
+    --bg: #f4f5f7;
+    --bg-elev: #ffffff;
+    --bg-panel: rgba(255,255,255,.98);
+    --text: #0f172a;
+    --text-dim: #475569;
+    --text-mute: #64748b;
+    --text-faint: #94a3b8;
+    --border: rgba(15,23,42,.1);
+    --border-strong: rgba(15,23,42,.18);
+    --chip-bg: rgba(15,23,42,.04);
+    --shadow: 0 16px 40px rgba(15,23,42,.12);
+    --ok: #15803d;
+    --danger: #dc2626;
+  }
+
+  html[data-scheme="cyan"]   { --accent: #7dd3fc; --accent-ink: #05060a; --accent-soft: rgba(125,211,252,.14); --accent-line: rgba(125,211,252,.22); }
+  html[data-scheme="slate"]  { --accent: #94a3b8; --accent-ink: #0f172a; --accent-soft: rgba(148,163,184,.18); --accent-line: rgba(148,163,184,.28); }
+  html[data-scheme="ember"]  { --accent: #d4a574; --accent-ink: #1a1208; --accent-soft: rgba(212,165,116,.16); --accent-line: rgba(212,165,116,.28); }
+  html[data-scheme="pine"]   { --accent: #7a9e7e; --accent-ink: #0a120c; --accent-soft: rgba(122,158,126,.16); --accent-line: rgba(122,158,126,.28); }
+  html[data-scheme="violet"] { --accent: #c4b5fd; --accent-ink: #1a1028; --accent-soft: rgba(196,181,253,.16); --accent-line: rgba(196,181,253,.28); }
+  html[data-scheme="rose"]   { --accent: #fb7185; --accent-ink: #1a080c; --accent-soft: rgba(251,113,133,.16); --accent-line: rgba(251,113,133,.28); }
+  html[data-scheme="gold"]   { --accent: #e8c547; --accent-ink: #161208; --accent-soft: rgba(232,197,71,.16); --accent-line: rgba(232,197,71,.28); }
+  html[data-scheme="ice"]    { --accent: #a5f3fc; --accent-ink: #042024; --accent-soft: rgba(165,243,252,.14); --accent-line: rgba(165,243,252,.26); }
+
+  html[data-theme="light"][data-scheme="cyan"]   { --accent: #0369a1; --accent-ink: #fff; }
+  html[data-theme="light"][data-scheme="slate"]  { --accent: #334155; --accent-ink: #fff; }
+  html[data-theme="light"][data-scheme="ember"]  { --accent: #9a6412; --accent-ink: #fff; }
+  html[data-theme="light"][data-scheme="pine"]   { --accent: #3f6b45; --accent-ink: #fff; }
+  html[data-theme="light"][data-scheme="violet"] { --accent: #6d28d9; --accent-ink: #fff; }
+  html[data-theme="light"][data-scheme="rose"]   { --accent: #be123c; --accent-ink: #fff; }
+  html[data-theme="light"][data-scheme="gold"]   { --accent: #a16207; --accent-ink: #fff; }
+  html[data-theme="light"][data-scheme="ice"]    { --accent: #0e7490; --accent-ink: #fff; }
+
+  html[data-font="lato"]   { --font: Lato, sans-serif; }
+  html[data-font="plex"]   { --font: "IBM Plex Sans", sans-serif; }
+  html[data-font="source"] { --font: "Source Serif 4", Georgia, serif; }
+  html[data-font="mono"]   { --font: "IBM Plex Mono", ui-monospace, monospace; }
+
+  :root { --font-scale: 1; --lab-mono: "IBM Plex Mono", ui-monospace, monospace; }
+  html[data-size="sm"] { --font-scale: 0.95; }
+  html[data-size="md"] { --font-scale: 1.08; }
+  html[data-size="lg"] { --font-scale: 1.24; }
+  html[data-size="xl"] { --font-scale: 1.42; }
+
+  html[data-density="cozy"] {
+    --bar-h: calc(50px * var(--font-scale));
+    --side-w: calc(188px * var(--font-scale));
+    --rail-w: calc(60px * var(--font-scale));
+    --tab-pad-y: calc(7px * var(--font-scale));
+    --tab-pad-x: calc(15px * var(--font-scale));
+    --tab-size: calc(13px * var(--font-scale));
+    --gap: calc(7px * var(--font-scale));
+    --ui-fs: calc(14px * var(--font-scale));
+  }
+  html[data-density="compact"] {
+    --bar-h: calc(42px * var(--font-scale));
+    --side-w: calc(164px * var(--font-scale));
+    --rail-w: calc(52px * var(--font-scale));
+    --tab-pad-y: calc(5px * var(--font-scale));
+    --tab-pad-x: calc(12px * var(--font-scale));
+    --tab-size: calc(12px * var(--font-scale));
+    --gap: calc(5px * var(--font-scale));
+    --ui-fs: calc(13px * var(--font-scale));
+  }
+
+  html[data-radius="round"] { --r-tab: 999px; --r-btn: 8px; --r-card: 12px; }
+  html[data-radius="sharp"] { --r-tab: 4px; --r-btn: 4px; --r-card: 4px; }
+
+  html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
+    font-family: var(--font); color: var(--text); }
+
+  /* ---- stage (the fake hub) ---- */
+  #stage {
+    position: fixed; inset: 0; right: var(--lab-w);
+    background: var(--bg); overflow: hidden;
+  }
+  html.lab-off #stage { right: 0; }
+  html.lab-off #lab { transform: translateX(100%); }
+  html.lab-off #labToggle { right: 12px; }
+
+  #chrome {
+    display: flex; align-items: stretch; gap: 0; z-index: 20;
+    background: color-mix(in srgb, var(--bg-elev) 92%, transparent);
+    border-color: var(--accent-line); border-style: solid; border-width: 0;
+    backdrop-filter: blur(14px);
+  }
+  .chrome-brand, .chrome-end {
+    flex: 0 0 auto; display: flex; align-items: center; gap: var(--gap); padding: 0 10px;
+  }
+  .chrome-tabs {
+    flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--gap);
+    padding: 0 8px; overflow: auto;
+  }
+  .chrome-tabs::-webkit-scrollbar { display: none; }
+  .brand { font-size: var(--ui-fs); font-weight: 700; letter-spacing: 0.04em; color: var(--accent); user-select: none; }
+  .brand-mark { width:20px; height:20px; border-radius:50%; object-fit:cover;
+    display:inline-block; vertical-align:-4px; margin-right:7px; }
+  .clock { font: 600 var(--ui-fs) var(--font); font-variant-numeric: tabular-nums; letter-spacing: .04em;
+    color: var(--text-dim); padding: 5px 10px; border: 1px solid var(--border); border-radius: var(--r-btn);
+    background: var(--chip-bg); }
+  .tab { padding: var(--tab-pad-y) var(--tab-pad-x); font: 700 var(--tab-size) var(--font); letter-spacing: 0.05em;
+    color: var(--text-faint); background: var(--chip-bg); border: 1px solid var(--border);
+    border-radius: var(--r-tab); cursor: pointer; white-space: nowrap; }
+  .tab:hover { color: var(--text-dim); }
+  .tab.on { color: var(--accent); background: var(--accent-soft); border-color: var(--accent); }
+  .tab .short { display: none; }
+  .icon-btn { width: 28px; height: 28px; border-radius: var(--r-btn); border: 1px solid var(--border-strong);
+    background: color-mix(in srgb, var(--bg-elev) 78%, transparent); color: var(--text);
+    font: 600 13px var(--font); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+  .icon-btn:hover { background: color-mix(in srgb, var(--text) 12%, transparent); }
+
+  html[data-tabs="ghost"] .tab { background: transparent; border-color: transparent; }
+  html[data-tabs="ghost"] .tab.on { background: var(--accent-soft); border-color: transparent; }
+  html[data-tabs="line"] .tab { background: transparent; border: none; border-radius: 0; padding-bottom: 8px;
+    border-bottom: 2px solid transparent; }
+  html[data-tabs="line"] .tab.on { background: transparent; border-bottom-color: var(--accent); color: var(--accent); }
+
+  #viewport { position: relative; overflow: hidden; background: var(--bg); min-width: 0; min-height: 0; }
+  .view { display: none; position: absolute; inset: 0; overflow: auto; }
+  .view.on { display: block; }
+
+  /* layouts */
+  html[data-layout="top"] #stage { display: grid; }
+  html[data-layout="top"][data-chrome="overlay"] #stage { display: block; }
+  html[data-layout="top"][data-chrome="overlay"] #chrome {
+    position: absolute; top: 0; left: 0; right: 0; height: var(--bar-h);
+    border-bottom-width: 1px;
+  }
+  html[data-layout="top"][data-chrome="overlay"] #viewport { position: absolute; inset: 0; }
+  html[data-layout="top"][data-chrome="inset"] #stage { grid-template-rows: var(--bar-h) 1fr; }
+  html[data-layout="top"][data-chrome="inset"] #chrome { border-bottom-width: 1px; }
+
+  html[data-layout="left"] #stage,
+  html[data-layout="rail"] #stage { display: grid; }
+  html[data-layout="left"][data-chrome="inset"] #stage { grid-template-columns: var(--side-w) 1fr; }
+  html[data-layout="rail"][data-chrome="inset"] #stage { grid-template-columns: var(--rail-w) 1fr; }
+  html[data-layout="left"] #chrome,
+  html[data-layout="rail"] #chrome {
+    flex-direction: column; align-items: stretch; border-right-width: 1px;
+  }
+  html[data-layout="left"] .chrome-brand,
+  html[data-layout="left"] .chrome-end,
+  html[data-layout="rail"] .chrome-brand,
+  html[data-layout="rail"] .chrome-end {
+    flex-direction: column; align-items: stretch; padding: 12px 10px; gap: 8px;
+  }
+  html[data-layout="left"] .chrome-tabs,
+  html[data-layout="rail"] .chrome-tabs {
+    flex-direction: column; align-items: stretch; overflow-x: hidden; padding: 8px;
+  }
+  html[data-layout="left"] .tab,
+  html[data-layout="rail"] .tab { text-align: left; }
+  html[data-layout="left"] .chrome-end,
+  html[data-layout="rail"] .chrome-end { margin-top: auto; }
+  html[data-layout="left"][data-chrome="overlay"] #stage,
+  html[data-layout="rail"][data-chrome="overlay"] #stage { display: block; }
+  html[data-layout="left"][data-chrome="overlay"] #chrome {
+    position: absolute; top: 0; left: 0; bottom: 0; width: var(--side-w);
+  }
+  html[data-layout="rail"][data-chrome="overlay"] #chrome {
+    position: absolute; top: 0; left: 0; bottom: 0; width: var(--rail-w);
+  }
+  html[data-layout="left"][data-chrome="overlay"] #viewport,
+  html[data-layout="rail"][data-chrome="overlay"] #viewport { position: absolute; inset: 0; }
+
+  html[data-layout="rail"] .brand { letter-spacing: .18em; font-size: 10px; text-align: center; }
+  html[data-layout="rail"] .clock { display: none; }
+  html[data-layout="rail"] .tab { padding: 10px 0; text-align: center; letter-spacing: .08em; }
+  html[data-layout="rail"] .tab .full { display: none; }
+  html[data-layout="rail"] .tab .short { display: inline; }
+  html[data-layout="rail"] .chrome-brand, html[data-layout="rail"] .chrome-end { padding: 10px 6px; }
+
+  html[data-layout="bottom"] #stage { display: grid; }
+  html[data-layout="bottom"][data-chrome="inset"] #stage { grid-template-rows: 1fr var(--bar-h); }
+  html[data-layout="bottom"][data-chrome="inset"] #chrome { order: 2; border-top-width: 1px; }
+  html[data-layout="bottom"][data-chrome="overlay"] #stage { display: block; }
+  html[data-layout="bottom"][data-chrome="overlay"] #chrome {
+    position: absolute; bottom: 0; left: 0; right: 0; height: var(--bar-h);
+    border-top-width: 1px;
+  }
+  html[data-layout="bottom"][data-chrome="overlay"] #viewport { position: absolute; inset: 0; }
+
+  /* ---- fake views ---- */
+  .pad { padding: 22px 28px 40px; }
+  html[data-layout="top"][data-chrome="overlay"] .view.needs-clear { padding-top: 60px; }
+  html[data-layout="bottom"][data-chrome="overlay"] .view.needs-clear { padding-bottom: 60px; }
+  html[data-layout="left"][data-chrome="overlay"] .view.needs-clear { padding-left: calc(var(--side-w) + 16px); }
+  html[data-layout="rail"][data-chrome="overlay"] .view.needs-clear { padding-left: calc(var(--rail-w) + 16px); }
+  /* forum convos wants its blue bar to run under overlay chrome, not sit below a gap */
+  html[data-layout="top"][data-chrome="overlay"] #view-convos.forum { padding-top: 0; }
+  html[data-layout="left"][data-chrome="overlay"] #view-convos.forum,
+  html[data-layout="rail"][data-chrome="overlay"] #view-convos.forum { padding-left: 0; }
+
+  /* live */
+  #view-live {
+    background:
+      radial-gradient(ellipse 70% 50% at 50% 20%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 60%),
+      linear-gradient(to top, rgba(5,6,10,.85), rgba(5,6,10,.25) 45%, rgba(5,6,10,.4));
+  }
+  html[data-theme="light"] #view-live {
+    background:
+      radial-gradient(ellipse 70% 50% at 50% 20%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 60%),
+      linear-gradient(to top, rgba(244,245,247,.92), rgba(244,245,247,.4));
+  }
+  .live-status {
+    position: absolute; top: 18px; left: 50%; transform: translateX(-50%);
+    font: 700 11px var(--font); letter-spacing: .14em; text-transform: uppercase;
+    padding: 7px 14px; border-radius: var(--r-tab); background: color-mix(in srgb, var(--bg-elev) 78%, transparent);
+    border: 1px solid var(--border); color: var(--accent); backdrop-filter: blur(10px); z-index: 2;
+  }
+  html[data-layout="top"][data-chrome="overlay"] .live-status { top: 56px; }
+  .live-caps { position: absolute; left: 50%; bottom: 100px; transform: translateX(-50%);
+    width: min(560px, 86vw); display: flex; flex-direction: column; gap: 10px; }
+  html[data-layout="bottom"][data-chrome="overlay"] .live-caps { bottom: 140px; }
+  .cap { padding: 12px 16px; border-radius: 14px; font: 550 16px/1.45 var(--font); }
+  .cap.you { align-self: flex-end; background: var(--accent-soft); border: 1px solid var(--accent-line); color: var(--text); max-width: 90%; }
+  .cap.ai { align-self: flex-start; background: var(--chip-bg); border: 1px solid var(--border); color: var(--text); max-width: 90%; }
+  .cap .who { display: block; font: 700 10px var(--font); letter-spacing: .12em; text-transform: uppercase;
+    opacity: .55; margin-bottom: 4px; }
+  .live-bar { position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 8px; padding: 10px 14px; background: color-mix(in srgb, var(--bg-elev) 80%, transparent);
+    border: 1px solid var(--border); border-radius: var(--r-tab); backdrop-filter: blur(12px); }
+  html[data-layout="bottom"][data-chrome="overlay"] .live-bar { bottom: 62px; }
+  .live-bar button { padding: 8px 14px; border-radius: var(--r-tab); border: 1px solid var(--border);
+    background: var(--chip-bg); color: var(--text); font: 600 12px var(--font); cursor: pointer; }
+  .live-bar button.pri { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+
+  /* music */
+  #view-music { background: #05060a; }
+  html[data-theme="light"] #view-music { background: #e8eaee; }
+  .music-note { position: absolute; top: 22%; left: 50%; transform: translateX(-50%);
+    font: 700 clamp(48px, 10vw, 92px)/1 var(--font); letter-spacing: -.04em; color: var(--text); opacity: .9; }
+  .music-btns { position: absolute; top: 18px; right: 18px; display: flex; gap: 8px; z-index: 3; }
+  html[data-layout="top"][data-chrome="overlay"] .music-btns { top: 56px; }
+  .music-btns button { padding: 8px 14px; border-radius: var(--r-tab); border: 1px solid var(--border);
+    background: var(--chip-bg); color: var(--text); font: 600 12px var(--font); cursor: pointer; }
+  .music-btns button.on { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+  .keys { position: absolute; left: 50%; bottom: 36px; transform: translateX(-50%); display: flex; gap: 6px;
+    padding: 12px 14px; background: color-mix(in srgb, var(--bg-elev) 70%, transparent);
+    border: 1px solid var(--border); border-radius: 18px; }
+  html[data-layout="bottom"][data-chrome="overlay"] .keys { bottom: 76px; }
+  .key { width: 48px; height: 96px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--chip-bg); display: flex; align-items: flex-end; justify-content: center;
+    padding-bottom: 10px; font: 700 12px var(--font); color: var(--text-mute); }
+  .key.on { background: var(--accent-soft); border-color: var(--accent); color: var(--text); }
+
+  /* board */
+  #view-board { overflow: hidden; }
+  .note { position: absolute; width: 190px; min-height: 72px; padding: 10px 12px;
+    background: color-mix(in srgb, var(--bg-elev) 92%, transparent); border: 1px solid var(--border);
+    border-left: 3px solid var(--accent); border-radius: var(--r-card); box-shadow: var(--shadow);
+    font-size: 13.5px; line-height: 1.35; }
+  .note h4 { font-size: 11px; color: var(--text-mute); font-weight: 600; margin-bottom: 4px; }
+  .board-hint { position: absolute; top: 16px; left: 16px; z-index: 2;
+    font: 12px/1.5 var(--font); color: var(--text-mute); background: color-mix(in srgb, var(--bg-elev) 70%, transparent);
+    padding: 6px 14px; border-radius: var(--r-tab); border: 1px solid var(--border); }
+  html[data-layout="top"][data-chrome="overlay"] .board-hint { top: 56px; }
+  html[data-layout="left"][data-chrome="overlay"] .board-hint { left: calc(var(--side-w) + 14px); }
+  html[data-layout="rail"][data-chrome="overlay"] .board-hint { left: calc(var(--rail-w) + 14px); }
+  .board-ctl { position: absolute; top: 16px; right: 14px; display: flex; gap: 6px; z-index: 2; }
+  html[data-layout="top"][data-chrome="overlay"] .board-ctl { top: 56px; }
+  .board-ctl button { height: 30px; padding: 0 12px; border-radius: var(--r-btn); border: 1px solid var(--border-strong);
+    background: color-mix(in srgb, var(--bg-elev) 80%, transparent); color: var(--text); font: 600 12px var(--font); cursor: pointer; }
+
+  /* letters */
+  .letters-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 22px;
+    max-width: 1100px; margin: 0 auto; }
+  .letter { min-height: 180px; padding: 18px 20px; background: color-mix(in srgb, var(--bg-elev) 88%, transparent);
+    border: 1px solid var(--border); border-radius: var(--r-card); display: flex; flex-direction: column; }
+  .letter .date { font-size: 11px; color: var(--text-mute); text-align: right; }
+  .letter h3 { font-size: 16px; margin: 8px 0 10px; }
+  .letter p { font-size: 13px; color: var(--text-dim); line-height: 1.5; flex: 1; }
+  .letter.new { align-items: center; justify-content: center; border-style: dashed; color: var(--accent); font-weight: 600; }
+  .gtitle { font-size: 13px; font-weight: 700; letter-spacing: .14em; color: var(--accent); margin-bottom: 18px; }
+
+  /* convos — hub skin */
+  .convos-head { margin-bottom: 14px; }
+  .convos-head h1 { font-size: 13px; font-weight: 700; letter-spacing: .14em; color: var(--accent); margin-bottom: 12px; }
+  .convos-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; max-width: 1100px; }
+  .convos-row input {
+    flex: 1; min-width: 200px; padding: 8px 12px; border-radius: var(--r-tab);
+    border: 1px solid var(--border); background: var(--chip-bg); color: var(--text);
+    font: 400 13px var(--font); outline: none;
+  }
+  .convos-row input:focus { border-color: var(--accent); }
+  .chip { padding: 5px 12px; font: 700 11px var(--font); letter-spacing: .04em;
+    color: var(--text-mute); background: var(--chip-bg); border: 1px solid var(--border);
+    border-radius: var(--r-tab); cursor: pointer; }
+  .chip.on { color: var(--accent); background: var(--accent-soft); border-color: var(--accent); }
+  .convos-list { max-width: 1100px; display: flex; flex-direction: column; gap: 8px; }
+  .ccard { background: color-mix(in srgb, var(--bg-elev) 88%, transparent); border: 1px solid var(--border);
+    border-radius: var(--r-card); overflow: hidden; cursor: pointer; }
+  .ccard:hover { border-color: var(--accent-line); }
+  .ccard.open { border-color: var(--accent); }
+  .crow { display: flex; align-items: center; gap: 10px; padding: 11px 14px; }
+  .cdot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); flex: none; }
+  .cdot.fail { background: var(--danger); }
+  .cdot.part { background: #fbbf24; }
+  .ctitle { flex: 1; font-size: 14px; font-weight: 700; }
+  .cwhen { font-size: 11px; color: var(--text-mute); font-weight: 600; }
+  .ctags { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 14px 12px; }
+  .ctag { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: var(--r-btn);
+    color: var(--text-dim); background: var(--chip-bg); border: 1px solid var(--border); }
+  .cdetail { display: none; padding: 0 14px 14px; border-top: 1px solid var(--border); }
+  .ccard.open .cdetail { display: block; padding-top: 12px; }
+  .cdetail label { display: block; font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--text-mute); margin: 10px 0 6px; }
+  .bubble { font-size: 13px; line-height: 1.55; padding: 8px 10px; border-radius: var(--r-btn);
+    background: var(--accent-soft); border: 1px solid var(--accent-line); white-space: pre-wrap; }
+
+  /* convos — forum skin (current live look, isolated) */
+  #view-convos.forum {
+    background: #d4d0c8 url("data:image/svg+xml,%3Csvg width='4' height='4' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='1' height='1' fill='%23c8c4bc'/%3E%3C/svg%3E");
+    font-family: Tahoma, Verdana, Arial, sans-serif; color: #222;
+  }
+  #view-convos.forum .convos-head {
+    background: linear-gradient(180deg, #4a6fa5 0%, #3d5f8a 55%, #355278 100%);
+    border-bottom: 2px solid #1f3347; margin: 0; padding: 18px 28px 14px;
+  }
+  html[data-layout="top"][data-chrome="overlay"] #view-convos.forum .convos-head { padding-top: 62px; }
+  #view-convos.forum .convos-head h1 { color: #fff; text-shadow: 1px 1px 0 #1a2f44; }
+  #view-convos.forum .convos-row input { border-radius: 2px; background: #fff; color: #111; border: 1px solid #666; font-family: Tahoma, sans-serif; }
+  #view-convos.forum .chip { border-radius: 2px; color: #222; background: linear-gradient(180deg, #f5f5f5, #dcdcdc);
+    border: 1px solid #888; font-family: Tahoma, sans-serif; }
+  #view-convos.forum .chip.on { color: #fff; background: linear-gradient(180deg, #5a7fad, #3d5f8a); border-color: #1f3347; }
+  #view-convos.forum .convos-list { padding: 14px 28px 40px; }
+  #view-convos.forum .ccard { background: #fff; border: 1px solid #999; border-radius: 2px; }
+  #view-convos.forum .crow { background: linear-gradient(180deg, #eef2f7, #e2e8ef); }
+  #view-convos.forum .ctitle { color: #003366; }
+  #view-convos.forum .ctag { border-radius: 1px; background: #e8e8e8; border-color: #aaa; color: #333; }
+  #view-convos.forum .bubble { background: #ffffee; border: 1px solid #ccc; border-left: 4px solid #996633; border-radius: 0; }
+
+  /* ---- lab mixer ---- */
+  #lab {
+    position: fixed; top: 0; right: 0; bottom: 0; width: var(--lab-w); z-index: 40;
+    background: var(--bg-panel); border-left: 1px solid var(--accent-line);
+    overflow-y: auto; padding: 16px 14px 28px;
+    font-family: var(--lab-mono);
+    transition: transform .18s ease;
+  }
+  #lab h2 { font: 700 11px var(--lab-mono); letter-spacing: .16em; color: var(--accent);
+    text-transform: uppercase; margin-bottom: 4px; }
+  #lab .sub { font-size: 11px; color: var(--text-mute); line-height: 1.45; margin-bottom: 14px; }
+  #lab .lbl { font: 700 10px var(--lab-mono); letter-spacing: .08em; color: var(--text-mute);
+    text-transform: uppercase; margin: 12px 0 6px; }
+  #lab .seg { display: flex; flex-wrap: wrap; gap: 5px; padding: 4px; border-radius: 10px;
+    background: var(--chip-bg); border: 1px solid var(--border); }
+  #lab .seg button {
+    flex: 1 1 calc(50% - 5px); padding: 7px 8px; border-radius: 7px; border: none; cursor: pointer;
+    font: 700 10.5px var(--lab-mono); letter-spacing: .03em; color: var(--text-mute); background: transparent;
+  }
+  #lab .seg.thirds button { flex: 1 1 calc(33% - 5px); }
+  #lab .seg.four button { flex: 1 1 calc(25% - 5px); min-width: 0; padding: 7px 4px; }
+  #lab .seg button:hover { color: var(--text); }
+  #lab .seg button.on { color: var(--accent-ink); background: var(--accent); }
+  #lab .swatch { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 4px;
+    vertical-align: middle; border: 1px solid rgba(0,0,0,.25); }
+  #lab hr { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
+  #recipe { font-size: 10.5px; color: var(--text-dim); line-height: 1.5; background: var(--chip-bg);
+    border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; word-break: break-word; }
+  #labToggle {
+    position: fixed; top: 10px; right: calc(var(--lab-w) + 10px); z-index: 50;
+    height: 30px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--accent-line);
+    background: var(--bg-panel); color: var(--accent); font: 700 11px var(--lab-mono);
+    letter-spacing: .08em; cursor: pointer; box-shadow: var(--shadow);
+  }
+  html.lab-off #labToggle { right: 12px; }
+
+  @media (max-width: 860px) {
+    :root { --lab-w: 100%; }
+    #stage { right: 0; }
+    html:not(.lab-off) #stage { display: none !important; }
+    #labToggle { top: auto; bottom: 14px; right: 14px; left: auto; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #lab { transition: none; }
+  }
+</style>
+</head>
+<body>
+<button id="labToggle" type="button" title="toggle lab (])">LOOKS</button>
+
+<div id="stage">
+  <nav id="chrome">
+    <div class="chrome-brand">
+      <span class="brand"><img class="brand-mark" src="/valinor-mark.jpg" alt="" />VALINOR</span>
+      <time class="clock" id="clock">00:00</time>
+    </div>
+    <div class="chrome-tabs" id="tabs"></div>
+    <div class="chrome-end">
+      <button class="icon-btn" type="button" title="menu">☰</button>
+    </div>
+  </nav>
+
+  <div id="viewport">
+    <section class="view on" id="view-live" data-view="live">
+      <div class="live-status">Listening</div>
+      <div class="live-caps">
+        <div class="cap you"><span class="who">You</span>what if the tabs lived on the left instead</div>
+        <div class="cap ai"><span class="who">Valinor</span>Then the camera still fills the frame, and the chrome becomes a rail. Overlay keeps the video under it; inset carves out a column.</div>
+      </div>
+      <div class="live-bar">
+        <button type="button">Pause</button>
+        <button type="button">Screen</button>
+        <button type="button" class="pri">Talk</button>
+      </div>
+    </section>
+
+    <section class="view needs-clear" id="view-convos" data-view="convos">
+      <div class="pad">
+        <div class="convos-head">
+          <h1>CONVERSATIONS</h1>
+          <div class="convos-row">
+            <input type="text" placeholder="Search past sessions…" value="" readonly>
+            <button class="chip on" type="button" data-filter="all">All</button>
+            <button class="chip" type="button" data-filter="ok">Success</button>
+            <button class="chip" type="button" data-filter="fail">Failure</button>
+          </div>
+        </div>
+        <div class="convos-list" id="convosList"></div>
+      </div>
+    </section>
+
+    <section class="view" id="view-board" data-view="board">
+      <div class="board-hint"><b>double-click</b> empty space · <b>pinch</b> a note to grab</div>
+      <div class="board-ctl">
+        <button type="button">Tidy</button>
+        <button type="button">+ Note</button>
+      </div>
+      <div class="note" style="left:12%; top:22%"><h4>today</h4>sidebar vs top bar — try both with overlay on live</div>
+      <div class="note" style="left:38%; top:34%; border-left-color:#fbbf24"><h4>music</h4>pentatonic button has to clear the chrome in overlay</div>
+      <div class="note" style="left:58%; top:18%; border-left-color:#f472b6"><h4>convos</h4>forum skin vs hub tokens — flip it in the lab</div>
+      <div class="note" style="left:28%; top:58%; border-left-color:#34d399"><h4>inset</h4>content never hides under the nav. camera views lose the bleed.</div>
+    </section>
+
+    <section class="view" id="view-music" data-view="music">
+      <div class="music-btns">
+        <button type="button" class="on">Pentatonic</button>
+        <button type="button">Sine</button>
+      </div>
+      <div class="music-note">G4</div>
+      <div class="keys">
+        <div class="key">C4</div><div class="key">D4</div><div class="key on">E4</div>
+        <div class="key">G4</div><div class="key">A4</div><div class="key">C5</div>
+      </div>
+    </section>
+
+    <section class="view needs-clear" id="view-writing" data-view="writing">
+      <div class="pad">
+        <div class="gtitle">WRITING</div>
+        <div class="letters-grid">
+          <div class="letter new">+ new letter</div>
+          <div class="letter"><div class="date">Aug 5</div><h3>On a night of small stubborn fixes</h3><p>The gear icon became a hamburger, and behind it an appearance system…</p></div>
+          <div class="letter"><div class="date">Jul 29</div><h3>Draft</h3><p>Dear me, the tabs are a row of pills because that’s what fit the clock.</p></div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<aside id="lab">
+  <h2>Looks lab</h2>
+  <p class="sub">Standalone mock. Mix chrome, then click the fake tabs. Nothing here is wired to the hub.</p>
+
+  <div class="lbl">Layout</div>
+  <div class="seg" data-axis="layout">
+    <button type="button" data-layout="top" class="on">Top bar</button>
+    <button type="button" data-layout="left">Left side</button>
+    <button type="button" data-layout="rail">Icon rail</button>
+    <button type="button" data-layout="bottom">Bottom dock</button>
+  </div>
+
+  <div class="lbl">Fit</div>
+  <div class="seg" data-axis="chrome">
+    <button type="button" data-chrome="overlay" class="on">Overlay</button>
+    <button type="button" data-chrome="inset">Inset</button>
+  </div>
+
+  <div class="lbl">Tabs</div>
+  <div class="seg thirds" data-axis="tabs">
+    <button type="button" data-tabs="pills" class="on">Pills</button>
+    <button type="button" data-tabs="ghost">Ghost</button>
+    <button type="button" data-tabs="line">Line</button>
+  </div>
+
+  <div class="lbl">Corners</div>
+  <div class="seg" data-axis="radius">
+    <button type="button" data-radius="round" class="on">Round</button>
+    <button type="button" data-radius="sharp">Sharp</button>
+  </div>
+
+  <hr />
+
+  <div class="lbl">Theme</div>
+  <div class="seg" data-axis="theme">
+    <button type="button" data-theme="dark" class="on">Dark</button>
+    <button type="button" data-theme="light">Light</button>
+  </div>
+
+  <div class="lbl">Color</div>
+  <div class="seg four" data-axis="scheme">
+    <button type="button" data-scheme="cyan" class="on"><span class="swatch" style="background:#7dd3fc"></span>Cyan</button>
+    <button type="button" data-scheme="slate"><span class="swatch" style="background:#94a3b8"></span>Slate</button>
+    <button type="button" data-scheme="ember"><span class="swatch" style="background:#d4a574"></span>Ember</button>
+    <button type="button" data-scheme="pine"><span class="swatch" style="background:#7a9e7e"></span>Pine</button>
+    <button type="button" data-scheme="violet"><span class="swatch" style="background:#c4b5fd"></span>Violet</button>
+    <button type="button" data-scheme="rose"><span class="swatch" style="background:#fb7185"></span>Rose</button>
+    <button type="button" data-scheme="gold"><span class="swatch" style="background:#e8c547"></span>Gold</button>
+    <button type="button" data-scheme="ice"><span class="swatch" style="background:#a5f3fc"></span>Ice</button>
+  </div>
+
+  <div class="lbl">Type</div>
+  <div class="seg four" data-axis="font">
+    <button type="button" data-font="lato" class="on" style="font-family:Lato,sans-serif">Lato</button>
+    <button type="button" data-font="plex" style="font-family:'IBM Plex Sans',sans-serif">Plex</button>
+    <button type="button" data-font="source" style="font-family:'Source Serif 4',Georgia,serif">Serif</button>
+    <button type="button" data-font="mono" style="font-family:'IBM Plex Mono',monospace">Mono</button>
+  </div>
+
+  <div class="lbl">Size</div>
+  <div class="seg four" data-axis="size">
+    <button type="button" data-size="sm">S</button>
+    <button type="button" data-size="md" class="on">M</button>
+    <button type="button" data-size="lg">L</button>
+    <button type="button" data-size="xl">XL</button>
+  </div>
+
+  <div class="lbl">Spacing</div>
+  <div class="seg" data-axis="density">
+    <button type="button" data-density="cozy" class="on">Cozy</button>
+    <button type="button" data-density="compact">Compact</button>
+  </div>
+
+  <hr />
+
+  <div class="lbl">Convos skin</div>
+  <div class="seg" data-axis="convos">
+    <button type="button" data-convos="hub" class="on">Hub tokens</button>
+    <button type="button" data-convos="forum">Forum (now)</button>
+  </div>
+
+  <hr />
+  <div class="lbl">Recipe</div>
+  <div id="recipe"></div>
+</aside>
+
+<script>
+const AXES = ['layout','chrome','tabs','radius','theme','scheme','font','size','density'];
+const TABS = [
+  { key: 'live', label: 'PLAN', short: 'PL' },
+  { key: 'convos', label: 'CONVOS', short: 'CV' },
+  { key: 'board', label: 'BOARD', short: 'BD' },
+  { key: 'music', label: 'MUSIC', short: 'MU' },
+  { key: 'writing', label: 'WRITING', short: 'WR' },
+];
+const STORE = 'hub-looks-lab';
+const root = document.documentElement;
+let convosSkin = 'hub';
+let active = 'live';
+
+const tabsEl = document.getElementById('tabs');
+TABS.forEach((t) => {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'tab' + (t.key === active ? ' on' : '');
+  b.dataset.key = t.key;
+  b.innerHTML = `<span class="full">${t.label}</span><span class="short">${t.short}</span>`;
+  b.onclick = () => show(t.key);
+  tabsEl.appendChild(b);
+});
+
+function show(key) {
+  active = key;
+  document.querySelectorAll('.tab').forEach((b) => b.classList.toggle('on', b.dataset.key === key));
+  document.querySelectorAll('.view').forEach((v) => v.classList.toggle('on', v.dataset.view === key));
+}
+
+const CONVOS = [
+  { title: 'hudhub: offset music chrome under the nav', when: '12m ago', tags: ['hudhub', 'css'], ok: 'ok',
+    body: 'Moved pentatonic + sine to 52px so they clear the hub bar. Same treatment as Live.' },
+  { title: 'valinor: public snapshot scrub', when: '2h ago', tags: ['valinor', 'privacy'], ok: 'ok',
+    body: 'Copy scrubbed files only. Never push hudhub history to the public remote.' },
+  { title: 'live: tray overlapping status pill', when: 'yesterday', tags: ['live'], ok: 'part',
+    body: 'Tray is flush with the bar at 44px. Status sits at 52px. Fine at default density, tight at XL.' },
+  { title: 'convos: Tahoma forum header under hub bar', when: '3d ago', tags: ['convos', 'style'], ok: 'fail',
+    body: 'Sticky header uses 68px padding to clear the overlay. The blue gradient still tucks under the nav.' },
+];
+const list = document.getElementById('convosList');
+CONVOS.forEach((c, i) => {
+  const el = document.createElement('article');
+  el.className = 'ccard' + (i === 0 ? ' open' : '');
+  el.innerHTML = `
+    <div class="crow">
+      <span class="cdot ${c.ok === 'fail' ? 'fail' : c.ok === 'part' ? 'part' : ''}"></span>
+      <span class="ctitle">${c.title}</span>
+      <span class="cwhen">${c.when}</span>
+    </div>
+    <div class="ctags">${c.tags.map((t) => `<span class="ctag">${t}</span>`).join('')}</div>
+    <div class="cdetail"><label>Final</label><div class="bubble">${c.body}</div></div>`;
+  el.onclick = () => el.classList.toggle('open');
+  list.appendChild(el);
+});
+
+function setAxis(axis, value) {
+  if (axis === 'convos') {
+    convosSkin = value;
+    document.getElementById('view-convos').classList.toggle('forum', value === 'forum');
+  } else {
+    root.dataset[axis] = value;
+  }
+  document.querySelectorAll(`#lab [data-${axis}]`).forEach((b) => {
+    b.classList.toggle('on', b.getAttribute(`data-${axis}`) === value);
+  });
+  persist();
+  recipe();
+}
+
+document.querySelectorAll('#lab .seg').forEach((seg) => {
+  seg.addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    const axis = seg.dataset.axis;
+    const value = b.getAttribute(`data-${axis}`);
+    if (axis && value) setAxis(axis, value);
+  });
+});
+
+document.querySelectorAll('#view-convos [data-filter]').forEach((b) => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('#view-convos [data-filter]').forEach((x) => x.classList.remove('on'));
+    b.classList.add('on');
+  });
+});
+
+function recipe() {
+  const bits = AXES.map((a) => `${a}:${root.dataset[a]}`);
+  bits.push(`convos:${convosSkin}`, `view:${active}`);
+  document.getElementById('recipe').textContent = bits.join(' · ');
+}
+
+function persist() {
+  const data = { convosSkin };
+  AXES.forEach((a) => { data[a] = root.dataset[a]; });
+  try { localStorage.setItem(STORE, JSON.stringify(data)); } catch (e) {}
+}
+
+function restore() {
+  try {
+    const data = JSON.parse(localStorage.getItem(STORE) || 'null');
+    if (!data) return;
+    AXES.forEach((a) => { if (data[a]) setAxis(a, data[a]); });
+    if (data.convosSkin) setAxis('convos', data.convosSkin);
+  } catch (e) {}
+}
+
+function tick() {
+  const d = new Date();
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  document.getElementById('clock').textContent = `${hh}:${mm}`;
+}
+
+document.getElementById('labToggle').onclick = () => {
+  document.documentElement.classList.toggle('lab-off');
+};
+
+addEventListener('keydown', (e) => {
+  if (e.target.closest('input')) return;
+  if (e.key === ']') { document.documentElement.classList.toggle('lab-off'); return; }
+  const n = e.key === '0' ? 9 : +e.key - 1;
+  if (TABS[n]) show(TABS[n].key);
+});
+
+restore();
+tick();
+setInterval(tick, 10000);
+recipe();
+</script>
+<script src="hub-client.js"></script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+{
+  "name": "valinor",
+  "version": "0.1.0",
+  "description": "Gestural HUD — transparent desktop overlay over a hot-reloadable web app",
+  "license": "Apache-2.0",
+  "main": "electron-main.js",
+  "scripts": {
+    "server": "node server.js",
+    "watch": "node watchdog.js",
+    "loopkeeper": "cd loopkeeper && ./run.sh",
+    "factory": "cd ../factory && npm run web",
+    "factory-ui": "cd ../factory/web && npm run dev",
+    "overlay": "electron .",
+    "hud": "node server.js & electron .",
+    "restart": "pkill -f handviz/node_modules/electron; sleep 1; electron ."
+  },
+  "devDependencies": {
+    "electron": "^31.7.7"
+  },
+  "dependencies": {
+    "@earendil-works/pi-coding-agent": "^0.84.1"
+  }
+}

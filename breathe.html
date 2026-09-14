@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" href="/favicon.png" type="image/png" />
+<title>Breathe — Valinor</title>
+<style>
+  :root, html[data-theme="dark"] {
+    --bg: #05060a; --bg-elev: #0b0d14; --ink: #e2e8f0; --mute: #64748b; --accent: #7dd3fc; --accent-ink: #05060a; --accent2: #f472b6;
+  }
+  html[data-theme="light"] {
+    --bg: #f8fafc; --bg-elev: #ffffff; --ink: #0f172a; --mute: #64748b; --accent: #0284c7; --accent-ink: #fff; --accent2: #be123c;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg); font-family: Lato, sans-serif; }
+  #stage { display: block; width: 100vw; height: 100vh; }
+  #cam { position: fixed; bottom: 12px; right: 12px; width: 170px; height: 128px;
+         transform: scaleX(-1); border-radius: 10px; opacity: 0.28; z-index: 5; pointer-events: none; }
+  #start { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column;
+           align-items: center; justify-content: center; gap: 20px; color: var(--ink);
+           background: var(--bg); text-align: center; }
+  #start h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.01em;
+              color: var(--accent); }
+  #start p { color: var(--mute); max-width: 460px; font-size: 15px; line-height: 1.5; }
+  #go { padding: 13px 30px; font-size: 15px; font-weight: 600; color: var(--accent-ink);
+        background: var(--accent); border: none; border-radius: 999px; cursor: pointer; }
+  #start.hide { display: none; }
+</style>
+</head>
+<body>
+  <canvas id="stage"></canvas>
+  <video id="cam" autoplay playsinline muted></video>
+  <div id="start">
+    <h1>VALINOR</h1>
+    <p>Breathe with a box pacer that watches your shoulders, or check the clock.
+       <br><br><b>1</b> breathe &nbsp; <b>2</b> system</p>
+    <button id="go">Start — allow camera</button>
+  </div>
+
+<script src="hub-client.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+<script>
+const cv = document.getElementById('stage');
+const ctx = cv.getContext('2d');
+const cam = document.getElementById('cam');
+const startScreen = document.getElementById('start');
+let W, H, DPR = Math.min(window.devicePixelRatio || 1, 2);
+const dp = (n) => n * DPR;
+function resize() {
+  W = cv.width = Math.floor(innerWidth * DPR);
+  H = cv.height = Math.floor(innerHeight * DPR);
+  cv.style.width = innerWidth + 'px'; cv.style.height = innerHeight + 'px';
+}
+addEventListener('resize', resize); resize();
+
+const cfg = { responsivity: 0.9 };
+let HAND_SWAP = false;
+
+// embedded in the hub: the hub's nav owns mode switching and view keys
+HubClient.forwardNavKeys();
+HubClient.onMode(m => setMode(m));
+let L_COL = (getComputedStyle(document.documentElement).getPropertyValue('--accent') || '').trim() || '#38bdf8';
+let R_COL = (getComputedStyle(document.documentElement).getPropertyValue('--accent2') || '').trim() || '#f472b6';
+if (typeof HubClient !== 'undefined' && HubClient.onTheme) HubClient.onTheme(() => {
+  try {
+    const cs = getComputedStyle(document.documentElement);
+    const a = cs.getPropertyValue('--accent').trim(); if (a) L_COL = a;
+    const b = cs.getPropertyValue('--accent2').trim(); if (b) R_COL = b;
+  } catch (e) {}
+});
+
+// ================= hand tracking (camera only — visual markers) =================
+function newHand(){ return { x:.5, y:.5, spread:.3, tx:.5, ty:.5, tspread:.3, rx:.5, ry:.5,
+  pinch:0, tpinch:0, ext:0, tExt:0, present:0, speed:0, px:.5, py:.5, seen:false }; }
+const L = newHand(), R = newHand();
+let hands = 0;
+
+function initHands(videoEl) {
+  const hnd = new Hands({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
+  hnd.setOptions({ maxNumHands: 2, modelComplexity: 0, minDetectionConfidence: 0.6, minTrackingConfidence: 0.6 });
+  hnd.onResults(onHands);
+  async function pump() {
+    const s = performance.now();
+    if (videoEl.readyState >= 2) { try { await hnd.send({ image: videoEl }); } catch(e){} }
+    setTimeout(pump, Math.max(0, 33 - (performance.now() - s)));
+  }
+  pump();
+}
+
+function onHands(res) {
+  const lm = res.multiHandLandmarks || [];
+  hands = lm.length;
+  L.seen = R.seen = false;
+  const found = lm.map(hand => {
+    let ax = 0, ay = 0;
+    for (const p of hand) { ax += p.x; ay += p.y; }
+    ax /= hand.length; ay /= hand.length;
+    const wrist = hand[0], midMcp = hand[9];
+    const palm = Math.hypot(wrist.x - midMcp.x, wrist.y - midMcp.y) || 0.001;
+    const tips = [4, 8, 12, 16, 20];
+    let d = 0; for (const t of tips) d += Math.hypot(hand[t].x - wrist.x, hand[t].y - wrist.y);
+    const sp = Math.max(0, Math.min(1, ((d / tips.length) / palm - 1.0) / 0.85));
+    const pd = Math.hypot(hand[4].x - hand[8].x, hand[4].y - hand[8].y) / palm;
+    const pinch = Math.max(0, Math.min(1, (0.55 - pd) / 0.4));
+    let ed = 0; for (const t of [12, 16, 20]) ed += Math.hypot(hand[t].x - wrist.x, hand[t].y - wrist.y);
+    const ext = Math.max(0, Math.min(1, ((ed / 3) / palm - 1.1) / 0.7));
+    return { dx: 1 - ax, dy: ay, sp, pinch, ext };
+  });
+  const apply = (h, a) => { if (!a) return; h.seen = true; h.tx = a.dx; h.ty = a.dy; h.tspread = a.sp; h.tpinch = a.pinch; h.tExt = a.ext; };
+  const trk = (h) => h.present > 0.25;
+  const dist = (h, f) => Math.hypot(h.tx - f.dx, h.ty - f.dy);
+  if (found.length === 1) {
+    const f = found[0];
+    let h = null;
+    if (trk(L) && trk(R)) h = dist(L, f) <= dist(R, f) ? L : R;
+    else if (trk(L) && dist(L, f) < 0.3) h = L;
+    else if (trk(R) && dist(R, f) < 0.3) h = R;
+    if (HAND_SWAP && !h) h = f.dx < 0.5 ? R : L;
+    apply(h || (f.dx < 0.5 ? L : R), f);
+  } else if (found.length >= 2) {
+    const [a, b] = found;
+    const cost = (h, f) => trk(h) ? dist(h, f) : Math.abs((h === L ? 0.35 : 0.65) - f.dx);
+    if (cost(L, a) + cost(R, b) <= cost(L, b) + cost(R, a)) { apply(L, a); apply(R, b); }
+    else { apply(L, b); apply(R, a); }
+  }
+  for (const h of [L, R]) { h.present += ((h.seen ? 1 : 0) - h.present) * (0.3 + cfg.responsivity * 0.4); }
+}
+
+function stepHand(h, dt) {
+  const k = dt > 0 ? 1 - Math.pow(1 - cfg.responsivity, dt * 60) : 0;
+  h.px = h.x; h.py = h.y;
+  h.x += (h.tx - h.x) * k; h.y += (h.ty - h.y) * k;
+  h.spread += (h.tspread - h.spread) * k;
+  h.pinch += (h.tpinch - h.pinch) * k;
+  h.ext += (h.tExt - h.ext) * k;
+  h.speed = h.speed * 0.8 + Math.hypot(h.x - h.px, h.y - h.py) * 0.2;
+  h.rx = h.x; h.ry = h.y;
+}
+
+// ================= modes / rendering =================
+let MODE = 'BREATHE';
+let t = 0, lastT = 0, breathT = 0, breathRunning = false;
+
+function draw(now) {
+  const dt = lastT ? Math.min(0.05, (now - lastT) / 1000) : 0;
+  lastT = now; t += dt;
+  stepHand(L, dt); stepHand(R, dt);
+
+  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#05060a';
+  ctx.fillRect(0, 0, W, H);
+
+  if (MODE === 'BREATHE') drawBreathe(dt);
+  else drawSystem();
+
+  drawMarker(L, 'LEFT', L_COL);
+  drawMarker(R, 'RIGHT', R_COL);
+  if (!HubClient.embedded) drawChrome();   // hub nav replaces the mode tabs when embedded
+  requestAnimationFrame(draw);
+}
+
+function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); }
+
+// ===== camera breath sensing: shoulder-rise oscillation via MediaPipe Pose =====
+let pose = null, poseBusy = false;
+let brRaw = 0, brFast = 0, brSlow = 0, brAmp = 0.003, brVal = 0, brSeen = 0;
+function initPose() {
+  if (pose || typeof Pose === 'undefined') return;
+  pose = new Pose({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}` });
+  pose.setOptions({ modelComplexity: 0, smoothLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+  pose.onResults((res) => {
+    poseBusy = false;
+    const lm = res.poseLandmarks;
+    const ls = lm && lm[11], rs = lm && lm[12];
+    if (!ls || !rs || (ls.visibility ?? 0) < 0.5 || (rs.visibility ?? 0) < 0.5) { brSeen = Math.max(0, brSeen - 0.06); return; }
+    brSeen = Math.min(1, brSeen + 0.12);
+    brRaw = (ls.y + rs.y) / 2;
+  });
+  (async function pump() {
+    if (MODE === 'BREATHE' && breathRunning && cam.readyState >= 2 && !poseBusy) {
+      poseBusy = true;
+      try { await pose.send({ image: cam }); } catch (e) { poseBusy = false; }
+    }
+    setTimeout(pump, 80);
+  })();
+}
+
+let brPrevFast = 0;
+function stepBreath(dt) {
+  if (!brSeen) return;
+  brFast += (brRaw - brFast) * Math.min(1, dt * 4);
+  const vel = Math.abs(brFast - brPrevFast) / Math.max(dt, 1e-3);
+  brPrevFast = brFast;
+  const still = brAmp > 0.0008 && vel < brAmp * 0.35;
+  brSlow += (brRaw - brSlow) * Math.min(1, dt * (still ? 0.02 : 0.35));
+  const dev = brSlow - brFast;
+  if (!still) brAmp += (Math.abs(dev) - brAmp) * Math.min(1, dt * 0.3);
+  const BR_GAIN = 1.8;
+  const norm = Math.max(-1.4, Math.min(1.4, (dev / Math.max(0.001, brAmp)) * BR_GAIN));
+  brVal += (norm - brVal) * Math.min(1, dt * (still ? 2.5 : 8));
+}
+
+function drawBreathe(dt) {
+  const cx = W / 2, cy = H / 2, base = Math.min(W, H) * 0.20;
+  if (!breathRunning) {
+    const r = base * 0.5;
+    ctx.fillStyle = 'rgba(125,211,252,0.06)'; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(125,211,252,0.35)'; ctx.lineWidth = dp(2.5);
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = '#e2e8f0'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = `700 ${dp(22)}px Lato, sans-serif`;
+    ctx.fillText('Click to start', cx, cy - dp(4));
+    ctx.font = `${dp(13)}px Lato, sans-serif`;
+    ctx.fillStyle = '#64748b';
+    ctx.fillText('4 · 4 · 4 · 4 box breathing', cx, cy + dp(22));
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    return;
+  }
+  initPose();
+  stepBreath(dt);
+  breathT += dt;
+  const phases = [['Inhale', 4], ['Hold', 4], ['Exhale', 4], ['Hold', 4]];
+  const total = 16, tt = breathT % total;
+  let acc = 0, phase = phases[0], into = 0;
+  for (const p of phases) { if (tt < acc + p[1]) { phase = p; into = (tt - acc) / p[1]; break; } acc += p[1]; }
+  let scale = 0.5;
+  if (phase[0] === 'Inhale') scale = 0.5 + 0.5 * into;
+  else if (phase[0] === 'Exhale') scale = 1.0 - 0.5 * into;
+  else scale = (acc <= 4) ? 1.0 : 0.5;
+  const r = base * scale;
+  ctx.fillStyle = 'rgba(125,211,252,0.10)'; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(125,211,252,0.9)'; ctx.lineWidth = dp(3);
+  ctx.shadowColor = '#7dd3fc'; ctx.shadowBlur = dp(24);
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke(); ctx.shadowBlur = 0;
+
+  if (brSeen > 0.3) {
+    const yourScale = Math.max(0.40, Math.min(1.08, 0.75 + 0.25 * brVal));
+    const yr = base * yourScale;
+    const sync = 1 - Math.min(1, Math.abs(yr - r) / (base * 0.35));
+    ctx.strokeStyle = `rgba(244,114,182,${0.55 + sync * 0.4})`;
+    ctx.lineWidth = dp(2.5);
+    ctx.setLineDash([dp(10), dp(7)]);
+    ctx.shadowColor = '#f472b6'; ctx.shadowBlur = dp(10 + sync * 18);
+    ctx.beginPath(); ctx.arc(cx, cy, yr, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]); ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(244,114,182,0.9)';
+    ctx.font = `600 ${dp(11)}px Lato, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText('you', cx, cy - yr - dp(10));
+  } else {
+    ctx.fillStyle = 'rgba(148,163,184,0.55)';
+    ctx.font = `${dp(12)}px Lato, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText('sit back so your shoulders are in frame — pink ring = your breath', cx, cy + base + dp(34));
+  }
+
+  ctx.fillStyle = '#e2e8f0'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = `700 ${dp(26)}px Lato, sans-serif`;
+  ctx.fillText(phase[0], cx, cy - dp(6));
+  ctx.font = `${dp(15)}px Lato, sans-serif`;
+  ctx.fillStyle = '#94a3b8';
+  ctx.fillText(Math.ceil(phase[1] - into * phase[1]) + 's', cx, cy + dp(22));
+  ctx.textAlign = 'left';
+}
+
+function drawSystem() {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, '0'), mm = String(now.getMinutes()).padStart(2, '0');
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#e2e8f0'; ctx.font = `700 ${dp(96)}px Lato, sans-serif`;
+  ctx.fillText(`${hh}:${mm}`, W / 2, H / 2);
+  ctx.fillStyle = '#64748b'; ctx.font = `${dp(18)}px Lato, sans-serif`;
+  ctx.fillText(now.toDateString(), W / 2, H / 2 + dp(46));
+  ctx.textAlign = 'left';
+}
+
+function drawMarker(h, name, col) {
+  if (h.present < 0.06) return;
+  const gx = h.rx * W, gy = h.ry * H;
+  const ringR = dp(30) * (1 + h.pinch * 0.2);
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, h.present);
+  ctx.strokeStyle = col; ctx.lineWidth = dp(3);
+  ctx.shadowColor = col; ctx.shadowBlur = dp(10);
+  ctx.beginPath(); ctx.arc(gx, gy, ringR, 0, Math.PI * 2); ctx.stroke();
+  ctx.shadowBlur = 0;
+  if (h.pinch > 0.12) {
+    ctx.globalAlpha = Math.min(1, h.present) * Math.min(1, h.pinch * 1.3);
+    ctx.fillStyle = h.pinch > 0.55 ? '#ffffff' : col;
+    ctx.beginPath(); ctx.arc(gx, gy, dp(5 + h.pinch * 7), 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawChrome() {
+  const tabs = [['1', 'BREATHE'], ['2', 'SYSTEM']];
+  ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+  let x = W - dp(280);
+  for (const [key, m] of tabs) {
+    const on = MODE === m;
+    ctx.font = `700 ${dp(12)}px Lato, sans-serif`;
+    const label = `${key} ${m}`, w = ctx.measureText(label).width + dp(24);
+    roundRect(x, dp(16), w, dp(28), dp(14));
+    ctx.fillStyle = on ? 'rgba(125,211,252,0.16)' : 'rgba(8,10,18,0.6)'; ctx.fill();
+    ctx.strokeStyle = on ? '#7dd3fc' : 'rgba(255,255,255,0.1)'; ctx.lineWidth = dp(1.5);
+    roundRect(x, dp(16), w, dp(28), dp(14)); ctx.stroke();
+    ctx.fillStyle = on ? '#7dd3fc' : '#64748b';
+    ctx.fillText(label, x + dp(12), dp(31));
+    x += w + dp(8);
+  }
+  ctx.textBaseline = 'alphabetic';
+}
+
+cv.addEventListener('mousedown', () => {
+  if (MODE !== 'BREATHE') return;
+  if (!breathRunning) { breathRunning = true; breathT = 0; cv.style.cursor = ''; }
+});
+
+function setMode(m) {
+  if (m !== 'BREATHE' && m !== 'SYSTEM') return;   // ignore legacy TODO mode posts
+  breathRunning = false;
+  breathT = 0;
+  MODE = m;
+  cv.style.cursor = (m === 'BREATHE' && !breathRunning) ? 'pointer' : '';
+}
+
+addEventListener('keydown', (e) => {
+  if (!HubClient.embedded) {
+    if (e.key === '1') setMode('BREATHE');
+    if (e.key === '2') setMode('SYSTEM');
+  }
+  if (e.key.toLowerCase() === 's') HAND_SWAP = !HAND_SWAP;
+  if (e.key.toLowerCase() === 'f') document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+});
+
+async function boot(sharedCam) {
+  startScreen.classList.add('hide');
+  try {
+    if (HubClient.embedded && !sharedCam) throw new Error('hub has no camera');
+    const vstream = sharedCam || await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false });
+    cam.srcObject = vstream; await cam.play();
+    if (HubClient.embedded) HubClient.onHands(onHands);
+    else initHands(cam);
+  } catch (e) {
+    if (!HubClient.embedded) throw e;
+    cam.style.display = 'none';
+  }
+  requestAnimationFrame(draw);
+  setMode(MODE);
+}
+
+if (HubClient.embedded) boot(HubClient.camera()).catch(console.error);
+else document.getElementById('go').addEventListener('click', () =>
+  boot(null).catch(err => { startScreen.classList.remove('hide'); alert('Need camera permission.\n' + err.message); }));
+</script>
+</body>
+</html>

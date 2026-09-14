@@ -1,0 +1,1255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" href="/favicon.png" type="image/png" />
+<title>Board — spatial notes</title>
+<style>
+  :root, html[data-theme="dark"] {
+    --bg: #070910; --bg-elev: #14161f; --ink: #e2e8f0; --mute: #64748b; --accent: #7dd3fc;
+  }
+  html[data-theme="light"] {
+    --bg: #f4f5f7; --bg-elev: #ffffff; --ink: #0f172a; --mute: #64748b; --accent: #0284c7;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
+    font-family: Lato, sans-serif; color: var(--ink); }
+  #board { position: fixed; inset: 0; overflow: hidden; }
+  /* the world layer carries the zoom/pan transform; notes live inside it */
+  #world { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; }
+  #marquee { position: fixed; z-index: 70; border: 1px solid #7dd3fc; background: rgba(125,211,252,.08);
+    border-radius: 4px; pointer-events: none; display: none; }
+  body.panning, body.panning .note .head { cursor: grab; }
+  #stage { position: fixed; inset: 0; pointer-events: none; z-index: 50; }  /* hand markers + hulls, above notes */
+
+  .note { position: absolute; width: 190px; min-height: 46px; transform: translate(-50%, -50%);
+    background: rgba(23,29,44,.92); border: 1px solid rgba(255,255,255,.10); border-left: 3px solid var(--c);
+    border-radius: 12px; box-shadow: 0 8px 26px rgba(0,0,0,.45); backdrop-filter: blur(6px);
+    display: flex; flex-direction: column; transition: box-shadow .12s, border-color .12s; z-index: 10; }
+  .note.grab { box-shadow: 0 14px 40px rgba(0,0,0,.6); border-color: #fff; z-index: 30; }
+  .note.sel { border-color: #7dd3fc; box-shadow: 0 0 0 2px rgba(125,211,252,.4), 0 8px 26px rgba(0,0,0,.45); }
+  .note.doom { border-color: #ef4444 !important; box-shadow: 0 0 26px rgba(239,68,68,.4); animation: doomshake .3s linear infinite; }
+  @keyframes doomshake { 0%,100% { rotate: 0deg; } 25% { rotate: .6deg; } 75% { rotate: -.6deg; } }
+  .note .head { height: 17px; display: flex; align-items: center; justify-content: space-between;
+    padding: 3px 7px 0; cursor: grab; user-select: none; }
+  .note .head .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+  .note .head .hbtns { display: flex; align-items: center; gap: 4px; }
+  .note .head .del { border: none; background: none; color: #64748b; cursor: pointer; font-size: 13px; line-height: 1; }
+  .note .head .del:hover { color: #f87171; }
+  .note .body { padding: 2px 10px 8px; font-size: 13.5px; line-height: 1.32; outline: none; min-height: 22px;
+    white-space: pre-wrap; word-break: break-word; }
+  .note .body:empty::before { content: 'type…'; color: #475569; }
+  .note.kind-list { width: 260px; }
+  .note.kind-video { width: 320px; }
+  .note.kind-web { width: 360px; }
+  .note.kind-text { width: 240px; }
+  .note .title { padding: 0 10px 4px; font: 600 12px Lato, sans-serif; color: #94a3b8;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .note .list { list-style: none; padding: 0 10px 10px; margin: 0; max-height: 320px; overflow: auto; }
+  .note .list li { font-size: 12.5px; line-height: 1.35; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,.06);
+    color: #e2e8f0; display: flex; gap: 8px; justify-content: space-between; }
+  .note .list li .yr { color: #64748b; flex: none; font-variant-numeric: tabular-nums; }
+  .note .frame-wrap { position: relative; width: 100%; aspect-ratio: 16 / 10; background: #0b0f1a;
+    border-radius: 0 0 10px 10px; overflow: hidden; }
+  .note.kind-web .frame-wrap { aspect-ratio: 4 / 3; }
+  .note .frame-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #0b0f1a; }
+  .note .shield { position: absolute; inset: 0; z-index: 2; cursor: grab;
+    background: transparent; }
+  .note .shield::after { content: 'dbl-click to interact · Esc to lock'; position: absolute; left: 8px; bottom: 8px;
+    font: 600 10px Lato, sans-serif; color: rgba(226,232,240,.55); background: rgba(8,10,18,.55);
+    padding: 3px 7px; border-radius: 6px; pointer-events: none; opacity: 0; transition: opacity .15s; }
+  .note .shield:hover::after { opacity: 1; }
+  .note.interact .shield { display: none; }
+  .note .textbody { padding: 2px 10px 10px; font-size: 13px; line-height: 1.4; color: #e2e8f0;
+    white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow: auto; }
+  .c-amber { --c: #fbbf24; } .c-sky { --c: #38bdf8; } .c-pink { --c: #f472b6; }
+  .c-green { --c: #34d399; } .c-purple { --c: #c084fc; }
+
+  #agentRing { position: fixed; z-index: 65; width: 72px; height: 72px; margin: -36px 0 0 -36px;
+    border-radius: 50%; border: 2px solid rgba(125,211,252,.85); box-shadow: 0 0 0 8px rgba(125,211,252,.12),
+    0 0 28px rgba(125,211,252,.35); pointer-events: none; display: none;
+    animation: agentpulse 1.1s ease-in-out infinite; }
+  @keyframes agentpulse { 0%,100% { transform: scale(1); opacity: .95; } 50% { transform: scale(1.08); opacity: .55; } }
+
+  /* hint sits top-LEFT and caps its width so it can never slide under the controls */
+  #hint { position: fixed; top: calc(var(--hub-pad-top, 44px) + 6px); left: 14px; z-index: 60;
+    font: 12px/1.5 Lato, sans-serif; color: #64748b; background: rgba(8,10,18,.6);
+    padding: 6px 14px; border-radius: 14px; border: 1px solid rgba(255,255,255,.07);
+    max-width: clamp(220px, calc(100vw - 620px), 620px); }
+  #hint b { color: #94a3b8; }
+  #controls { position: fixed; top: calc(var(--hub-pad-top, 44px) + 6px); right: 14px; z-index: 60; display: flex; gap: 6px; }
+  #controls button { height: 30px; padding: 0 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,.14);
+    background: rgba(8,10,18,.75); color: #e2e8f0; font: 600 12px Lato, sans-serif; cursor: pointer; }
+  #controls button:hover { background: rgba(255,255,255,.14); }
+  #cam { position: fixed; bottom: 12px; left: 12px; width: 150px; height: 113px;
+    transform: scaleX(-1); border-radius: 10px; opacity: .28; z-index: 55; pointer-events: none; }
+  #heard { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 60;
+    font: 600 12px Lato, sans-serif; color: #f472b6; background: rgba(8,10,18,.75);
+    padding: 7px 14px; border-radius: 999px; border: 1px solid rgba(244,114,182,.3);
+    max-width: 60vw; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; display: none; }
+
+  #start { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 18px; text-align: center; background: var(--bg); }
+  #start h1 { font-size: 30px; font-weight: 700; color: #7dd3fc; }
+  #start p { color: #94a3b8; max-width: 460px; line-height: 1.5; }
+  #go { padding: 12px 28px; font-weight: 600; color: #05060a; background: #7dd3fc;
+    border: none; border-radius: 999px; cursor: pointer; }
+  #start.hide { display: none; }
+
+  #addBtn { display: none; }   /* mobile-only quick-add (desktop types anywhere) */
+
+  /* ---- compact column layout (mobile + live mini-embed) ---- */
+  html.compact, html.compact body { overflow: hidden; }
+  html.compact #board { overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
+  html.compact #world { position: static !important; transform: none !important;
+    width: 100%; height: auto; display: flex; flex-direction: column; gap: 12px;
+    padding: 52px 10px calc(72px + env(safe-area-inset-bottom)); }
+  html.compact .note { position: static !important; transform: none !important;
+    width: 100%; min-height: 0; }
+  html.compact #stage, html.compact #cam, html.compact #marquee, html.compact #hint { display: none !important; }
+  html.compact #tidyBtn, html.compact #lBtn, html.compact #rBtn, html.compact #camBtn, html.compact #zoomBtn { display: none !important; }
+  html.compact #addBtn { display: inline-flex; align-items: center; }
+
+  /* ---- live mini-embed: auto-boot, tighter chrome, no start gate ---- */
+  html[data-embed="1"] #start { display: none !important; }
+  html[data-embed="1"] #controls { top: 8px; right: 8px; left: 8px; justify-content: flex-end; flex-wrap: wrap; }
+  html[data-embed="1"] #controls button { height: 26px; padding: 0 9px; font-size: 11px; }
+  html[data-embed="1"] #dictBtn, html[data-embed="1"] #camBtn,
+  html[data-embed="1"] #lBtn, html[data-embed="1"] #rBtn, html[data-embed="1"] #tidyBtn, html[data-embed="1"] #zoomBtn { display: none !important; }
+  html[data-embed="1"] #heard { bottom: 8px; max-width: 90%; font-size: 11px; padding: 5px 10px; }
+  html[data-embed="1"] .note .frame-wrap { aspect-ratio: 16 / 10; } /* keep media proportionate */
+</style>
+<script>
+  // set before paint so embed/compact CSS applies without a flash of the start screen
+  (function () {
+    try {
+      const p = new URLSearchParams(location.search);
+      if (p.has('embed') || p.get('mini') === '1') document.documentElement.dataset.embed = '1';
+      if (document.documentElement.dataset.embed === '1' || matchMedia('(hover: none), (pointer: coarse)').matches)
+        document.documentElement.classList.add('compact');
+    } catch (e) {}
+  })();
+</script>
+</head>
+<body>
+  <div id="board"><div id="world"></div></div>
+  <div id="marquee"></div>
+  <canvas id="stage"></canvas>
+  <video id="cam" autoplay playsinline muted></video>
+
+  <div id="hint"><b>type</b> to add · <b>dbl-pinch empty</b> ask agent · <b>dbl-pinch/click note</b> dictate · <b>drag</b> move · <b>wheel</b> zoom</div>
+  <div id="heard"></div>
+  <div id="agentRing"></div>
+  <div id="controls"><button id="addBtn" title="add note">+ note</button><button id="askBtn" title="ask the agent (or double-pinch empty space)">✦ Ask</button><button id="undoBtn" title="undo (⌘Z)">↩</button><button id="dictBtn">🎤 Dictate: on</button><button id="tidyBtn">Tidy clusters</button><button id="lBtn">L ✋ on</button><button id="rBtn">R ✋ on</button><button id="camBtn">Hands: off</button><button id="zoomBtn" title="reset zoom & pan">100%</button></div>
+
+  <div id="start">
+    <h1>Board</h1>
+    <p>A spatial scratchpad — and a voice-driven agent canvas. Double-pinch empty space to ask;
+       double-pinch a note to dictate. Cards (lists, videos, Wikipedia) land on the same board.</p>
+    <button id="go">Start (hands optional — you can skip)</button>
+  </div>
+
+<script src="hub-client.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<script>
+// file:// origins get no permission memory in Chrome (mic prompt every time) and
+// can't reach the server — always run through localhost instead.
+if (location.protocol === 'file:') {
+  location.replace('http://localhost:4777/board.html' + location.search + location.hash);
+}
+// NOTE: no HubClient.forwardNavKeys() here — on the board, bare keystrokes create notes.
+const EMBED = document.documentElement.dataset.embed === '1';
+HubClient.onActive(on => {
+  if (!on) {
+    if (typeof stopDictation === 'function') stopDictation();
+    if (typeof stopAgentListen === 'function') stopAgentListen();
+  }
+});
+
+const $ = (id) => document.getElementById(id);
+const board = $('board'), cv = $('stage'), ctx = cv.getContext('2d'), cam = $('cam');
+let W, H, DPR = Math.min(devicePixelRatio || 1, 2);
+const dp = (n) => n * DPR;
+function resize() { W = cv.width = innerWidth * DPR; H = cv.height = innerHeight * DPR;
+  cv.style.width = innerWidth + 'px'; cv.style.height = innerHeight + 'px'; }
+addEventListener('resize', () => { resize(); notes.forEach(place); applyView(); });
+resize();
+
+// ================= view: zoom + pan over a large canvas =================
+// World coords stay normalized to the viewport (x = 1 is one screen-width), but the
+// world now spans WORLD_MIN..WORLD_MAX screens each way (~4.5 viewports square).
+// #world carries the transform; notes keep their world position untouched.
+const world = $('world'), marqueeEl = $('marquee');
+const WORLD_MIN = -1.75, WORLD_MAX = 2.75, ZOOM_MIN = 0.3, ZOOM_MAX = 3;
+let zoom = 1, panX = 0, panY = 0;
+const sX = (nx) => nx * innerWidth * zoom + panX;    // world -> screen px
+const sY = (ny) => ny * innerHeight * zoom + panY;
+const wX = (px) => (px - panX) / zoom / innerWidth;  // screen px -> world
+const wY = (py) => (py - panY) / zoom / innerHeight;
+function applyView() {
+  // keep the visible window inside the world bounds
+  panX = Math.min(-WORLD_MIN * innerWidth * zoom, Math.max(innerWidth - WORLD_MAX * innerWidth * zoom, panX));
+  panY = Math.min(-WORLD_MIN * innerHeight * zoom, Math.max(innerHeight - WORLD_MAX * innerHeight * zoom, panY));
+  world.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+  $('zoomBtn').textContent = Math.round(zoom * 100) + '%';
+}
+$('zoomBtn').onclick = () => { zoom = 1; panX = 0; panY = 0; applyView(); };
+
+// phone OR live mini-embed: plain vertical scroll list — no spatial pan/zoom
+const MOBILE = matchMedia('(hover: none), (pointer: coarse)');
+const COMPACT = () => EMBED || MOBILE.matches || document.documentElement.classList.contains('compact');
+
+// scroll to zoom, centered on the cursor (trackpad pinch arrives as ctrl+wheel)
+addEventListener('wheel', (e) => {
+  if (COMPACT()) return;                               // let the board scroll normally
+  if (e.target.closest && e.target.closest('#controls')) return;
+  e.preventDefault();
+  const f = Math.exp(-e.deltaY * (e.ctrlKey ? 0.012 : 0.0022));
+  const nz = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoom * f));
+  panX = e.clientX - (e.clientX - panX) * (nz / zoom);
+  panY = e.clientY - (e.clientY - panY) * (nz / zoom);
+  zoom = nz;
+  applyView();
+}, { passive: false });
+
+// pan: hold Space and drag anywhere, or middle-mouse drag
+let spaceHeld = false;
+addEventListener('keydown', (e) => {
+  if (e.key !== ' ') return;
+  const el = document.activeElement;
+  if (el && el.classList && el.classList.contains('body')) return;   // typing a space in a note
+  spaceHeld = true; document.body.classList.add('panning'); e.preventDefault();
+});
+addEventListener('keyup', (e) => { if (e.key === ' ') { spaceHeld = false; document.body.classList.remove('panning'); } });
+
+// ================= notes model + persistence =================
+let notes = [];
+const els = new Map();      // id -> note element
+const COLORS = ['amber', 'sky', 'pink', 'green', 'purple'];
+let saveT = null, seq = 0;
+const uid = () => 'n' + (Date.now().toString(36)) + (seq++);
+
+async function load() {
+  try { notes = await (await fetch('/api/notes')).json(); } catch { notes = []; }
+  if (!Array.isArray(notes)) notes = [];
+  // backward compat: older notes.json entries have no kind
+  for (const n of notes) if (!n.kind) n.kind = 'note';
+  world.innerHTML = ''; els.clear();
+  notes.forEach(makeEl);
+}
+function persist() { clearTimeout(saveT); saveT = setTimeout(() => {
+  fetch('/api/notes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(notes) });
+}, 300); }
+
+// ================= undo (snapshot the board before each mutation) =================
+const undoStack = [];
+function pushUndo() {
+  const snap = JSON.stringify(notes);
+  if (undoStack[undoStack.length - 1] === snap) return;   // skip no-op snapshots
+  undoStack.push(snap);
+  if (undoStack.length > 50) undoStack.shift();
+}
+function undo() {
+  if (!undoStack.length) { showHeard('nothing to undo'); return; }
+  stopDictation(); stopAgentListen();
+  notes = JSON.parse(undoStack.pop());
+  for (const n of notes) if (!n.kind) n.kind = 'note';
+  world.innerHTML = ''; els.clear(); clearSel();
+  notes.forEach(makeEl);
+  persist();
+  showHeard('↩ undone');
+}
+
+function cardTitle(n) {
+  if (n.kind === 'list') return n.data?.title || n.text || 'List';
+  if (n.kind === 'video') return n.data?.title || n.text || 'Video';
+  if (n.kind === 'web') return n.data?.title || n.text || 'Web';
+  if (n.kind === 'text') return n.data?.title || 'Text';
+  return (n.text || '').slice(0, 60);
+}
+
+function makeEl(n) {
+  if (!n.kind) n.kind = 'note';
+  const el = document.createElement('div');
+  el.className = 'note c-' + (n.color || 'sky') + (n.kind !== 'note' ? ' kind-' + n.kind : '');
+  el.dataset.id = n.id;
+  el.innerHTML = `<div class="head"><span class="dot"></span><span class="hbtns">` +
+                 `<button class="del" tabindex="-1">✕</button></span></div>`;
+
+  if (n.kind === 'note') {
+    const body = document.createElement('div');
+    body.className = 'body'; body.contentEditable = true;
+    body.textContent = n.text || '';
+    body.addEventListener('focus', () => pushUndo());
+    body.addEventListener('input', () => { n.text = body.textContent; persist(); });
+    body.addEventListener('blur', () => {
+      if (!body.textContent.trim() && dictNote?.id !== n.id) removeNote(n.id);
+    });
+    body.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); body.blur(); addNote(n.x + 0.01, n.y + 0.10, n.color); }
+      if (e.key === 'Escape') body.blur();
+    });
+    el.appendChild(body);
+  } else if (n.kind === 'list') {
+    const title = document.createElement('div'); title.className = 'title';
+    title.textContent = n.data?.title || n.text || 'List';
+    const ul = document.createElement('ul'); ul.className = 'list';
+    for (const it of (n.data?.items || [])) {
+      const li = document.createElement('li');
+      const lab = document.createElement('span');
+      lab.textContent = typeof it === 'string' ? it : (it.label || it.title || '');
+      li.appendChild(lab);
+      const yr = (typeof it === 'object' && it && it.year != null) ? String(it.year) : '';
+      if (yr) { const y = document.createElement('span'); y.className = 'yr'; y.textContent = yr; li.appendChild(y); }
+      ul.appendChild(li);
+    }
+    el.appendChild(title); el.appendChild(ul);
+  } else if (n.kind === 'video' || n.kind === 'web') {
+    const title = document.createElement('div'); title.className = 'title';
+    title.textContent = n.data?.title || n.text || (n.kind === 'video' ? 'Video' : 'Web');
+    const wrap = document.createElement('div'); wrap.className = 'frame-wrap';
+    const iframe = document.createElement('iframe');
+    iframe.loading = 'lazy';
+    iframe.referrerPolicy = 'no-referrer-when-downgrade';
+    iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen';
+    iframe.allowFullscreen = true;
+    if (n.kind === 'video') {
+      const u = new URL('https://www.youtube.com/embed/' + encodeURIComponent(n.data?.videoId || ''));
+      u.searchParams.set('rel', '0');
+      u.searchParams.set('enablejsapi', '1');
+      u.searchParams.set('origin', location.origin);
+      iframe.src = u.toString();
+      iframe.dataset.yt = '1';
+      iframe.addEventListener('load', () => pingYoutubeIframe(iframe));
+    } else {
+      iframe.src = n.data?.url || 'about:blank';
+      iframe.addEventListener('error', () => {
+        if (n.data?.url && !iframe.dataset.proxied) {
+          iframe.dataset.proxied = '1';
+          iframe.src = '/api/proxy?url=' + encodeURIComponent(n.data.url);
+        }
+      });
+      // some sites fail silently — offer a manual proxy fallback via title dblclick
+      title.title = 'Double-click title to reload via proxy';
+      title.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        if (n.data?.url) iframe.src = '/api/proxy?url=' + encodeURIComponent(n.data.url);
+      });
+    }
+    const shield = document.createElement('div');
+    shield.className = 'shield';
+    shield.addEventListener('mousedown', (e) => startMouseDrag(e, n));
+    shield.addEventListener('dblclick', (e) => {
+      e.stopPropagation(); e.preventDefault();
+      el.classList.add('interact');
+      showHeard('card unlocked — Esc to lock again', 2500);
+    });
+    wrap.appendChild(iframe); wrap.appendChild(shield);
+    el.appendChild(title); el.appendChild(wrap);
+  } else if (n.kind === 'text') {
+    const title = document.createElement('div'); title.className = 'title';
+    title.textContent = n.data?.title || 'Agent';
+    const body = document.createElement('div'); body.className = 'textbody';
+    body.textContent = n.data?.text || n.text || '';
+    el.appendChild(title); el.appendChild(body);
+  }
+
+  el.querySelector('.del').addEventListener('mousedown', (e) => { e.stopPropagation(); removeNote(n.id); });
+  el.querySelector('.head').addEventListener('mousedown', (e) => startMouseDrag(e, n));
+  world.appendChild(el);
+  els.set(n.id, el);
+  place(n);
+  return el;
+}
+function place(n) {
+  const el = els.get(n.id); if (!el) return;
+  el.style.left = (n.x * innerWidth) + 'px';
+  el.style.top = (n.y * innerHeight) + 'px';
+}
+function addNote(x = 0.5, y = 0.5, color) {
+  pushUndo();
+  const n = { id: uid(), kind: 'note', text: '', x: Math.min(WORLD_MAX - 0.06, Math.max(WORLD_MIN + 0.06, x)),
+    y: Math.min(WORLD_MAX - 0.06, Math.max(WORLD_MIN + 0.06, y)),
+    color: color || COLORS[notes.length % COLORS.length] };
+  notes.push(n); makeEl(n); persist();
+  const body = els.get(n.id).querySelector('.body');
+  body?.focus();
+  return n;
+}
+function addCard(card, { undo = true } = {}) {
+  if (undo) pushUndo();
+  const n = {
+    id: card.id || uid(),
+    kind: card.kind || 'text',
+    text: card.text || cardTitle(card) || '',
+    x: Math.min(WORLD_MAX - 0.06, Math.max(WORLD_MIN + 0.06, card.x ?? 0.5)),
+    y: Math.min(WORLD_MAX - 0.06, Math.max(WORLD_MIN + 0.06, card.y ?? 0.5)),
+    color: card.color || COLORS[notes.length % COLORS.length],
+    data: card.data || null,
+  };
+  notes.push(n); makeEl(n); persist();
+  return n;
+}
+function removeNote(id) {
+  pushUndo();
+  const el = els.get(id); if (el) el.remove(); els.delete(id);
+  notes = notes.filter(n => n.id !== id); persist();
+  forgetYtIframes();
+}
+function removeCards({ ids, all, undo = true } = {}) {
+  if (undo) pushUndo();
+  const drop = new Set(ids || []);
+  const keep = [];
+  for (const n of notes) {
+    const isAgent = n.kind && n.kind !== 'note';
+    if (all ? isAgent : drop.has(n.id)) {
+      const el = els.get(n.id); if (el) el.remove(); els.delete(n.id);
+    } else keep.push(n);
+  }
+  notes = keep; persist();
+  forgetYtIframes();
+}
+
+// ================= mouse: note drag, marquee multi-select, pan =================
+const sel = new Set();          // selected note ids
+function syncSel() { for (const [id, el] of els) el.classList.toggle('sel', sel.has(id)); }
+function clearSel() { sel.clear(); syncSel(); }
+
+let mDrag = null, marquee = null, panDrag = null;
+function startMouseDrag(e, n) {
+  e.preventDefault();
+  if (spaceHeld || e.button === 1) {                    // pan wins, even when starting on a note
+    panDrag = { x: e.clientX - panX, y: e.clientY - panY };
+    return;
+  }
+  if (!sel.has(n.id)) clearSel();                       // dragging an unselected note = solo drag
+  pushUndo();                                           // snapshot pre-drag positions
+  const group = sel.has(n.id) ? notes.filter(x => sel.has(x.id)) : [n];
+  const cwx = wX(e.clientX), cwy = wY(e.clientY);       // cursor in world coords
+  mDrag = { items: group.map(g => ({ n: g, ox: cwx - g.x, oy: cwy - g.y })) };
+  group.forEach(g => els.get(g.id)?.classList.add('grab'));
+}
+// empty-space mousedown: pan (space / middle button) or marquee select
+board.addEventListener('mousedown', (e) => {
+  if (e.target !== board && e.target !== world) return;
+  if (e.button === 1 || spaceHeld) { panDrag = { x: e.clientX - panX, y: e.clientY - panY }; e.preventDefault(); return; }
+  if (e.button !== 0) return;
+  marquee = { x0: e.clientX, y0: e.clientY };
+  e.preventDefault();
+});
+addEventListener('mousemove', (e) => {
+  if (panDrag) { panX = e.clientX - panDrag.x; panY = e.clientY - panDrag.y; applyView(); return; }
+  if (marquee) {
+    const x = Math.min(marquee.x0, e.clientX), y = Math.min(marquee.y0, e.clientY);
+    const w = Math.abs(e.clientX - marquee.x0), h = Math.abs(e.clientY - marquee.y0);
+    Object.assign(marqueeEl.style, { display: 'block', left: x + 'px', top: y + 'px', width: w + 'px', height: h + 'px' });
+    return;
+  }
+  if (!mDrag) return;
+  const cwx = wX(e.clientX), cwy = wY(e.clientY);
+  mDrag.items.forEach(it => { it.n.x = cwx - it.ox; it.n.y = cwy - it.oy; place(it.n); });
+});
+addEventListener('mouseup', (e) => {
+  if (panDrag) { panDrag = null; return; }
+  if (marquee) {
+    const x0 = Math.min(marquee.x0, e.clientX), x1 = Math.max(marquee.x0, e.clientX);
+    const y0 = Math.min(marquee.y0, e.clientY), y1 = Math.max(marquee.y0, e.clientY);
+    marquee = null; marqueeEl.style.display = 'none';
+    if (x1 - x0 < 5 && y1 - y0 < 5) { clearSel(); return; }      // plain empty click = deselect
+    if (!e.shiftKey) sel.clear();                                // shift extends the selection
+    for (const n of notes) { const px = sX(n.x), py = sY(n.y); if (px >= x0 && px <= x1 && py >= y0 && py <= y1) sel.add(n.id); }
+    syncSel();
+    if (sel.size) showHeard(sel.size + ' selected — drag moves together · Backspace deletes · Esc clears');
+    return;
+  }
+  if (!mDrag) return;
+  mDrag.items.forEach(it => els.get(it.n.id)?.classList.remove('grab'));
+  persist(); mDrag = null;
+});
+// ================= dictation (Web Speech API, falls back to record+transcribe) =================
+// Double-click = new/focused note + start listening; words stream into the note live.
+let dictateOn = true, listening = false, srec = null, dictNote = null, dictBase = '', dictPending = '';
+const SRAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+const SPEECH_ID = 'board';
+
+// hold ONE persistent mic stream — Chrome then stops re-prompting for permission
+// on every recognition session (pick "Allow on every visit" the one time it asks)
+let micStream = null;
+async function ensureMic() {
+  if (micStream && micStream.active) return true;
+  // embedded in the hub: reuse its shared mic — zero extra prompts
+  if (HubClient.embedded) {
+    const m = HubClient.mic();
+    if (m && m.active) { micStream = m; return true; }
+    if (HubClient.micError()) { showHeard('hub mic unavailable: ' + HubClient.micError(), 8000); return false; }
+  }
+  try { micStream = await navigator.mediaDevices.getUserMedia({ audio: true }); return true; }
+  catch (e) {
+    // don't fail silently — say exactly why the mic didn't open
+    const st = await navigator.permissions?.query({ name: 'microphone' }).catch(() => null);
+    if (st && st.state === 'denied')
+      showHeard('mic BLOCKED for this site — click the icon left of the URL → Microphone → Allow → reload', 12000);
+    else
+      showHeard('mic unavailable: ' + (e.name || e), 8000);
+    return false;
+  }
+}
+
+// Chrome's cloud SpeechRecognition needs a Google-branded browser (Electron, Arc, Brave,
+// Vivaldi, and similar Chromium forks all fail every attempt with error 'network'). Once
+// that's proven true this session, stop retrying it and record+transcribe through the
+// server instead — verified end-to-end against a real audio-capable OpenRouter model, so
+// voice input keeps working no matter what's blocking Chrome's own speech backend.
+let sttFallback = false;
+function canUseWebSpeech() { return !!SRAPI && !HubClient.isElectron() && !sttFallback; }
+
+let mediaRec = null, recChunks = [], recTarget = null;   // recTarget: 'dict' | 'agent'
+function startRecorder(target) {
+  if (!micStream || !window.MediaRecorder) return false;
+  try {
+    recChunks = [];
+    const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
+    mediaRec = new MediaRecorder(micStream, { mimeType: mime });
+    mediaRec.ondataavailable = (e) => { if (e.data.size) recChunks.push(e.data); };
+    mediaRec.start();
+    recTarget = target;
+    return true;
+  } catch (e) { showHeard('recording unavailable: ' + (e.name || e), 6000); return false; }
+}
+function stopRecorder() {
+  return new Promise((resolve) => {
+    if (!mediaRec || mediaRec.state === 'inactive') { resolve(null); return; }
+    const rec = mediaRec; mediaRec = null; recTarget = null;
+    rec.onstop = () => resolve(new Blob(recChunks, { type: rec.mimeType || 'audio/webm' }));
+    try { rec.stop(); } catch (e) { resolve(null); }
+  });
+}
+
+// auto-stop: release the mic after sustained silence (Escape still force-stops).
+// Skipped in recorder-fallback mode — there's no interim-transcript signal to measure
+// silence against, so a full sentence would get cut off after START_GRACE_MS; the
+// recorder is stopped manually instead (same gesture that started it: double-pinch /
+// dblclick / Esc / the Ask button).
+const SILENCE_STOP_MS = 1200;   // stop this long after your last words
+const START_GRACE_MS = 5000;    // stop if you never start talking at all
+let lastVoiceT = 0, spokeYet = false;
+setInterval(() => {
+  if (!listening && !agentListening) return;
+  if (mediaRec) return;
+  const idle = performance.now() - lastVoiceT;
+  if (idle > (spokeYet ? SILENCE_STOP_MS : START_GRACE_MS)) {
+    if (agentListening) {
+      showHeard(spokeYet ? '✦ asking…' : '✦ stopped — heard nothing', 2500);
+      finishAgentListen();
+    } else {
+      showHeard(spokeYet ? '🎙 done — silence' : '🎙 stopped — heard nothing', 2500);
+      stopDictation();
+    }
+  }
+}, 250);
+
+async function startDictation(n) {
+  if (!dictateOn || !n) return;
+  if (!SRAPI && !window.MediaRecorder) { showHeard('voice input unavailable in this browser'); return; }
+  if (HubClient.embedded && !HubClient.isActive()) return;
+  pushUndo();                   // snapshot before dictation writes into the note
+  stopAgentListen();
+  stopDictation();
+  dictNote = n;                 // set BEFORE any await — protects the note from blur-delete
+  dictBase = n.text ? n.text.replace(/\s+$/, '') + ' ' : '';
+  lastVoiceT = performance.now(); spokeYet = false;
+  if (!await ensureMic()) { dictNote = null; markListening(false); return; }
+  if (HubClient.embedded && !HubClient.isActive()) { dictNote = null; markListening(false); return; }
+  HubClient.claimSpeech(SPEECH_ID, () => { stopDictation(); stopAgentListen(); });
+  notifyParentSpeech(true);
+
+  if (!canUseWebSpeech()) {
+    // record+transcribe doesn't touch Chrome's cloud STT at all — it works in Electron
+    // and non-Google Chromium too, so there's no "switch browsers" hint needed here.
+    if (!startRecorder('dict')) { dictNote = null; markListening(false); notifyParentSpeech(false); return; }
+    listening = true; markListening(true);
+    showHeard('🎙 recording… (double-pinch/dblclick/Esc to stop)', 8000);
+    return;
+  }
+
+  srec = new SRAPI();
+  srec.continuous = true; srec.interimResults = true; srec.lang = 'en-US';
+  srec.onresult = (e) => {
+    let final = '', interim = '';
+    for (let i = 0; i < e.results.length; i++) {
+      (e.results[i].isFinal ? final += e.results[i][0].transcript + ' ' : interim += e.results[i][0].transcript);
+    }
+    if ((final + interim).trim()) { lastVoiceT = performance.now(); spokeYet = true; }   // reset silence clock
+    const el = els.get(dictNote.id); if (!el) return;
+    const body = el.querySelector('.body');
+    body.textContent = dictPending = (dictBase + final + interim).trimStart();
+    dictNote.text = dictBase + final;        // finalized text (pending committed on stop)
+    persist();
+    showHeard('🎙 ' + ((final + interim).trim().slice(-60) || 'listening…'));
+  };
+  srec.onend = () => {
+    if (!listening || !srec || document.visibilityState === 'hidden') return;
+    if (HubClient.embedded && !HubClient.isActive()) return;
+    // Chrome ends sessions on every pause; fold finalized text into the base
+    // BEFORE restarting, or the new session overwrites the old one's words
+    if (dictNote) dictBase = (dictNote.text || '').replace(/\s+$/, '') + (dictNote.text ? ' ' : '');
+    try { srec.start(); } catch (e) {}
+  };
+  srec.onerror = (e) => {
+    if (e.error === 'no-speech' || e.error === 'aborted') return;
+    // stop FIRST so onend can't restart — then surface the message (stop clears heard)
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+      stopDictation(); showHeard('mic blocked — check permission', 8000);
+    } else if (e.error === 'network') {
+      sttFallback = true;             // stop retrying Chrome's cloud STT this session
+      const n2 = dictNote;
+      stopDictation();
+      showHeard(HubClient.speechHint() + ' — switching to record+transcribe', 3500);
+      if (n2) startDictation(n2);     // re-enter immediately using the record fallback
+    } else {
+      stopDictation(); showHeard('speech error: ' + e.error, 8000);
+    }
+  };
+  try { srec.start(); listening = true; markListening(true); showHeard('listening…'); } catch (e) {}
+}
+function stopDictation() {
+  listening = false;
+  HubClient.releaseSpeech(SPEECH_ID);
+  if (!agentListening) notifyParentSpeech(false);
+  if (srec) {
+    try { srec.onend = null; srec.onerror = null; srec.onresult = null; srec.stop(); } catch (e) {}
+    srec = null;
+  }
+  if (mediaRec && recTarget === 'dict') {
+    const note = dictNote, base = dictBase;
+    stopRecorder().then(async (blob) => {
+      if (!blob || !blob.size || !note) { showHeard('🎙 heard nothing', 2000); return; }
+      showHeard('🎙 transcribing…', 8000);
+      try {
+        const text = (await HubClient.transcribe(blob)).trim();
+        if (text) {
+          note.text = (base + text).trim();
+          const el = els.get(note.id);
+          if (el) el.querySelector('.body').textContent = note.text;
+          persist();
+          showHeard('🎙 ' + text.slice(0, 60), 4000);
+        } else {
+          showHeard('🎙 heard nothing', 2000);
+        }
+      } catch (e) { showHeard('transcribe failed: ' + (e.message || e), 8000); }
+    });
+  }
+  // COMMIT pending interim words: the silence auto-stop usually beats Chrome's
+  // finalization, so without this the last phrase only ever lived in the preview
+  if (dictNote && dictPending && dictPending.length > (dictNote.text || '').length) {
+    dictNote.text = dictPending;
+    const el = els.get(dictNote.id);
+    if (el) el.querySelector('.body').textContent = dictPending;
+    persist();
+  }
+  markListening(false);
+  dictNote = null; dictPending = '';
+  showHeard(null);
+}
+let heardT = null;
+function showHeard(msg, ms = 4000) {
+  const el = $('heard');
+  if (!msg) { el.style.display = 'none'; return; }
+  el.textContent = msg; el.style.display = 'block';
+  clearTimeout(heardT);
+  heardT = setTimeout(() => { el.style.display = 'none'; }, ms);   // fade if nothing new
+}
+function markListening(on) {
+  $('dictBtn').textContent = on ? '🎤 listening… (Esc stops)' : ('🎤 Dictate: ' + (dictateOn ? 'on' : 'off'));
+  $('dictBtn').style.background = on ? '#f472b6' : '';
+  $('dictBtn').style.color = on ? '#05060a' : '';
+  if (dictNote) els.get(dictNote.id)?.classList.toggle('grab', on);
+}
+
+// ================= agent voice loop =================
+// Double-pinch empty space (or ✦ Ask) → listen → POST /api/agent (SSE) → cards land live.
+let agentListening = false, agentPending = '', agentBase = '', agentHand = null;
+let agentHistory = [];   // recent {role, content} for context
+let agentBusy = false;
+
+function boardStatePayload() {
+  return notes.map(n => ({ id: n.id, kind: n.kind || 'note', title: cardTitle(n) }));
+}
+
+function placeAgentRing(h) {
+  const ring = $('agentRing');
+  if (!h) { ring.style.display = 'none'; return; }
+  ring.style.display = 'block';
+  ring.style.left = (h.rx * innerWidth) + 'px';
+  ring.style.top = (h.ry * innerHeight) + 'px';
+}
+
+function stopAgentListen() {
+  agentListening = false;
+  if (!listening) notifyParentSpeech(false);
+  if (srec && !listening) {
+    HubClient.releaseSpeech(SPEECH_ID);
+    try { srec.onend = null; srec.onerror = null; srec.onresult = null; srec.stop(); } catch (e) {}
+    srec = null;
+  }
+  if (mediaRec && recTarget === 'agent') {
+    HubClient.releaseSpeech(SPEECH_ID);
+    stopRecorder().then(async (blob) => {
+      if (!blob || !blob.size) { showHeard('✦ heard nothing', 2000); return; }
+      showHeard('✦ transcribing…', 8000);
+      try {
+        const text = (await HubClient.transcribe(blob)).trim();
+        if (text) askAgent(text); else showHeard('✦ heard nothing', 2000);
+      } catch (e) { showHeard('transcribe failed: ' + (e.message || e), 8000); }
+    });
+  }
+  placeAgentRing(null);
+  markAgentListen(false);
+  agentPending = ''; agentBase = ''; agentHand = null;
+}
+
+function markAgentListen(on) {
+  const btn = $('askBtn');
+  if (!btn) return;
+  btn.textContent = on ? '✦ listening…' : '✦ Ask';
+  btn.style.background = on ? '#7dd3fc' : '';
+  btn.style.color = on ? '#05060a' : '';
+}
+
+async function startAgentListen(h) {
+  if (!dictateOn) { showHeard('speech unavailable'); return; }
+  if (!SRAPI && !window.MediaRecorder) { showHeard('voice input unavailable in this browser'); return; }
+  if (HubClient.embedded && !HubClient.isActive()) return;
+  if (agentBusy) { showHeard('agent still working…'); return; }
+  stopDictation();
+  stopAgentListen();
+  agentHand = h || null;
+  agentListening = true;
+  agentPending = ''; agentBase = '';
+  lastVoiceT = performance.now(); spokeYet = false;
+  placeAgentRing(agentHand);
+  markAgentListen(true);
+  if (!await ensureMic()) { stopAgentListen(); return; }
+  if (HubClient.embedded && !HubClient.isActive()) { stopAgentListen(); return; }
+  HubClient.claimSpeech(SPEECH_ID, () => { stopDictation(); stopAgentListen(); });
+  notifyParentSpeech(true);
+
+  if (!canUseWebSpeech()) {
+    if (!startRecorder('agent')) { stopAgentListen(); return; }
+    showHeard('✦ recording… (double-pinch/Esc/Ask to stop)', 8000);
+    return;
+  }
+
+  srec = new SRAPI();
+  srec.continuous = true; srec.interimResults = true; srec.lang = 'en-US';
+  srec.onresult = (e) => {
+    let final = '', interim = '';
+    for (let i = 0; i < e.results.length; i++) {
+      (e.results[i].isFinal ? final += e.results[i][0].transcript + ' ' : interim += e.results[i][0].transcript);
+    }
+    if ((final + interim).trim()) { lastVoiceT = performance.now(); spokeYet = true; }
+    if (final) agentBase = (agentBase + final).replace(/\s+/g, ' ');
+    agentPending = (agentBase + ' ' + interim).trim();
+    showHeard('✦ ' + (agentPending.slice(-70) || 'listening…'));
+    placeAgentRing(agentHand);
+  };
+  srec.onend = () => {
+    if (!agentListening || !srec || document.visibilityState === 'hidden') return;
+    if (HubClient.embedded && !HubClient.isActive()) return;
+    try { srec.start(); } catch (e) {}
+  };
+  srec.onerror = (e) => {
+    if (e.error === 'no-speech' || e.error === 'aborted') return;
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+      stopAgentListen(); showHeard('mic blocked — check permission', 8000);
+    } else if (e.error === 'network') {
+      sttFallback = true;             // stop retrying Chrome's cloud STT this session
+      const h2 = agentHand;
+      stopAgentListen();
+      showHeard(HubClient.speechHint() + ' — switching to record+transcribe', 3500);
+      startAgentListen(h2);           // re-enter immediately using the record fallback
+    } else {
+      stopAgentListen(); showHeard('speech error: ' + e.error, 8000);
+    }
+  };
+  try { srec.start(); showHeard('✦ ask the agent…'); } catch (e) {}
+}
+
+function finishAgentListen() {
+  const transcript = (agentPending || agentBase || '').trim();
+  stopAgentListen();
+  if (!transcript) return;
+  askAgent(transcript);
+}
+
+async function askAgent(transcript) {
+  if (!transcript || agentBusy) return;
+  agentBusy = true;
+  showHeard('✦ ' + transcript.slice(0, 60), 6000);
+  pushUndo();
+  let sawCard = false;
+  try {
+    const res = await fetch('/api/agent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        transcript,
+        boardState: boardStatePayload(),
+        history: agentHistory.slice(-6),
+      }),
+    });
+    if (!res.ok || !res.body) {
+      const t = await res.text().catch(() => '');
+      showHeard('agent error: HTTP ' + res.status + ' ' + t.slice(0, 80), 8000);
+      agentBusy = false;
+      return;
+    }
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let idx;
+      while ((idx = buf.indexOf('\n\n')) >= 0) {
+        const chunk = buf.slice(0, idx); buf = buf.slice(idx + 2);
+        const line = chunk.split('\n').find(l => l.startsWith('data: '));
+        if (!line) continue;
+        let evt;
+        try { evt = JSON.parse(line.slice(6)); } catch { continue; }
+        handleAgentEvent(evt);
+        if (evt.type === 'card' && evt.card) sawCard = true;
+        if (evt.type === 'error') showHeard('✦ ' + (evt.message || 'error'), 10000);
+      }
+    }
+    agentHistory.push({ role: 'user', content: transcript });
+    if (agentHistory.length > 12) agentHistory = agentHistory.slice(-12);
+    if (!sawCard) showHeard('✦ done (no cards)', 3000);
+    else showHeard('✦ done', 2500);
+  } catch (e) {
+    showHeard('agent unreachable: ' + (e.message || e), 8000);
+  }
+  agentBusy = false;
+}
+
+function handleAgentEvent(evt) {
+  if (evt.type === 'card' && evt.card) {
+    addCard(evt.card, { undo: false });
+    showHeard('✦ placed ' + (evt.card.kind || 'card') + ': ' + (evt.card.text || '').slice(0, 40), 3500);
+  } else if (evt.type === 'card' && evt.remove) {
+    removeCards({ ...evt.remove, undo: false });
+  } else if (evt.type === 'tool.start') {
+    showHeard('✦ ' + evt.name + '…', 4000);
+  } else if (evt.type === 'model.request') {
+    showHeard('✦ thinking…', 4000);
+  }
+}
+
+board.addEventListener('dblclick', (e) => {
+  if (listening || agentListening) { stopDictation(); stopAgentListen(); return; }
+  let n = null;
+  if (e.target === board || e.target === world) { n = addNote(wX(e.clientX), wY(e.clientY)); }
+  else {
+    const noteEl = e.target.closest('.note');
+    if (noteEl) {
+      n = notes.find(x => x.id === noteEl.dataset.id);
+      if (n && n.kind && n.kind !== 'note') return;   // typed cards aren't dictation targets
+    }
+  }
+  if (!n) return;
+  startDictation(n);
+  document.activeElement?.blur?.();
+});
+// type anywhere (not already editing) = new note that captures the keystroke
+addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    stopDictation(); stopAgentListen();
+    // restore iframe shields
+    for (const el of document.querySelectorAll('.note.interact')) el.classList.remove('interact');
+    clearSel(); document.activeElement?.blur?.(); return;
+  }
+  const editing = document.activeElement && document.activeElement.classList.contains('body');
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+    if (editing) return;
+    e.preventDefault(); undo(); return;
+  }
+  if (editing) return;
+  if ((e.key === 'Backspace' || e.key === 'Delete') && sel.size) {
+    [...sel].forEach(removeNote); clearSel(); e.preventDefault(); return;
+  }
+  if (e.key === ' ') return;
+  if (e.key === 'g') { tidyClusters(); return; }
+  if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    const n = addNote(wX(innerWidth * (0.5 + Math.min(6, notes.length) * 0.012)),
+                      wY(innerHeight * (0.4 + (notes.length % 5) * 0.02)));
+    const body = els.get(n.id).querySelector('.body');
+    if (!body) return;
+    body.textContent = e.key; n.text = e.key; persist();
+    const r = document.createRange(); r.selectNodeContents(body); r.collapse(false);
+    const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+    e.preventDefault();
+  }
+});
+
+// ================= hand tracking (optional) =================
+const cfg = { responsivity: 0.85 };
+let handsOn = false;
+function newHand(){ return { x:.5, y:.5, tx:.5, ty:.5, rx:.5, ry:.5, pinch:0, tpinch:0, ext:0, tExt:0,
+  present:0, held:null, off:null, seen:false,
+  pinchDown:false, lastDownT:0, lastDownX:0, lastDownY:0,
+  fistNote:null, fistT:0, enabled:true }; }
+const L = newHand(), R = newHand();
+const L_COL = '#38bdf8', R_COL = '#f472b6';
+
+function initHands(video) {
+  const hnd = new Hands({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
+  hnd.setOptions({ maxNumHands: 2, modelComplexity: 0, minDetectionConfidence: .6, minTrackingConfidence: .6 });
+  hnd.onResults(onHands);
+  (async function pump(){ const s = performance.now();
+    if (video.readyState >= 2) { try { await hnd.send({ image: video }); } catch(e){} }
+    setTimeout(pump, Math.max(0, 33 - (performance.now() - s))); })();
+}
+function onHands(res) {
+  const lm = res.multiHandLandmarks || []; L.seen = R.seen = false;
+  const found = lm.map(hand => {
+    let ax = 0, ay = 0; for (const p of hand) { ax += p.x; ay += p.y; } ax /= hand.length; ay /= hand.length;
+    const wrist = hand[0], mc = hand[9], palm = Math.hypot(wrist.x - mc.x, wrist.y - mc.y) || .001;
+    const pd = Math.hypot(hand[4].x - hand[8].x, hand[4].y - hand[8].y) / palm;
+    // extension of the three NON-pinching fingers (middle/ring/pinky tips from wrist).
+    // A deliberate pinch keeps them extended; a closed fist curls them — the fist filter.
+    let ed = 0; for (const t of [12, 16, 20]) ed += Math.hypot(hand[t].x - wrist.x, hand[t].y - wrist.y);
+    const ext = Math.max(0, Math.min(1, ((ed / 3) / palm - 1.1) / 0.7));
+    return { dx: 1 - ax, dy: ay, pinch: Math.max(0, Math.min(1, (.55 - pd) / .4)), ext };
+  });
+  const ap = (h,a) => { if (!a) return; h.seen = true; h.tx = a.dx; h.ty = a.dy; h.tpinch = a.pinch; h.tExt = a.ext; };
+  // STICKY IDENTITY: a detection belongs to whichever hand it was nearest last frame,
+  // so a hand keeps its L/R identity when it crosses the midline. Screen side is only
+  // the fallback for a hand we aren't already tracking.
+  const trk = (h) => h.present > 0.25;
+  const dist = (h, f) => Math.hypot(h.tx - f.dx, h.ty - f.dy);
+  if (found.length === 1) {
+    const f = found[0];
+    let h = null;
+    if (trk(L) && trk(R)) h = dist(L, f) <= dist(R, f) ? L : R;
+    else if (trk(L) && dist(L, f) < 0.3) h = L;
+    else if (trk(R) && dist(R, f) < 0.3) h = R;
+    ap(h || (f.dx < .5 ? L : R), f);
+  } else if (found.length >= 2) {
+    const [a, b] = found;
+    // pick the pairing with the least total movement (side hint only for untracked hands)
+    const cost = (h, f) => trk(h) ? dist(h, f) : Math.abs((h === L ? 0.35 : 0.65) - f.dx);
+    if (cost(L, a) + cost(R, b) <= cost(L, b) + cost(R, a)) { ap(L, a); ap(R, b); }
+    else { ap(L, b); ap(R, a); }
+  }
+  for (const h of [L, R]) h.present += ((h.seen ? 1 : 0) - h.present) * .4;
+}
+function stepHand(h, dt) {
+  const k = dt > 0 ? 1 - Math.pow(1 - cfg.responsivity, dt * 60) : 0;
+  h.x += (h.tx - h.x) * k; h.y += (h.ty - h.y) * k; h.pinch += (h.tpinch - h.pinch) * k;
+  h.ext += (h.tExt - h.ext) * k;
+  h.rx = h.x; h.ry = h.y;
+}
+
+// ===== double-pinch = double-click (new/target note + dictation) =====
+// Filters against false positives:
+//  1. FIST FILTER: middle/ring/pinky must be extended (h.ext) — a closed fist can't trigger
+//  2. HYSTERESIS: pinch must cross 0.68 to count and drop below 0.35 to re-arm (no flutter)
+//  3. TIMING: two pinches 120–450ms apart; slower is two separate pinches, faster is noise
+//  4. STILLNESS: hand must stay within ~5% of screen between the two pinches (not a drag)
+let gestureFlash = null;
+function stepGesture(h, now) {
+  if (h.present < .4) { h.pinchDown = false; return; }
+  const extOK = h.tExt > 0.35;
+  // raw (unsmoothed) pinch for speed — smoothing added ~100ms of lag per pinch
+  if (!h.pinchDown && h.tpinch > 0.62 && extOK) {
+    h.pinchDown = true;
+    const dtms = now - h.lastDownT;
+    const still = Math.hypot(h.x - h.lastDownX, h.y - h.lastDownY) < 0.05;
+    if (dtms > 50 && dtms < 450 && still && !h.held) {
+      h.lastDownT = 0;                       // consume — no triple-trigger
+      doublePinch(h);
+    } else {
+      h.lastDownT = now; h.lastDownX = h.x; h.lastDownY = h.y;
+    }
+  } else if (h.pinchDown && h.tpinch < 0.45) {
+    h.pinchDown = false;
+  }
+}
+// ===== fist-hold = delete: hold a fist over a card, ring fills, THEN it deletes =====
+const FIST_MS = 1600;
+function setDoom(n, on) { els.get(n?.id)?.classList.toggle('doom', on); }
+function stepFist(h, now) {
+  const fist = h.enabled && h.present > .4 && h.tExt < 0.18 && !h.held;   // all fingers curled
+  if (!fist) { if (h.fistNote) setDoom(h.fistNote, false); h.fistNote = null; return; }
+  const hx = h.rx * innerWidth, hy = h.ry * innerHeight;
+  if (h.fistNote) {
+    const n = h.fistNote;
+    if (!els.has(n.id) || Math.hypot(sX(n.x) - hx, sY(n.y) - hy) > 170) {
+      setDoom(n, false); h.fistNote = null; return;      // drifted off the card — cancel
+    }
+    if (now - h.fistT >= FIST_MS) {                      // ring complete -> delete
+      gestureFlash = { x: h.rx, y: h.ry, t: performance.now(), col: '239,68,68' };
+      removeNote(n.id); h.fistNote = null;
+    }
+  } else {
+    let n = null, bd = 140;
+    for (const c of notes) { const d = Math.hypot(sX(c.x) - hx, sY(c.y) - hy); if (d < bd) { bd = d; n = c; } }
+    if (n) { h.fistNote = n; h.fistT = now; setDoom(n, true); }
+  }
+}
+
+function doublePinch(h) {
+  gestureFlash = { x: h.rx, y: h.ry, t: performance.now() };
+  if (listening || agentListening) { stopDictation(); stopAgentListen(); return; }
+  if (h.held) { els.get(h.held.id)?.classList.remove('grab'); persist(); h.held = null; }
+  // near a note -> dictate into it; empty space -> ask the agent
+  const hx = h.rx * innerWidth, hy = h.ry * innerHeight;
+  let n = null, bd = 130;
+  for (const c of notes) { const d = Math.hypot(sX(c.x) - hx, sY(c.y) - hy); if (d < bd) { bd = d; n = c; } }
+  if (n && (!n.kind || n.kind === 'note')) {
+    startDictation(n);
+    document.activeElement?.blur?.();
+  } else if (n) {
+    // typed card under hand — treat as empty for agent ask (don't dictate into list/video)
+    startAgentListen(h);
+  } else {
+    startAgentListen(h);
+  }
+}
+// pinch grabs the nearest note and moves it
+function handGrab(h) {
+  if (h.present < .3) { if (h.held) { els.get(h.held.id)?.classList.remove('grab'); h.held = null; } return; }
+  const hx = h.rx * innerWidth, hy = h.ry * innerHeight;
+  if (h.pinch > .55 && (h.held || h.ext > 0.28)) {   // a fist can't start a grab (fingers curled)
+    if (!h.held) {
+      let best = null, bd = 130;
+      for (const n of notes) { const d = Math.hypot(sX(n.x) - hx, sY(n.y) - hy); if (d < bd) { bd = d; best = n; } }
+      if (best) { pushUndo(); h.held = best; h.off = { x: hx - sX(best.x), y: hy - sY(best.y) }; els.get(best.id)?.classList.add('grab'); }
+    } else {
+      h.held.x = wX(hx - h.off.x); h.held.y = wY(hy - h.off.y); place(h.held);
+    }
+  } else if (h.held) { els.get(h.held.id)?.classList.remove('grab'); persist(); h.held = null; }
+}
+
+// ================= clustering =================
+function clusters() {
+  const TH = 150;                         // center distance (px) to be in the same cluster
+  const parent = notes.map((_, i) => i);
+  const find = (i) => (parent[i] === i ? i : (parent[i] = find(parent[i])));
+  for (let i = 0; i < notes.length; i++) for (let j = i + 1; j < notes.length; j++) {
+    const a = notes[i], b = notes[j];
+    if (Math.hypot((a.x - b.x) * innerWidth, (a.y - b.y) * innerHeight) < TH) parent[find(i)] = find(j);
+  }
+  const groups = new Map();
+  notes.forEach((n, i) => { const r = find(i); (groups.get(r) || groups.set(r, []).get(r)).push(n); });
+  return [...groups.values()].filter(g => g.length > 1);
+}
+function drawClusters() {
+  for (const g of clusters()) {
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    for (const n of g) {
+      const el = els.get(n.id); if (!el) continue;
+      const r = el.getBoundingClientRect();
+      x0 = Math.min(x0, r.left); y0 = Math.min(y0, r.top); x1 = Math.max(x1, r.right); y1 = Math.max(y1, r.bottom);
+    }
+    const pad = dp(16);
+    ctx.beginPath();
+    ctx.roundRect(x0 * DPR - pad, y0 * DPR - pad, (x1 - x0) * DPR + pad * 2, (y1 - y0) * DPR + pad * 2, dp(18));
+    ctx.fillStyle = 'rgba(125,211,252,0.05)'; ctx.fill();
+    ctx.strokeStyle = 'rgba(125,211,252,0.35)'; ctx.lineWidth = dp(1.5); ctx.setLineDash([dp(6), dp(5)]); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(125,211,252,0.9)'; ctx.font = `700 ${dp(11)}px Lato, sans-serif`;
+    ctx.fillText(g.length + ' notes', x0 * DPR - pad + dp(4), y0 * DPR - pad - dp(6));
+  }
+}
+// auto-tidy: snap each cluster into a tight stack around its centroid,
+// spaced by each card's ACTUAL height (+ a small gap), not a fixed slot
+function tidyClusters() {
+  pushUndo();
+  const GAP = 8;   // px between stacked cards
+  for (const g of clusters()) {
+    const cx = g.reduce((s, n) => s + n.x, 0) / g.length;
+    const hts = g.map(n => els.get(n.id)?.offsetHeight || 48);
+    const total = hts.reduce((a, b) => a + b, 0) + GAP * (g.length - 1);
+    let y = g.reduce((s, n) => s + n.y, 0) / g.length - (total / 2) / innerHeight;
+    g.forEach((n, i) => {
+      n.x = cx; n.y = y + (hts[i] / 2) / innerHeight;   // note coords are centers
+      y += (hts[i] + GAP) / innerHeight;
+      place(n);
+    });
+  }
+  persist();
+}
+
+// ================= render loop =================
+let lastT = 0;
+function drawMarker(h, col) {
+  if (h.present < .06) return;
+  const gx = h.rx * W, gy = h.ry * H, rr = dp(28) * (1 + h.pinch * .2);
+  ctx.save(); ctx.globalAlpha = Math.min(1, h.present);
+  ctx.strokeStyle = col; ctx.lineWidth = dp(3); ctx.shadowColor = col; ctx.shadowBlur = dp(10);
+  ctx.beginPath(); ctx.arc(gx, gy, rr, 0, Math.PI * 2); ctx.stroke(); ctx.shadowBlur = 0;
+  if (h.pinch > .12) { ctx.globalAlpha = Math.min(1, h.present) * Math.min(1, h.pinch * 1.3);
+    ctx.fillStyle = h.pinch > .55 ? '#fff' : col; ctx.beginPath(); ctx.arc(gx, gy, dp(5 + h.pinch * 7), 0, Math.PI * 2); ctx.fill(); }
+  ctx.restore();
+}
+function draw(now) {
+  const dt = lastT ? Math.min(.05, (now - lastT) / 1000) : 0; lastT = now;
+  ctx.clearRect(0, 0, W, H);
+  drawClusters();
+  if (handsOn) {
+    for (const h of [L, R]) {
+      if (!h.enabled) continue;
+      stepHand(h, dt); stepGesture(h, now); stepFist(h, now); handGrab(h);
+    }
+    if (L.enabled) drawMarker(L, L_COL);
+    if (R.enabled) drawMarker(R, R_COL);
+    // fist-hold delete: red ring completes around the hand, card dies only at 100%
+    for (const h of [L, R]) {
+      if (!h.enabled || !h.fistNote) continue;
+      const p = Math.min(1, (now - h.fistT) / FIST_MS);
+      const gx = h.rx * W, gy = h.ry * H;
+      ctx.strokeStyle = 'rgba(239,68,68,0.35)'; ctx.lineWidth = dp(4);
+      ctx.beginPath(); ctx.arc(gx, gy, dp(34), 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = '#ef4444'; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.arc(gx, gy, dp(34), -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2); ctx.stroke();
+      ctx.lineCap = 'butt';
+    }
+  }
+  // gesture confirmation: expanding ring at the trigger point
+  if (gestureFlash) {
+    const age = (performance.now() - gestureFlash.t) / 450;
+    if (age >= 1) gestureFlash = null;
+    else {
+      ctx.strokeStyle = `rgba(${gestureFlash.col || '244,114,182'},${0.9 * (1 - age)})`;
+      ctx.lineWidth = dp(3);
+      ctx.beginPath(); ctx.arc(gestureFlash.x * W, gestureFlash.y * H, dp(20 + age * 70), 0, Math.PI * 2); ctx.stroke();
+    }
+  }
+  requestAnimationFrame(draw);
+}
+
+// ================= boot =================
+$('camBtn').onclick = () => startCam();
+$('tidyBtn').onclick = tidyClusters;
+$('undoBtn').onclick = undo;
+$('askBtn').onclick = () => {
+  if (agentListening) { finishAgentListen(); return; }
+  if (listening) stopDictation();
+  startAgentListen(null);
+};
+// mobile quick-add: new note lands at the bottom of the column, focused for typing
+$('addBtn').onclick = () => { const n = addNote(); els.get(n.id)?.scrollIntoView({ block: 'center', behavior: 'smooth' }); };
+function toggleHand(h, btn, label) {
+  h.enabled = !h.enabled;
+  if (!h.enabled) {   // clean release of anything it was doing
+    if (h.held) { els.get(h.held.id)?.classList.remove('grab'); persist(); h.held = null; }
+    if (h.fistNote) { setDoom(h.fistNote, false); h.fistNote = null; }
+    h.pinchDown = false;
+  }
+  btn.textContent = `${label} ✋ ${h.enabled ? 'on' : 'off'}`;
+  btn.style.opacity = h.enabled ? 1 : 0.45;
+}
+$('lBtn').onclick = () => toggleHand(L, $('lBtn'), 'L');
+$('rBtn').onclick = () => toggleHand(R, $('rBtn'), 'R');
+toggleHand(L, $('lBtn'), 'L');   // left hand OFF by default (click L ✋ to enable)
+$('dictBtn').onclick = () => {
+  if (listening) { stopDictation(); return; }
+  if (agentListening) { stopAgentListen(); return; }
+  dictateOn = !dictateOn; markListening(false);
+};
+let handsWired = false;
+async function startCam() {
+  try {
+    if (HubClient.embedded) {              // hand frames come from the hub's shared tracker
+      cam.srcObject = HubClient.camera(); await cam.play();
+      if (!handsWired) { HubClient.onHands(onHands); handsWired = true; }
+    } else {
+      const s = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false });
+      cam.srcObject = s; await cam.play(); initHands(cam);
+    }
+    handsOn = true; $('camBtn').textContent = 'Hands: on';
+  } catch (e) { $('camBtn').textContent = 'Hands: unavailable'; }
+}
+async function boot({ hands = true } = {}) {
+  $('start').classList.add('hide');
+  await load();
+  requestAnimationFrame(draw);
+  // hands are opt-in (so the board works even if the camera is busy elsewhere)
+  // live mini-embed skips camera — LIVE already owns it
+  if (hands && !EMBED) startCam();
+}
+function pingYoutubeIframe(iframe) {
+  if (!iframe || !iframe.contentWindow) return;
+  try {
+    iframe.contentWindow.postMessage(JSON.stringify({ event: 'listening', id: 1, channel: 'widget' }), '*');
+    iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'addEventListener', args: ['onStateChange'] }), '*');
+  } catch (e) {}
+}
+
+const ytPlayingSources = new Set();
+function notifyParentVideo() {
+  try { parent.postMessage({ type: 'hub-video', playing: ytPlayingSources.size > 0 }, location.origin); } catch (e) {}
+}
+function forgetYtIframes() {
+  const live = new Set();
+  document.querySelectorAll('iframe[data-yt]').forEach((ifr) => {
+    try { if (ifr.contentWindow) live.add(ifr.contentWindow); } catch (e) {}
+  });
+  for (const src of [...ytPlayingSources]) {
+    if (!live.has(src)) ytPlayingSources.delete(src);
+  }
+  notifyParentVideo();
+}
+function ytPlayerStatePlaying(state) { return state === 1 || state === 3; }
+function parseYtPlayerState(raw) {
+  let data = raw;
+  if (typeof data === 'string') {
+    try { data = JSON.parse(data); } catch { return null; }
+  }
+  if (!data || typeof data !== 'object') return null;
+  if (data.event === 'onStateChange' && typeof data.info === 'number') return data.info;
+  if (data.info && typeof data.info.playerState === 'number') return data.info.playerState;
+  return null;
+}
+function isYoutubeHost(origin) {
+  try {
+    const h = new URL(origin).hostname;
+    return h === 'www.youtube.com' || h === 'youtube.com' || h === 'www.youtube-nocookie.com';
+  } catch { return false; }
+}
+
+function notifyParentSpeech(on) {
+  if (!EMBED) return;
+  try { parent.postMessage({ type: 'board-speech', on: !!on }, location.origin); } catch (e) {}
+}
+function notifyParentAgent(state) {
+  if (!EMBED) return;
+  try { parent.postMessage({ type: 'board-agent', state }, location.origin); } catch (e) {}
+}
+// Parent (Live tab) can drive the board agent by voice: {type:'agent-ask', transcript}.
+// Reuses askAgent → /api/agent → web/video cards, then reports progress back up.
+addEventListener('message', (e) => {
+  if (isYoutubeHost(e.origin)) {
+    const st = parseYtPlayerState(e.data);
+    if (st == null) return;
+    const src = e.source;
+    if (ytPlayerStatePlaying(st)) ytPlayingSources.add(src);
+    else ytPlayingSources.delete(src);
+    notifyParentVideo();
+    return;
+  }
+  if (e.origin !== location.origin || !e.data || e.data.type !== 'agent-ask') return;
+  const transcript = String(e.data.transcript || '').trim();
+  if (!transcript) return;
+  notifyParentAgent('working');
+  Promise.resolve(askAgent(transcript)).finally(() => notifyParentAgent('done'));
+});
+if (EMBED || HubClient.embedded) boot({ hands: !EMBED });
+else $('go').addEventListener('click', () => boot());
+</script>
+</body>
+</html>

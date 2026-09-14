@@ -1,0 +1,1353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" href="/favicon.png" type="image/png" />
+<title>Rehearse — Mock Interview Partner</title>
+<style>
+  :root, html[data-theme="dark"] {
+    --bg: #05060a; --bg-elev: #0b0d14; --ink: #e2e8f0; --mute: #64748b; --accent: #7dd3fc;
+    --line: rgba(255,255,255,.08); --you-bg: rgba(125,211,252,.14); --you-line: rgba(125,211,252,.25);
+    --ai-bg: rgba(255,255,255,.06); --coach-bg: rgba(251,191,36,.08); --coach-line: rgba(251,191,36,.3);
+  }
+  html[data-theme="light"] {
+    --bg: #f8fafc; --bg-elev: #ffffff; --ink: #0f172a; --mute: #64748b; --accent: #0284c7;
+    --line: rgba(15,23,42,.1); --you-bg: rgba(2,132,199,.09); --you-line: rgba(2,132,199,.25);
+    --ai-bg: rgba(15,23,42,.04); --coach-bg: rgba(180,120,10,.08); --coach-line: rgba(180,120,10,.3);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
+    font-family: Lato, sans-serif; color: var(--ink); }
+  body { display: flex; flex-direction: row; }
+
+  /* ---- left stage ---- */
+  #stage { position: relative; flex: 0 0 42%; min-width: 300px; height: 100%;
+    overflow: hidden; background: var(--bg); border-right: 1px solid var(--line); }
+  #self { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+    transform: scaleX(-1); background: var(--bg); }
+  .scrim { position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(to top, rgba(5,6,10,.82) 0%, rgba(5,6,10,.25) 45%, rgba(5,6,10,.4) 100%); }
+  #status { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 5;
+    font: 700 11px Lato, sans-serif; letter-spacing: .14em; text-transform: uppercase;
+    padding: 7px 14px; border-radius: 999px; background: rgba(8,10,18,.72);
+    border: 1px solid rgba(255,255,255,.1); color: #94a3b8; backdrop-filter: blur(10px);
+    white-space: nowrap; }
+  #status.listening { color: var(--accent); border-color: rgba(125,211,252,.35); }
+  #status.thinking { color: #fbbf24; border-color: rgba(251,191,36,.35); }
+  #status.speaking { color: #34d399; border-color: rgba(52,211,153,.35); }
+  #status.coaching { color: #fbbf24; border-color: rgba(251,191,36,.5); }
+  #status.paused { color: #64748b; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #status.thinking::after { content: ''; display: inline-block; width: 9px; height: 9px;
+    margin-left: 8px; vertical-align: -1px; border: 2px solid currentColor;
+    border-right-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; }
+
+  /* ---- session bar (top of right column) ---- */
+  #sessBar { flex: 0 0 auto; display: flex; flex-direction: column; gap: 8px;
+    padding: 10px 16px 12px; background: var(--bg-elev);
+    border-bottom: 1px solid var(--line); }
+  #clocks { display: flex; gap: 16px; align-items: baseline; font-variant-numeric: tabular-nums; }
+  #sessClock { font: 800 24px/1 Lato, sans-serif; letter-spacing: .01em; }
+  #ansClockWrap { font: 600 12.5px Lato, sans-serif; color: var(--mute); }
+  #ansClock.over { color: #f87171; font-weight: 800; }
+  html[data-theme="light"] #ansClock.over { color: #dc2626; }
+  #depthRow { display: inline-flex; align-items: center; gap: 8px;
+    font: 700 10px Lato, sans-serif; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--mute); margin-left: auto; }
+  #depthDots { display: inline-flex; gap: 5px; }
+  #depthDots .dot { width: 9px; height: 9px; border-radius: 50%;
+    background: rgba(140,150,165,.25); border: 1px solid rgba(140,150,165,.35); }
+  #depthDots .dot.on { background: var(--accent); border-color: var(--accent); }
+  #metrics { display: flex; gap: 6px; flex-wrap: wrap; }
+  #metrics .m { font: 600 11px Lato, sans-serif; color: var(--mute); padding: 3px 10px;
+    border-radius: 999px; background: var(--ai-bg); border: 1px solid var(--line);
+    white-space: nowrap; font-variant-numeric: tabular-nums; }
+  #controlsRow { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  #controls { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn { display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 999px;
+    border: 1px solid var(--line); background: var(--ai-bg); color: var(--ink);
+    font: 600 13px Lato, sans-serif; cursor: pointer; white-space: nowrap; transition: .12s; }
+  .btn:hover:not(:disabled) { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); color: #05060a; border-color: transparent; }
+  html[data-theme="light"] .btn.primary { color: #fff; }
+  .btn.warn { border-color: rgba(251,191,36,.45); color: #fbbf24; background: transparent; }
+  html[data-theme="light"] .btn.warn { color: #b45309; }
+  .btn.danger { border-color: rgba(248,113,113,.45); color: #fca5a5; background: transparent; }
+  html[data-theme="light"] .btn.danger { color: #dc2626; }
+  .btn:disabled { opacity: .35; cursor: default; }
+  #hint { font: 600 12px Lato, sans-serif; color: var(--mute); }
+  #hint.retry { color: #fbbf24; cursor: pointer; text-decoration: underline; }
+  html[data-theme="light"] #hint.retry { color: #b45309; }
+
+  /* ---- right chat ---- */
+  #chatCol { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column;
+    background: var(--bg); }
+  #chatHead { flex: 0 0 auto; padding: 10px 16px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 10px; }
+  #sessLabel { font: 700 11px Lato, sans-serif; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--accent); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #newSess { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line);
+    background: transparent; color: var(--mute); font: 700 11px Lato, sans-serif; cursor: pointer; }
+  #newSess:hover { color: var(--ink); }
+  #chat { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 16px; display: flex;
+    flex-direction: column; gap: 10px; }
+  .msg { max-width: 94%; padding: 10px 14px; border-radius: 14px;
+    font: 500 14.5px/1.5 Lato, sans-serif; white-space: pre-wrap; word-break: break-word;
+    user-select: text; -webkit-user-select: text; }
+  .msg .who { display: block; font: 700 9.5px Lato, sans-serif; letter-spacing: .12em;
+    text-transform: uppercase; opacity: .55; margin-bottom: 4px; user-select: none; }
+  .msg.you { align-self: flex-end; background: var(--you-bg); border: 1px solid var(--you-line);
+    color: #e0f2fe; }
+  html[data-theme="light"] .msg.you { color: #0c4a6e; }
+  .msg.you.interim { opacity: .65; font-style: italic; }
+  .msg.ai { align-self: flex-start; background: var(--ai-bg); border: 1px solid var(--line); }
+  .msg.coach { align-self: flex-start; background: var(--coach-bg); border: 1px solid var(--coach-line); }
+  .msg .badge { display: inline-block; font: 700 9px Lato, sans-serif; letter-spacing: .1em;
+    padding: 2px 8px; border-radius: 999px; margin-left: 8px; vertical-align: 1px; }
+  .badge.cut { background: rgba(248,113,113,.18); color: #fca5a5; border: 1px solid rgba(248,113,113,.4); }
+  .badge.guard { background: rgba(251,191,36,.15); color: #fbbf24; border: 1px solid rgba(251,191,36,.4); }
+  .badge.fb { background: rgba(125,211,252,.12); color: var(--accent); border: 1px solid rgba(125,211,252,.35); }
+  .msg .stopped { opacity: .55; font-style: italic; font-size: 12px; }
+  #sendRow { flex: 0 0 auto; padding: 10px 12px 14px; border-top: 1px solid var(--line); }
+  #sendForm { display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+    background: var(--bg-elev); border: 1px solid var(--line); border-radius: 14px; }
+  #chatIn { flex: 1; min-width: 0; background: transparent; border: 0; outline: none;
+    color: var(--ink); font: 500 15px/1.3 Lato, sans-serif; padding: 6px 8px; }
+  #chatIn::placeholder { color: var(--mute); }
+
+  /* ---- paste-score overlay ---- */
+  #pasteOverlay { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center;
+    justify-content: center; background: rgba(5,6,10,.9); backdrop-filter: blur(10px); }
+  #pasteOverlay[hidden] { display: none; }
+  #pasteCard { width: min(640px, 92vw); max-height: 88vh; overflow-y: auto; display: flex;
+    flex-direction: column; gap: 10px; background: var(--bg-elev);
+    border: 1px solid var(--line); border-radius: 18px; padding: 22px; }
+  #pasteCard h1 { font-size: 19px; font-weight: 700; }
+  #pasteCard .sub { color: var(--mute); font-size: 13px; line-height: 1.5; }
+  #pasteQ, #pasteText, #pasteKind { width: 100%; background: var(--ai-bg); border: 1px solid var(--line);
+    border-radius: 12px; color: var(--ink); font: 500 14px/1.5 Lato, sans-serif;
+    padding: 10px 12px; outline: none; }
+  #pasteQ:focus, #pasteText:focus, #pasteKind:focus { border-color: var(--accent); }
+  #pasteText { resize: vertical; min-height: 140px; }
+  #pasteRow { display: flex; gap: 10px; align-items: center; }
+  .pasteOpt { display: block; width: 100%; text-align: left; margin-top: 12px; padding: 14px 16px;
+    border-radius: 14px; border: 1px dashed rgba(125,211,252,.45); background: rgba(125,211,252,.05);
+    cursor: pointer; color: var(--ink); }
+  .pasteOpt:hover { border-color: var(--accent); background: rgba(125,211,252,.1); }
+  .pasteOpt .t { font: 700 15px Lato, sans-serif; }
+  .pasteOpt .d { font-size: 13px; color: var(--mute); margin-top: 4px; line-height: 1.5; }
+
+  /* ---- session picker overlay ---- */
+  #picker { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center;
+    justify-content: center; background: rgba(5,6,10,.9); backdrop-filter: blur(10px); }
+  #picker[hidden] { display: none; }
+  #pickerCard { width: min(680px, 92vw); max-height: 88vh; overflow-y: auto;
+    background: var(--bg-elev); border: 1px solid var(--line); border-radius: 18px; padding: 26px; }
+  #pickerCard h1 { font-size: 22px; font-weight: 700; }
+  #pickerCard .sub { color: var(--mute); font-size: 13.5px; margin-top: 6px; line-height: 1.5; }
+  .sessOpt { display: block; width: 100%; text-align: left; margin-top: 12px; padding: 14px 16px;
+    border-radius: 14px; border: 1px solid var(--line); background: rgba(255,255,255,.03);
+    cursor: pointer; color: var(--ink); }
+  .sessOpt:hover { border-color: rgba(125,211,252,.4); }
+  .sessOpt.sel { border-color: var(--accent); background: rgba(125,211,252,.08); }
+  .sessOpt .t { font: 700 15px Lato, sans-serif; display: flex; gap: 10px; align-items: baseline; }
+  .sessOpt .t .mins { font: 700 11px Lato, sans-serif; color: var(--mute); }
+  .sessOpt .d { font-size: 13px; color: var(--mute); margin-top: 4px; line-height: 1.5; }
+  #pickerRow { display: flex; gap: 10px; margin-top: 18px; align-items: center; }
+  #pickerNote { font-size: 12px; color: var(--mute); }
+  @media (max-width: 760px) {
+    body { flex-direction: column; }
+    #stage { flex: 0 0 34%; border-right: 0; border-bottom: 1px solid var(--line); }
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <video id="self" autoplay playsinline muted></video>
+  <div class="scrim"></div>
+  <div id="status" class="paused">idle</div>
+</div>
+
+<div id="chatCol">
+  <div id="chatHead">
+    <span id="sessLabel">No session — pick one to start</span>
+    <button id="newSess" type="button">+ New session</button>
+  </div>
+  <div id="sessBar">
+    <div id="clocks">
+      <span id="sessClock">0:00</span>
+      <span id="ansClockWrap">answer <span id="ansClock">0s</span> <span id="ansCap"></span></span>
+      <span id="depthRow">follow-up <span id="depthDots"></span></span>
+    </div>
+    <div id="metrics"></div>
+    <div id="controlsRow">
+      <div id="controls">
+        <button class="btn primary" id="doneBtn" type="button" disabled>✓ Done</button>
+        <button class="btn danger" id="stopBtn" type="button" disabled>■ Stop</button>
+        <button class="btn warn" id="breakBtn" type="button" disabled>Break → coach</button>
+        <button class="btn" id="endBtn" type="button" disabled>End segment</button>
+        <button class="btn" id="pasteBtn" type="button">Score paste</button>
+      </div>
+      <div id="hint"></div>
+    </div>
+  </div>
+  <div id="chat"></div>
+  <div id="sendRow">
+    <form id="sendForm" autocomplete="off">
+      <input id="chatIn" type="text" placeholder="Type an answer (Enter sends — barges in anytime)…" maxlength="2000" />
+      <button class="btn primary" id="chatSend" type="submit">Send</button>
+    </form>
+  </div>
+</div>
+
+<div id="pasteOverlay" hidden>
+  <div id="pasteCard">
+    <h1>Score a written answer</h1>
+    <div class="sub">Paste an answer you wrote elsewhere. Scored against the same L7 rubric — scores, max 2 fixes, one 90-sec re-run. No session needed.</div>
+    <input id="pasteQ" type="text" placeholder="Question it answers (optional)…" maxlength="500" />
+    <select id="pasteKind">
+      <option value="auto" selected>Auto-detect question type</option>
+      <option value="vision">Product Vision</option>
+      <option value="problem">Problem Space Understanding</option>
+      <option value="behavioral">Behavioral</option>
+    </select>
+    <textarea id="pasteText" placeholder="Paste your full answer here…" rows="10"></textarea>
+    <div id="pasteRow">
+      <button class="btn primary" id="pasteScore" type="button">Score it</button>
+      <button class="btn" id="pasteCancel" type="button">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="picker">
+  <div id="pickerCard">
+    <h1>Mock Interview Partner</h1>
+    <div class="sub">Adam — Google L7 hiring-manager round. Speak your answers; type anytime to barge in. Say “break” or hit End segment for the coach debrief (scores + max 2 fixes + a 90-sec re-run).</div>
+    <button class="sessOpt sel" data-type="full" type="button">
+      <div class="t">FULL ROUND <span class="mins">~45 min</span></div>
+      <div class="d">Intros (“tell me about yourself”, “why this role”) → one deep case with 3–5 follow-ups → two-way close. Interrupt training on.</div>
+    </button>
+    <button class="sessOpt" data-type="case" type="button">
+      <div class="t">CASE DRILL <span class="mins">~15 min</span></div>
+      <div class="d">One case, spine enforced (clarify → frame → decide → measure). Interrupt training on.</div>
+    </button>
+    <button class="sessOpt" data-type="behavioral" type="button">
+      <div class="t">BEHAVIORAL REP <span class="mins">~5 min</span></div>
+      <div class="d">One story, 3-min cap. Bring numbers — “what was the number?” No interrupts, hard cap.</div>
+    </button>
+    <button class="pasteOpt" id="pickerPasteBtn" type="button">
+      <div class="t">SCORE PASTED ANSWER</div>
+      <div class="d">Already wrote an answer in a doc? Paste it here for scores + fixes. No voice session needed.</div>
+    </button>
+    <div id="pickerRow">
+      <button class="btn primary" id="startBtn" type="button">Start session</button>
+      <span id="pickerNote">Mic + camera stay local. Voice via Chrome speech.</span>
+    </div>
+  </div>
+</div>
+
+<script src="hub-client.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const self = $('self'), chat = $('chat'), statusEl = $('status'), hintEl = $('hint');
+HubClient.forwardNavKeys();
+
+const SPEECH_ID = 'rehearse-interview';
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const ECHO_COOLDOWN_MS = 800;
+const SILENCE_SUBMIT_MS = 3000;   // auto-send after this much quiet (short answers get +2s once)
+const CUTIN_AT_SECS = 45;         // scheduled mid-answer cut-in fires here…
+const CUTIN_AT_WORDS = 150;       // …or when the partial passes this length
+const GUARD_AT_SECS = 150;        // monologue guard: ~2.5 min
+const ANSWER_CAPS = { full: 180, case: 180, behavioral: 180 }; // per-answer soft cap display
+
+let phase = 'idle';           // idle | brief | interviewing | coaching
+let sessionId = null;
+let sessionType = 'full';
+let sessionNumber = 0;
+let interruptibleTurn = -1;
+let userTurnCount = 0;        // submitted answers this session
+let busy = false;             // thinking / speaking — mute STT (half-duplex)
+let turnGen = 0;
+let rec = null;
+let stream = null;
+let micStream = null;
+let aiEl = null;
+let aiTextEl = null;
+let youFinalEl = null;
+let youInterimEl = null;
+let turnAbort = null;
+let answerBuf = '';           // accumulated finals for the current answer
+let answerStartAt = 0;
+let answerTimerOn = false;
+let silenceTimer = null;
+let silenceExtended = false;
+let sessStartAt = 0;
+let clockTimer = null;
+let cutinFired = false;
+let lastCutoffPartial = '';
+let ttfFoundAt = 0;
+let speakingSecs = 0;
+let fillerTotal = 0;
+let restarts = 0;
+let interrupted = false;
+let guardFired = false;
+let answers = [];
+let kittenAudio = null;
+let kittenObjectUrl = null;
+let kittenPlayDone = null;
+let ttsVoice = null;
+let ttsVoiceReady = null;
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// ---- per-turn diagnostics (client timing + audio truth, shipped to server) ----
+let turnDiag = null;
+let pendingDiag = null;
+function diagStart(kind) {
+  turnDiag = { kind, submitAt: Date.now(), firstTokenAt: 0, doneAt: 0, ttsReq: 0, ttsOk: 0, ttsFail: 0, audioN: 0, audioMs: 0, errors: [] };
+}
+function diagAudio(ev, detail) {
+  if (!turnDiag) return;
+  const now = Date.now();
+  if (ev === 'play-start' && !turnDiag.audioStartAt) turnDiag.audioStartAt = now;
+  if (ev === 'play-end') { turnDiag.audioN++; if (turnDiag.audioStartAt) turnDiag.audioMs += now - turnDiag.audioStartAt; turnDiag.audioStartAt = 0; }
+  if (/error|fail|timeout|throw|stall/.test(ev)) turnDiag.errors.push(detail ? ev + ':' + detail : ev);
+}
+function drainDiag() { const d = pendingDiag; pendingDiag = null; return d; }
+function sealDiag() {
+  if (!turnDiag) return;
+  const d = { ...turnDiag, sealedAt: Date.now() };
+  delete d.audioStartAt;
+  pendingDiag = d;
+  const tok1 = d.firstTokenAt ? ((d.firstTokenAt - d.submitAt) / 1000).toFixed(1) : '?';
+  console.info(`[rehearse turn] kind=${d.kind} submit→tok1=${d.firstTokenAt ? d.firstTokenAt - d.submitAt : '-'}ms tok1→done=${d.firstTokenAt && d.doneAt ? d.doneAt - d.firstTokenAt : '-'}ms tts=${d.ttsOk}/${d.ttsReq}f${d.ttsFail} audio=${d.audioN}x${d.audioMs}ms` + (d.errors.length ? ' ERR:' + d.errors.join('|') : ''));
+  try { setHint(`Last turn: reply in ${tok1}s · voice ${d.audioN ? 'on' : 'OFF?'}${d.errors.length ? ' · ' + d.errors[0] : ''}`); } catch (e) {}
+  turnDiag = null;
+}
+function scrollChat() { chat.scrollTop = chat.scrollHeight; }
+function setStatus(s, label) {
+  statusEl.className = s;
+  statusEl.textContent = label || s;
+}
+function setHint(msg, retry) {
+  hintEl.textContent = msg || '';
+  hintEl.classList.toggle('retry', !!retry);
+}
+function fmtClock(ms) {
+  const s = Math.floor(ms / 1000);
+  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+}
+function escRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+// ---- chat bubbles ----
+function addMsg(role, who) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + role;
+  const w = document.createElement('span');
+  w.className = 'who';
+  w.textContent = who;
+  div.appendChild(w);
+  const t = document.createElement('span');
+  t.className = 'txt';
+  div.appendChild(t);
+  chat.appendChild(div);
+  scrollChat();
+  return { div, text: t };
+}
+function addBadge(div, cls, label) {
+  const b = document.createElement('span');
+  b.className = 'badge ' + cls;
+  b.textContent = label;
+  div.querySelector('.who').appendChild(b);
+}
+function clearInterim() {
+  if (youInterimEl) { try { youInterimEl.div.remove(); } catch (e) {} youInterimEl = null; }
+}
+
+// ---- metrics ----
+function countFillers(s) {
+  const m = String(s || '').toLowerCase().match(/\b(um|uh|like|you know|er|ah)\b/g);
+  return m ? m.length : 0;
+}
+const DECISION_RE = /\b(decid|decis|i (choose|chose|pick|recommend|propose|would (ship|build|kill|sunset|measure))|my (answer|call|recommendation|decision)|i'd measure|measure this on|the metric)\b/i;
+function renderMetrics() {
+  const el = $('metrics');
+  const perMin = speakingSecs > 5 ? (fillerTotal / (speakingSecs / 60)).toFixed(1) : '—';
+  const bits = [
+    `fillers ${fillerTotal} (${perMin}/min)`,
+    `restarts ${restarts}`,
+    `answers ${answers.length}`,
+  ];
+  if (interrupted) bits.push('cut-in ✓');
+  if (guardFired) bits.push('guard ✓');
+  el.innerHTML = '';
+  for (const b of bits) {
+    const s = document.createElement('span');
+    s.className = 'm';
+    s.textContent = b;
+    el.appendChild(s);
+  }
+}
+function renderDepth(depth) {
+  const host = $('depthDots');
+  host.innerHTML = '';
+  for (let i = 0; i < 6; i++) {
+    const d = document.createElement('span');
+    d.className = 'dot' + (i < depth ? ' on' : '');
+    host.appendChild(d);
+  }
+}
+function metricsPayload() {
+  return {
+    answers, fillerTotal, fillerPerMin: speakingSecs > 5 ? +(fillerTotal / (speakingSecs / 60)).toFixed(1) : 0,
+    speakingSecs: Math.round(speakingSecs), restarts, interrupted, guardFired,
+  };
+}
+
+// ---- TTS (OpenRouter rehearse endpoint → browser speech) ----
+function stopKittenAudio() {
+  const done = kittenPlayDone;
+  kittenPlayDone = null;
+  if (kittenAudio) { try { kittenAudio.pause(); } catch (e) {} kittenAudio = null; }
+  if (kittenObjectUrl) { try { URL.revokeObjectURL(kittenObjectUrl); } catch (e) {} kittenObjectUrl = null; }
+  if (done) done();
+}
+function stopAllTts() {
+  stopKittenAudio();
+  try { speechSynthesis.cancel(); } catch (e) {}
+}
+function pickTtsVoice() {
+  if (!window.speechSynthesis) return null;
+  const voices = speechSynthesis.getVoices() || [];
+  if (!voices.length) return null;
+  const prefer = /male|daniel|alex|fred|david|google us english male|microsoft (david|mark|guy)/i;
+  const en = voices.filter((v) => /^en([-_]|$)/i.test(v.lang || ''));
+  const pool = en.length ? en : voices;
+  return pool.find((v) => prefer.test(v.name || '')) || pool.find((v) => /^en-US/i.test(v.lang || '')) || pool[0] || null;
+}
+function ensureTtsVoice() {
+  if (ttsVoice) return Promise.resolve(ttsVoice);
+  if (ttsVoiceReady) return ttsVoiceReady;
+  ttsVoiceReady = new Promise((resolve) => {
+    let done = false;
+    const apply = () => { if (done) return; done = true; ttsVoice = pickTtsVoice(); resolve(ttsVoice); };
+    if (pickTtsVoice()) { apply(); return; }
+    if (!window.speechSynthesis) { apply(); return; }
+    const once = () => { speechSynthesis.removeEventListener('voiceschanged', once); apply(); };
+    speechSynthesis.addEventListener('voiceschanged', once);
+    setTimeout(() => { speechSynthesis.removeEventListener('voiceschanged', once); apply(); }, 800);
+  });
+  return ttsVoiceReady;
+}
+async function speakBrowser(text) {
+  if (!window.speechSynthesis || !text) return;
+  diagAudio('browser-tts-start');
+  await ensureTtsVoice();
+  await new Promise((resolve) => {
+    let done = false;
+    const fin = (how) => { if (done) return; done = true; diagAudio('browser-tts-' + how); resolve(); };
+    const u = new SpeechSynthesisUtterance(text);
+    if (ttsVoice) u.voice = ttsVoice;
+    u.pitch = 0.9; u.rate = 1.05;
+    u.onend = () => fin('end'); u.onerror = () => fin('error');
+    try { speechSynthesis.speak(u); } catch (e) { fin('throw'); return; }
+    setTimeout(() => fin('timeout'), 25000);
+  });
+}
+async function fetchRehearseBlob(text) {
+  const r = await fetch('/api/rehearse/tts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  });
+  if (!r.ok) {
+    const j = await r.json().catch(() => ({}));
+    throw new Error(j.error || `tts ${r.status}`);
+  }
+  return r.blob();
+}
+async function playBlob(blob) {
+  stopKittenAudio();
+  const url = URL.createObjectURL(blob);
+  kittenObjectUrl = url;
+  await new Promise((resolve, reject) => {
+    let settled = false;
+    const watchdog = setTimeout(() => finish(new Error('audio stall (no end/error in 30s)')), 30000);
+    const finish = (err) => {
+      if (settled) return; settled = true; kittenPlayDone = null;
+      clearTimeout(watchdog);
+      if (err) { diagAudio('play-error', String(err.message || err).slice(0, 80)); reject(err); }
+      else { diagAudio('play-end'); resolve(); }
+    };
+    const a = new Audio(url);
+    kittenAudio = a;
+    kittenPlayDone = () => finish();
+    a.onended = () => finish();
+    a.onerror = () => finish(new Error('audio playback failed'));
+    a.onplay = () => diagAudio('play-start');
+    a.play().then(() => diagAudio('play-accepted')).catch((e) => finish(e));
+  });
+}
+function nextSpokenChunk(buf, final) {
+  const slice = String(buf || '');
+  if (!slice.trim()) return null;
+  const m = slice.match(/^(\s*.*?[.!?]["')\]]*)(?:\s+|$)/);
+  if (m) {
+    const sentence = m[1].trim();
+    if (/[A-Za-z0-9]/.test(sentence)) return { sentence, consumed: m[0].length };
+    return { sentence: '', consumed: m[0].length };
+  }
+  if (final) return { sentence: slice.trim(), consumed: slice.length };
+  return null;
+}
+/** Mirror of the server's one-question rule so we never speak a truncated question. */
+function trunc2q(t) {
+  let count = 0;
+  for (let i = 0; i < t.length; i++) {
+    if (t[i] === '?') { count++; if (count >= 2) return t.slice(0, i + 1); }
+  }
+  return t;
+}
+function createSpeakQueue(gen, { singleQuestion } = {}) {
+  let queuedText = '';
+  let playChain = Promise.resolve();
+  let speaking = false;
+  function markSpeaking() {
+    if (speaking || gen !== turnGen) return;
+    speaking = true;
+    pauseRec('tts');
+    setStatus('speaking');
+    updateButtons();
+  }
+  function enqueue(sentence) {
+    const t = String(sentence || '').trim();
+    if (!t || gen !== turnGen) return;
+    if (turnDiag) turnDiag.ttsReq++;
+    const blobP = fetchRehearseBlob(t).then((b) => { if (turnDiag) turnDiag.ttsOk++; return b; }).catch((e) => { if (turnDiag) { turnDiag.ttsFail++; turnDiag.errors.push('tts-fetch:' + String((e && e.message) || e).slice(0, 80)); } return null; });
+    playChain = playChain.then(async () => {
+      if (gen !== turnGen) return;
+      const blob = await blobP;
+      if (gen !== turnGen) return;
+      markSpeaking();
+      if (blob) { try { await playBlob(blob); return; } catch (e) {} }
+      await speakBrowser(t);
+    }).catch(() => {});
+  }
+  function feed(full, final) {
+    let src = String(full || '');
+    if (singleQuestion) src = trunc2q(src);
+    if (queuedText && !src.startsWith(queuedText)) {
+      const q = queuedText.replace(/\s+$/, '');
+      if (!src.startsWith(q)) return;
+      queuedText = q;
+    }
+    let i = queuedText.length;
+    while (i < src.length) {
+      const got = nextSpokenChunk(src.slice(i), final);
+      if (!got) break;
+      i += got.consumed;
+      queuedText = src.slice(0, i);
+      if (got.sentence) enqueue(got.sentence);
+    }
+  }
+  async function wait() {
+    await playChain;
+    if (gen === turnGen) stopKittenAudio();
+  }
+  return { feed, wait };
+}
+
+// ---- mic / STT (half-duplex: never listen while thinking or speaking) ----
+function pauseRec(reason) {
+  if (rec) {
+    try { rec.onend = null; rec.onerror = null; rec.onresult = null; rec.stop(); } catch (e) {}
+    rec = null;
+  }
+}
+function stopVoice() {
+  HubClient.releaseSpeech(SPEECH_ID);
+  pauseRec();
+}
+async function ensureMic() {
+  if (micStream && micStream.active) return true;
+  if (HubClient.embedded) {
+    const m = HubClient.mic();
+    if (m && m.active) { micStream = m; return true; }
+    if (HubClient.micError()) { setHint('hub mic unavailable: ' + HubClient.micError()); return false; }
+  }
+  if (stream && stream.active && stream.getAudioTracks().length) { micStream = stream; return true; }
+  try { micStream = await navigator.mediaDevices.getUserMedia({ audio: true }); return true; }
+  catch (e) { setHint('mic unavailable: ' + (e.name || e)); return false; }
+}
+function markAnswerActivity() {
+  if (!answerTimerOn) {
+    answerTimerOn = true;
+    answerStartAt = Date.now();
+    ttfFoundAt = 0;
+  }
+  if (!ttfFoundAt && DECISION_RE.test(answerBuf)) ttfFoundAt = Date.now();
+  clearTimeout(silenceTimer);
+  silenceExtended = false;
+  silenceTimer = setTimeout(onSilence, SILENCE_SUBMIT_MS);
+  maybeCutinOrGuard();
+  updateButtons();
+  if (!hintEl.classList.contains('retry')) setHint('Listening — hit ✓ Done when finished (auto-sends after a short pause).');
+}
+
+// Short answers get one grace extension so a thinking pause doesn't submit early.
+function onSilence() {
+  const words = answerBuf.trim().split(/\s+/).filter(Boolean).length;
+  if (words > 0 && words < 8 && !silenceExtended) {
+    silenceExtended = true;
+    silenceTimer = setTimeout(() => submitAnswer(false), 2000);
+    return;
+  }
+  submitAnswer(false);
+}
+function answerSecs() {
+  return answerTimerOn ? (Date.now() - answerStartAt) / 1000 : 0;
+}
+function onSpeech(e) {
+  let finals = '', interim = '';
+  for (let i = e.resultIndex; i < e.results.length; i++) {
+    const r = e.results[i];
+    if (r.isFinal) finals += r[0].transcript + ' ';
+    else interim += r[0].transcript + ' ';
+  }
+  if (busy) return; // half-duplex guard — never hear our own TTS
+  if (phase !== 'interviewing') return;
+  const finalText = finals.trim();
+  if (interim.trim()) {
+    if (!youInterimEl) youInterimEl = addMsg('you interim', 'you · speaking');
+    youInterimEl.div.querySelector('.txt').textContent = interim.trim();
+    scrollChat();
+    markAnswerActivity();
+  }
+  if (!finalText) return;
+  answerBuf = (answerBuf + ' ' + finalText).trim();
+  if (!youFinalEl) youFinalEl = addMsg('you', 'you');
+  youFinalEl.div.querySelector('.txt').textContent = answerBuf;
+  clearInterim();
+  scrollChat();
+  markAnswerActivity();
+}
+async function startVoice() {
+  if (phase !== 'interviewing') return;
+  if (busy) return;
+  if (!SR) { setHint('no speech recognition — use Chrome (typed answers still work)'); return; }
+  if (HubClient.isElectron()) { setHint(HubClient.speechHint() + ' — typed answers still work'); return; }
+  if (HubClient.embedded && !HubClient.isActive()) return;
+  if (document.visibilityState === 'hidden') return;
+  if (rec) return;
+  if (!await ensureMic()) return;
+  if (busy || phase !== 'interviewing') return;
+  if (HubClient.embedded && !HubClient.isActive()) return;
+  HubClient.claimSpeech(SPEECH_ID, () => { stopVoice(); });
+  rec = new SR();
+  rec.continuous = true;
+  rec.interimResults = true;
+  rec.lang = 'en-US';
+  rec.onresult = onSpeech;
+  rec.onerror = (e) => {
+    if (e.error === 'no-speech' || e.error === 'aborted') return;
+    if (e.error === 'network') { setHint(HubClient.speechHint() + ' · click to retry', !HubClient.isElectron()); stopVoice(); return; }
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { setHint('mic blocked — check permission'); stopVoice(); return; }
+    setHint('speech error: ' + e.error, true);
+  };
+  rec.onend = () => {
+    if (!rec || phase !== 'interviewing') return;
+    if (document.visibilityState === 'hidden') return;
+    if (HubClient.embedded && !HubClient.isActive()) return;
+    if (busy) return;
+    try { rec.start(); } catch (e) {}
+  };
+  try { rec.start(); } catch (e) {}
+  if (!busy) setStatus('listening');
+  updateButtons();
+}
+
+// ---- scheduled cut-in + monologue guard (client timers, server lines) ----
+function maybeCutinOrGuard() {
+  if (phase !== 'interviewing' || busy) return;
+  const secs = answerSecs();
+  const words = answerBuf.split(/\s+/).filter(Boolean).length;
+  // Scheduled cut-in: once per FULL/CASE session, on the interruptible turn.
+  if (!cutinFired && userTurnCount + 1 === interruptibleTurn && interruptibleTurn > 0 &&
+      (secs >= CUTIN_AT_SECS || words >= CUTIN_AT_WORDS)) {
+    cutinFired = true;
+    lastCutoffPartial = answerBuf;
+    submitAnswer(true);
+    return;
+  }
+  // Monologue guard: long answer with no decision/metric/user-visible content.
+  const partial = answerBuf;
+  const hasSignal = DECISION_RE.test(partial) ||
+    /\b(user sees|users see|screen|button|notification|email|metric|measure|percent|%\b|number|dashboard)\b/i.test(partial);
+  if (!guardFired && secs >= GUARD_AT_SECS && !hasSignal && words > 40) {
+    guardFired = true;
+    lastCutoffPartial = partial;
+    sendGuard(partial);
+  }
+}
+
+// ---- SSE ----
+async function ssePost(body, handlers) {
+  if (turnAbort) { try { turnAbort.abort(); } catch (e) {} }
+  turnAbort = new AbortController();
+  const ac = turnAbort;
+  const reqInit = {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: ac.signal,
+  };
+  let r;
+  try {
+    r = await fetch('/api/rehearse', reqInit);
+  } catch (e) {
+    // Server restarting under us (connection refused before any response):
+    // one retry. Safe — a refused connection means the turn never ran.
+    if (!e || e.name === 'AbortError') throw e;
+    console.warn('[rehearse] fetch failed, retrying once in 1.5s:', (e && e.message) || e);
+    await sleep(1500);
+    r = await fetch('/api/rehearse', reqInit);
+  }
+  if (!r.ok || !r.body) {
+    const t = await r.text().catch(() => '');
+    throw new Error(t || ('HTTP ' + r.status));
+  }
+  const reader = r.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = '';
+  // Watchdog + progress ticker: long-reasoning turns can sit silent 10s+ before
+  // the first token. Show elapsed time; abort loudly at 45s instead of hanging.
+  let gotToken = false;
+  let watchdogFired = false;
+  const t0sse = Date.now();
+  const tick = setInterval(() => {
+    if (gotToken || turnAbort !== ac) { clearInterval(tick); return; }
+    const s = Math.round((Date.now() - t0sse) / 1000);
+    if (!hintEl.classList.contains('retry')) setHint(`Waiting for model… ${s}s (long answers think longer)`);
+    if (Date.now() - t0sse > 45000) {
+      clearInterval(tick);
+      watchdogFired = true;
+      try { ac.abort(); } catch (e) {}
+    }
+  }, 1000);
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const chunks = buf.split('\n\n');
+      buf = chunks.pop() || '';
+      for (const chunk of chunks) {
+        const line = chunk.split('\n').find((l) => l.startsWith('data:'));
+        if (!line) continue;
+        const payload = line.slice(5).trim();
+        if (!payload || payload === ': ok') continue;
+        let ev;
+        try { ev = JSON.parse(payload); } catch { continue; }
+        if (ev.type === 'token' || ev.type === 'done' || ev.type === 'error') {
+          gotToken = true;
+          clearInterval(tick);
+          if (!hintEl.classList.contains('retry')) setHint('');
+        }
+        if (ev.type === 'token' && handlers.onToken) handlers.onToken(ev.text);
+        else if (ev.type === 'meta' && handlers.onMeta) handlers.onMeta(ev);
+        else if (ev.type === 'fallback' && handlers.onFallback) handlers.onFallback(ev);
+        else if (ev.type === 'done') { clearInterval(tick); if (handlers.onDone) handlers.onDone(ev); return; }
+        else if (ev.type === 'error') { clearInterval(tick); throw new Error(ev.message || 'rehearse error'); }
+      }
+    }
+  } catch (e) {
+    clearInterval(tick);
+    if (e && e.name === 'AbortError' && watchdogFired) throw new Error('Model timed out after 45s — hit Score again (shorter answers return faster).');
+    throw e;
+  }
+  clearInterval(tick);
+}
+
+// ---- turns ----
+function resetAnswerState() {
+  answerBuf = '';
+  silenceExtended = false;
+  answerTimerOn = false;
+  answerStartAt = 0;
+  ttfFoundAt = 0;
+  youFinalEl = null;
+  clearInterim();
+  clearTimeout(silenceTimer);
+}
+function finalizeAnswerMetrics(cutin) {
+  const secs = Math.round(answerSecs() * 10) / 10;
+  const dur = answerTimerOn ? secs : 0;
+  speakingSecs += dur;
+  fillerTotal += countFillers(answerBuf);
+  answers.push({
+    secs: dur,
+    ttfDecisionSecs: ttfFoundAt ? Math.round((ttfFoundAt - answerStartAt) / 100) / 10 : null,
+    cutin: !!cutin,
+  });
+  renderMetrics();
+}
+function detectRestart(submitted) {
+  if (!lastCutoffPartial) return;
+  const a = lastCutoffPartial.toLowerCase().split(/\s+/).slice(0, 10).join(' ');
+  const b = String(submitted || '').toLowerCase().split(/\s+/).slice(0, 10).join(' ');
+  if (a.length > 20 && b.startsWith(a.slice(0, Math.min(a.length, 30)))) restarts++;
+  lastCutoffPartial = '';
+  renderMetrics();
+}
+
+async function startSession(type) {
+  if (phase === 'brief' || busy) return;
+  $('picker').hidden = true;
+  sessionType = type;
+  phase = 'brief';
+  busy = true;
+  const gen = ++turnGen;
+  // reset session state
+  chat.innerHTML = '';
+  sessionId = null; userTurnCount = 0; cutinFired = false; lastCutoffPartial = '';
+  speakingSecs = 0; fillerTotal = 0; restarts = 0; interrupted = false; guardFired = false;
+  answers = []; resetAnswerState();
+  renderMetrics(); renderDepth(0);
+  sessStartAt = Date.now();
+  startClocks();
+  $('ansCap').textContent = `· cap ~${ANSWER_CAPS[type] || 180}s`;
+  stopAllTts();
+  pauseRec('session start');
+  setStatus('thinking');
+  updateButtons();
+  const label = { full: 'FULL ROUND', case: 'CASE DRILL', behavioral: 'BEHAVIORAL REP' }[type] || type;
+  $('sessLabel').textContent = label + ' · connecting…';
+  const bubble = addMsg('ai', 'adam');
+  diagStart('start');
+  aiEl = bubble;
+  let full = '';
+  const tts = createSpeakQueue(gen, { singleQuestion: true });
+  try {
+    await ssePost({ action: 'start', sessionType: type, diag: drainDiag() }, {
+      onMeta: (ev) => {
+        sessionId = ev.sessionId;
+        sessionNumber = ev.sessionNumber || 0;
+        interruptibleTurn = ev.interruptibleTurn != null ? ev.interruptibleTurn : -1;
+        $('sessLabel').textContent = `${label} · session ${sessionNumber}${ev.stressor ? ' · ' + ev.stressor : ''}`;
+      },
+      onToken: (t) => {
+        if (gen !== turnGen) return;
+        full += t;
+        if (turnDiag && !turnDiag.firstTokenAt) turnDiag.firstTokenAt = Date.now();
+        bubble.text.textContent = trunc2q(full);
+        scrollChat();
+        tts.feed(full, false);
+      },
+      onFallback: (ev) => addBadge(bubble.div, 'fb', 'MODEL FALLBACK'),
+      onDone: (ev) => {
+        full = ev.text || full;
+        if (turnDiag && !turnDiag.doneAt) turnDiag.doneAt = Date.now();
+        bubble.text.textContent = full;
+        scrollChat();
+        tts.feed(full, true);
+      },
+    });
+    if (gen !== turnGen) return;
+    if (full.trim()) {
+      await tts.wait();
+      if (gen !== turnGen) return;
+      await sleep(ECHO_COOLDOWN_MS);
+    }
+  } catch (e) {
+    if (gen !== turnGen || (e && e.name === 'AbortError')) return;
+    bubble.text.textContent = 'error: ' + (e.message || e);
+    setHint(String(e.message || e));
+    phase = 'idle';
+    busy = false;
+    updateButtons();
+    return;
+  }
+  if (gen !== turnGen) return;
+  busy = false;
+  aiEl = null;
+  phase = 'interviewing';
+  setStatus('listening');
+  updateButtons();
+  startVoice();
+  sealDiag();
+}
+
+async function submitAnswer(cutin) {
+  if (phase !== 'interviewing' || !sessionId) return;
+  const text = answerBuf.trim();
+  clearTimeout(silenceTimer);
+  if (!text) { resetAnswerState(); return; }
+  setHint('');
+  if (cutin) interrupted = true;
+  else detectRestart(text);
+  finalizeAnswerMetrics(cutin);
+  if (youFinalEl) {
+    if (cutin) addBadge(youFinalEl.div, 'cut', 'CUT OFF');
+    youFinalEl = null;
+  }
+  clearInterim();
+  const submitted = text;
+  answerBuf = '';
+  answerTimerOn = false;
+
+  if (turnAbort) { try { turnAbort.abort(); } catch (e) {} }
+  const gen = ++turnGen;
+  busy = true;
+  userTurnCount++;
+  pauseRec('turn start');
+  setStatus('thinking');
+  updateButtons();
+  stopAllTts();
+  const bubble = addMsg('ai', cutin ? 'adam · cut-in' : 'adam');
+  diagStart(cutin ? 'cutin' : 'answer');
+  aiEl = bubble;
+  let full = '';
+  const tts = createSpeakQueue(gen, { singleQuestion: true });
+  try {
+    await ssePost({ action: 'answer', sessionId, text: submitted, cutin: !!cutin, metrics: metricsPayload(), diag: drainDiag() }, {
+      onMeta: (ev) => {
+        if (ev.depth != null) renderDepth(ev.depth);
+        if (ev.interrupt) addBadge(bubble.div, 'cut', 'INTERRUPTED');
+      },
+      onToken: (t) => {
+        if (gen !== turnGen) return;
+        full += t;
+        if (turnDiag && !turnDiag.firstTokenAt) turnDiag.firstTokenAt = Date.now();
+        bubble.text.textContent = trunc2q(full);
+        scrollChat();
+        tts.feed(full, false);
+      },
+      onFallback: () => addBadge(bubble.div, 'fb', 'MODEL FALLBACK'),
+      onDone: (ev) => {
+        full = ev.text || full;
+        if (turnDiag && !turnDiag.doneAt) turnDiag.doneAt = Date.now();
+        bubble.text.textContent = full;
+        scrollChat();
+        tts.feed(full, true);
+        if (ev.depth != null) renderDepth(ev.depth);
+      },
+    });
+    if (gen !== turnGen) return;
+    if (full.trim()) {
+      await tts.wait();
+      if (gen !== turnGen) return;
+      await sleep(ECHO_COOLDOWN_MS);
+    }
+  } catch (e) {
+    if (gen !== turnGen || (e && e.name === 'AbortError')) return;
+    bubble.text.textContent = 'error: ' + (e.message || e);
+    setHint(String(e.message || e));
+  }
+  if (gen !== turnGen) return;
+  busy = false;
+  aiEl = null;
+  resetAnswerState();
+  setStatus('listening');
+  updateButtons();
+  startVoice();
+  sealDiag();
+}
+
+async function sendGuard(partial) {
+  if (phase !== 'interviewing' || !sessionId || busy) return;
+  guardFired = true;
+  renderMetrics();
+  finalizeAnswerMetrics(false);
+  if (youFinalEl) { addBadge(youFinalEl.div, 'guard', 'GUARD'); youFinalEl = null; }
+  clearInterim();
+  answerBuf = '';
+  answerTimerOn = false;
+  clearTimeout(silenceTimer);
+  if (turnAbort) { try { turnAbort.abort(); } catch (e) {} }
+  const gen = ++turnGen;
+  busy = true;
+  userTurnCount++;
+  pauseRec('guard');
+  setStatus('thinking');
+  updateButtons();
+  stopAllTts();
+  const bubble = addMsg('ai', 'adam · guard');
+  diagStart('guard');
+  aiEl = bubble;
+  let full = '';
+  const tts = createSpeakQueue(gen, { singleQuestion: true });
+  try {
+    await ssePost({ action: 'guard', sessionId, text: partial, metrics: metricsPayload(), diag: drainDiag() }, {
+      onMeta: () => addBadge(bubble.div, 'guard', 'GUARD'),
+      onToken: (t) => {
+        if (gen !== turnGen) return;
+        full += t;
+        if (turnDiag && !turnDiag.firstTokenAt) turnDiag.firstTokenAt = Date.now();
+        bubble.text.textContent = trunc2q(full);
+        scrollChat();
+        tts.feed(full, false);
+      },
+      onFallback: () => addBadge(bubble.div, 'fb', 'MODEL FALLBACK'),
+      onDone: (ev) => {
+        full = ev.text || full;
+        if (turnDiag && !turnDiag.doneAt) turnDiag.doneAt = Date.now();
+        bubble.text.textContent = full;
+        scrollChat();
+        tts.feed(full, true);
+      },
+    });
+    if (gen !== turnGen) return;
+    if (full.trim()) {
+      await tts.wait();
+      if (gen !== turnGen) return;
+      await sleep(ECHO_COOLDOWN_MS);
+    }
+  } catch (e) {
+    if (gen !== turnGen || (e && e.name === 'AbortError')) return;
+    bubble.text.textContent = 'error: ' + (e.message || e);
+  }
+  if (gen !== turnGen) return;
+  busy = false;
+  aiEl = null;
+  resetAnswerState();
+  setStatus('listening');
+  updateButtons();
+  startVoice();
+  sealDiag();
+}
+
+async function scorePaste() {
+  const text = String($('pasteText').value || '').trim();
+  const question = String($('pasteQ').value || '').trim();
+  const kind = String(($('pasteKind') && $('pasteKind').value) || 'auto');
+  if (!text) { $('pasteText').focus(); return; }
+  if (busy) { setHint('Still working — hit ■ Stop, then Score again.'); return; }
+  $('pasteOverlay').hidden = true;
+  const gen = ++turnGen;
+  busy = true;
+  clearTimeout(silenceTimer);
+  pauseRec('paste score');
+  setStatus('thinking');
+  updateButtons();
+  stopAllTts();
+  const youBubble = addMsg('you', 'you · pasted' + ({ vision: ' (vision)', problem: ' (problem-space)', behavioral: ' (behavioral)' }[kind] || ''));
+  youBubble.text.textContent = text;
+  const bubble = addMsg('coach', 'coach · score');
+  diagStart('paste');
+  let full = '';
+  try {
+    await ssePost({ action: 'score', text, question, kind, diag: drainDiag() }, {
+      onToken: (t) => {
+        if (gen !== turnGen) return;
+        full += t;
+        if (turnDiag && !turnDiag.firstTokenAt) turnDiag.firstTokenAt = Date.now();
+        bubble.text.textContent = full;
+        scrollChat();
+      },
+      onFallback: () => addBadge(bubble.div, 'fb', 'MODEL FALLBACK'),
+      onDone: (ev) => {
+        full = ev.text || full;
+        if (turnDiag && !turnDiag.doneAt) turnDiag.doneAt = Date.now();
+        bubble.text.textContent = full;
+        scrollChat();
+      },
+    });
+  } catch (e) {
+    if (gen !== turnGen || (e && e.name === 'AbortError')) return;
+    bubble.text.textContent = 'error: ' + (e.message || e);
+    setHint(String(e.message || e));
+  }
+  if (gen !== turnGen) return;
+  sealDiag();
+  busy = false;
+  updateButtons();
+  if (phase === 'interviewing') { setStatus('listening'); startVoice(); }
+  else setStatus('paused');
+}
+
+async function endSegment(kind) {
+  if (!sessionId || (phase !== 'interviewing' && phase !== 'brief')) return;
+  // Safety net: never strand a spoken-but-unsubmitted answer. Submit it as a
+  // real turn first so the debrief scores it instead of reporting silence.
+  if (answerBuf.trim() && phase === 'interviewing' && !busy && sessionId) {
+    setHint('Sending your answer first…');
+    await submitAnswer(false);
+    if (!sessionId || phase !== 'interviewing') return;
+  }
+  if (busy && kind !== 'force') { /* Stop first, then end — but allow typed barge path */ }
+  // Barge any in-flight turn, then debrief.
+  if (turnAbort) { try { turnAbort.abort(); } catch (e) {} }
+  const gen = ++turnGen;
+  busy = true;
+  clearTimeout(silenceTimer);
+  pauseRec('debrief');
+  setStatus('coaching');
+  updateButtons();
+  stopAllTts();
+  phase = 'coaching';
+  // Flush any unsubmitted spoken answer into the transcript first.
+  const leftover = answerBuf.trim();
+  answerBuf = '';
+  answerTimerOn = false;
+  if (leftover) {
+    speakingSecs += 0;
+    fillerTotal += countFillers(leftover);
+    if (!youFinalEl) youFinalEl = addMsg('you', 'you');
+    youFinalEl.div.querySelector('.txt').textContent = leftover;
+    youFinalEl = null;
+  }
+  clearInterim();
+  renderMetrics();
+  const bubble = addMsg('coach', 'coach · debrief');
+  aiEl = bubble;
+  let full = '';
+  const tts = createSpeakQueue(gen, { singleQuestion: false });
+  $('sessLabel').textContent += ' · debrief';
+  try {
+    await ssePost({ action: kind === 'break' ? 'break' : 'end', sessionId, metrics: metricsPayload(), diag: drainDiag() }, {
+      onToken: (t) => {
+        if (gen !== turnGen) return;
+        full += t;
+        if (turnDiag && !turnDiag.firstTokenAt) turnDiag.firstTokenAt = Date.now();
+        bubble.text.textContent = full;
+        scrollChat();
+        tts.feed(full, false);
+      },
+      onFallback: () => addBadge(bubble.div, 'fb', 'MODEL FALLBACK'),
+      onDone: (ev) => {
+        full = ev.text || full;
+        if (turnDiag && !turnDiag.doneAt) turnDiag.doneAt = Date.now();
+        bubble.text.textContent = full;
+        scrollChat();
+        tts.feed(full, true);
+      },
+    });
+    if (gen !== turnGen) return;
+    if (full.trim()) {
+      await tts.wait();
+      if (gen !== turnGen) return;
+      await sleep(ECHO_COOLDOWN_MS);
+    }
+  } catch (e) {
+    if (gen !== turnGen || (e && e.name === 'AbortError')) return;
+    bubble.text.textContent = 'error: ' + (e.message || e);
+  }
+  if (gen !== turnGen) return;
+  busy = false;
+  aiEl = null;
+  setStatus('paused', 'done');
+  setHint('Debrief complete — start a new session to run it back.');
+  updateButtons();
+  try { await fetch('/api/rehearse?sessionId=' + encodeURIComponent(sessionId), { method: 'DELETE' }); } catch (e) {}
+}
+
+/** Stop: halt AI speech + streaming. The question stands — STT resumes. */
+function stopTurn() {
+  if (turnAbort) { try { turnAbort.abort(); } catch (e) {} }
+  turnAbort = null;
+  turnGen++;
+  stopAllTts();
+  if (aiEl) {
+    const s = document.createElement('span');
+    s.className = 'stopped';
+    s.textContent = ' (stopped)';
+    aiEl.div.appendChild(s);
+    aiEl = null;
+  }
+  if (phase === 'coaching') {
+    busy = false;
+    setStatus('paused', 'done');
+  } else if (phase === 'interviewing') {
+    busy = false;
+    // Never wipe a pending spoken answer here — Stop halts AI output only.
+    // Unsubmitted speech stays until ✓ Done, 7s silence, or end-of-segment flush.
+    setStatus('listening');
+    startVoice();
+  } else {
+    busy = false;
+    setStatus('paused');
+  }
+  updateButtons();
+}
+
+function updateButtons() {
+  const inSession = phase === 'interviewing' || phase === 'brief' || phase === 'coaching';
+  $('stopBtn').disabled = !(busy && inSession);
+  $('breakBtn').disabled = !(sessionId && phase === 'interviewing' && !busy);
+  $('endBtn').disabled = !(sessionId && (phase === 'interviewing' || phase === 'coaching') && !busy);
+  $('doneBtn').disabled = !(sessionId && phase === 'interviewing' && !busy && answerBuf.trim().length > 0);
+  $('pasteBtn').disabled = busy;
+}
+
+// ---- clocks ----
+function startClocks() {
+  stopClocks();
+  clockTimer = setInterval(() => {
+    if (sessStartAt) $('sessClock').textContent = fmtClock(Date.now() - sessStartAt);
+    const a = $('ansClock');
+    if (answerTimerOn) {
+      const s = answerSecs();
+      a.textContent = Math.floor(s) + 's';
+      const cap = ANSWER_CAPS[sessionType] || 180;
+      a.classList.toggle('over', s > cap);
+    } else {
+      a.textContent = '0s';
+      a.classList.remove('over');
+    }
+    // Cut-in/guard must also fire during long silent stretches (no interim events).
+    if (phase === 'interviewing' && !busy && answerTimerOn) maybeCutinOrGuard();
+  }, 500);
+}
+function stopClocks() {
+  if (clockTimer) { clearInterval(clockTimer); clockTimer = null; }
+}
+
+// ---- camera ----
+async function initCam() {
+  const hubCam = HubClient.embedded && HubClient.camera();
+  const hubMic = HubClient.embedded && HubClient.mic();
+  if (hubCam && hubCam.active) {
+    stream = new MediaStream([
+      ...hubCam.getVideoTracks(),
+      ...(hubMic && hubMic.active ? hubMic.getAudioTracks() : []),
+    ]);
+  } else {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { width: 1280, height: 720, facingMode: 'user' },
+      audio: true,
+    });
+  }
+  self.srcObject = stream;
+  await self.play();
+}
+
+// ---- wiring ----
+let pickedType = 'full';
+document.querySelectorAll('.sessOpt').forEach((b) => {
+  b.onclick = () => {
+    pickedType = b.dataset.type;
+    document.querySelectorAll('.sessOpt').forEach((x) => x.classList.toggle('sel', x === b));
+  };
+});
+$('startBtn').onclick = () => startSession(pickedType);
+$('pickerPasteBtn').onclick = () => { $('picker').hidden = true; $('pasteOverlay').hidden = false; };
+$('newSess').onclick = () => {
+  stopTurn();
+  if (sessionId) fetch('/api/rehearse?sessionId=' + encodeURIComponent(sessionId), { method: 'DELETE' }).catch(() => {});
+  sessionId = null;
+  phase = 'idle';
+  busy = false;
+  turnGen++;
+  stopClocks();
+  sessStartAt = 0;
+  $('sessClock').textContent = '0:00';
+  $('sessLabel').textContent = 'No session — pick one to start';
+  setStatus('paused', 'idle');
+  setHint('');
+  updateButtons();
+  $('picker').hidden = false;
+};
+$('doneBtn').onclick = () => submitAnswer(false);
+$('pasteBtn').onclick = () => { if (!busy) $('pasteOverlay').hidden = false; };
+$('pasteCancel').onclick = () => { $('pasteOverlay').hidden = true; if (!sessionId) $('picker').hidden = false; };
+$('pasteScore').onclick = () => scorePaste();
+$('stopBtn').onclick = stopTurn;
+$('breakBtn').onclick = () => endSegment('break');
+$('endBtn').onclick = () => endSegment('end');
+$('sendForm').onsubmit = (e) => {
+  e.preventDefault();
+  const inp = $('chatIn');
+  const text = String(inp.value || '').trim();
+  if (!text) return;
+  inp.value = '';
+  if (phase !== 'interviewing' || !sessionId) { setHint('Start a session first.'); return; }
+  // Typed input always barges — even mid-AI-turn.
+  if (busy) {
+    if (turnAbort) { try { turnAbort.abort(); } catch (err) {} }
+    turnAbort = null;
+    turnGen++;
+    stopAllTts();
+    if (aiEl) { aiEl = null; }
+    busy = false;
+  }
+  clearTimeout(silenceTimer);
+  if (!answerTimerOn) { answerTimerOn = true; answerStartAt = Date.now(); }
+  answerBuf = (answerBuf + ' ' + text).trim();
+  if (!youFinalEl) youFinalEl = addMsg('you', 'you');
+  youFinalEl.div.querySelector('.txt').textContent = answerBuf;
+  clearInterim();
+  scrollChat();
+  // "break" typed → coach, immediately.
+  if (/^\s*break\b/i.test(answerBuf)) {
+    answerBuf = '';
+    endSegment('break');
+    return;
+  }
+  submitAnswer(false);
+};
+$('chatIn').addEventListener('keydown', (e) => e.stopPropagation());
+$('hint').onclick = () => {
+  if (!hintEl.classList.contains('retry')) return;
+  setHint('');
+  startVoice();
+};
+
+addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if (!$('picker').hidden) return;
+    if (busy) { e.preventDefault(); stopTurn(); }
+    return;
+  }
+  if (e.key === '/' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    const el = document.activeElement;
+    if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+    if ($('picker').hidden) { e.preventDefault(); $('chatIn').focus(); }
+  }
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    if (turnAbort) { try { turnAbort.abort(); } catch (e) {} }
+    turnAbort = null;
+    turnGen++;
+    pauseRec('tab hidden');
+    HubClient.releaseSpeech(SPEECH_ID);
+    stopAllTts();
+    busy = false;
+    if (phase === 'interviewing') setStatus('paused');
+    updateButtons();
+  } else if (phase === 'interviewing' && !busy && (!HubClient.embedded || HubClient.isActive())) {
+    startVoice();
+  }
+});
+
+HubClient.onActive((on) => {
+  if (!on) {
+    if (turnAbort) { try { turnAbort.abort(); } catch (e) {} }
+    turnAbort = null;
+    turnGen++;
+    pauseRec('hub inactive');
+    HubClient.releaseSpeech(SPEECH_ID);
+    stopAllTts();
+    busy = false;
+    clearTimeout(silenceTimer);
+    if (phase === 'interviewing') setStatus('paused');
+    updateButtons();
+  } else if (phase === 'interviewing' && !busy) {
+    startVoice();
+  }
+});
+
+(async () => {
+  ensureTtsVoice();
+  renderMetrics();
+  renderDepth(0);
+  updateButtons();
+  try { await initCam(); }
+  catch (err) { setHint('Camera/mic needed: ' + err.message); }
+})();
+</script>
+</body>
+</html>
