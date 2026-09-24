@@ -2,6 +2,7 @@ import os
 import logging
 import json
 import re
+from pathlib import Path
 from openai import OpenAI
 from dotenv import load_dotenv
 from typing import Dict, Any, Optional, Type, TypeVar
@@ -10,8 +11,13 @@ import time
 
 T = TypeVar("T", bound=BaseModel)
 
-# Load environment variables
-load_dotenv()
+def _load_env() -> None:
+    """Project .env wins over a stale exported shell key."""
+    here = Path(__file__).resolve().parent
+    load_dotenv(here / ".env")
+    load_dotenv(here.parent / ".env", override=True)
+
+_load_env()
 
 logger = logging.getLogger(__name__)
 

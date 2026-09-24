@@ -188,6 +188,24 @@ class UiEvent(Base):
     ts = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
 
 
+class MemEvent(Base):
+    """Append-only memory timeline for Valinor loop deck runs.
+
+    One row per loop step (cluster selected, intent confirmed, verdicts,
+    selection, completions, outcome). INSERT + SELECT only — no updates,
+    no deletes. Types map 1:1 to future KO types.
+    """
+
+    __tablename__ = "mem_events"
+
+    id = Column(String, primary_key=True)
+    loop_id = Column(String, nullable=False, index=True)
+    type = Column(String, nullable=False, index=True)
+    actor = Column(String, nullable=False)
+    payload_json = Column(Text, nullable=True)  # JSON object
+    ts = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+
+
 class LoopTemplate(Base):
     """User-created guided loop definitions (stage list + coach copy)."""
 

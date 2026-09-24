@@ -243,7 +243,7 @@ if (HubClient.embedded) {
 // data-font (from the appearance post, the parent hub, or localStorage).
 (function applyHubTypeface() {
   const OK = /^(lato|plex|source|mono)$/;
-  const HREF = 'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;600;700&family=Lato:wght@400;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap';
+  const HREF = 'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=Lato:wght@400;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap';
   if (!document.getElementById('hub-font-link')) {
     const link = document.createElement('link');
     link.id = 'hub-font-link';

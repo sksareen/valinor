@@ -55,6 +55,9 @@ allowed_origins = [
     "https://savar.ai",
     "https://www.savar.ai",
     "https://savarsareen.vercel.app",
+    "https://app.tryvalinor.com",
+    "https://tryvalinor.com",
+    "https://api.tryvalinor.com",
 ]
 
 # Allow all localhost/127.0.0.1 origins (any port) for development
@@ -294,10 +297,18 @@ try:
     from routes_runs import router as runs_router
     from routes_loops import router as loops_router
     from routes_events import router as events_router
+    from routes_memtrace import router as memtrace_router
+    from routes_jev import router as jev_router
+    from routes_deck import router as deck_router
+    from routes_muse import router as muse_router
 
     app.include_router(runs_router)
     app.include_router(loops_router)
     app.include_router(events_router)
+    app.include_router(memtrace_router)
+    app.include_router(jev_router)
+    app.include_router(deck_router)
+    app.include_router(muse_router)
     _static_dir = Path(__file__).parent / "static"
     if _static_dir.is_dir():
         app.mount("/static", StaticFiles(directory=str(_static_dir)), name="static")

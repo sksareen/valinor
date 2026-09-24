@@ -41,7 +41,7 @@
 <link rel="icon" href="/favicon.png" type="image/png" />
 <title>VALINOR</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;600;700&family=Lato:wght@400;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=Lato:wght@400;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -851,7 +851,7 @@
     <hr />
     <div class="row">
       <div class="lbl">Valinor memory</div>
-      <div class="hint">Val’s notes file (valinor.md). Same file as Live → Memory. Path from VALINOR_MEMORY_PATH or ~/Savar/memory/valinor.md.</div>
+      <div class="hint">Val’s notes file (valinor.md). Same file as Live → Memory. Path from VALINOR_MEMORY_PATH.</div>
       <div class="doc-block">
         <div class="doc-row">
           <div class="dk">Path</div>
@@ -1269,23 +1269,23 @@ window.hubShared = {
 // One entry per view. Same src = same iframe (BREATHE shares breathe.html), so
 // switching between them is instant; `mode` is posted to the HUD via hub-client.
 // Canonical vocabulary: tab label = file stem = button verb
-// (PLAN=plan.html, CAPTURE=capture.html, WRITING=writing.html, LEARN=learn.html,
+// (LOOP=loop.html, WRITING=writing.html, LEARN=learn.html,
 // BRICK BREAKER=breaker.html, BREATHE=breathe.html). Old keys/srcs migrate below.
 const TAB_ORDER_KEY = 'hub-tab-order';
 const TAB_HIDDEN_KEY = 'hub-tab-hidden';
 const DEFAULT_HIDDEN = ['loops', 'factory', 'board', 'rehearse', 'adventures', 'oss', 'logact', 'buzz'];
-const KEY_ALIASES = { live: 'plan', ingest: 'capture', ingrain: 'learn', waves: 'breaker' };
+// deck/plan/capture/execute/review were superseded by loop.html and moved to
+// archive/. Legacy stored keys for them resolve to the loop tab.
+const KEY_ALIASES = { live: 'loop', ingest: 'loop', deck: 'loop', plan: 'loop',
+  capture: 'loop', execute: 'loop', review: 'loop', ingrain: 'learn', waves: 'breaker' };
 const SRC_ALIASES = {
-  'live.html': 'plan.html', 'ingest.html': 'capture.html', 'letters.html': 'writing.html',
+  'letters.html': 'writing.html',
   'ingrain.html': 'learn.html', 'index.html': 'breaker.html', 'hud.html': 'breathe.html',
 };
 const DEFAULT_VIEWS = [
+  { key: 'loop',     label: 'LOOP',     src: 'loop.html' },
   { key: 'loops',    label: 'LOOPS',    src: '/loops?embed=1', external: true },
   { key: 'factory',  label: 'FACTORY',  src: 'http://localhost:3000', external: true },
-  { key: 'plan',     label: 'PLAN',     src: 'plan.html' },
-  { key: 'capture',  label: 'CAPTURE',  src: 'capture.html', framed: true },
-  { key: 'execute',  label: 'EXECUTE',  src: 'execute.html' },
-  { key: 'review',   label: 'REVIEW',   src: 'review.html' },
   { key: 'board',    label: 'BOARD',    src: 'board.html' },
   { key: 'draw',     label: 'DRAW',     src: 'draw.html', framed: true },
   { key: 'writing',  label: 'WRITING',  src: 'writing.html', framed: true },
@@ -1305,11 +1305,19 @@ const DEFAULT_VIEWS = [
 ];
 let VIEWS = DEFAULT_VIEWS.slice();
 
+// ---- Valinor Live (hosted) override: reduced tab set, no stored order ----
+if (window.__VALINOR_LIVE__ && Array.isArray(window.__VALINOR_LIVE__.views)) {
+  DEFAULT_VIEWS.length = 0;
+  DEFAULT_VIEWS.push(...window.__VALINOR_LIVE__.views);
+  VIEWS = DEFAULT_VIEWS.slice();
+}
+
 function applyStoredTabOrder() {
   try {
     const raw = localStorage.getItem(TAB_ORDER_KEY);
     const keys = raw ? JSON.parse(raw) : null;
     if (!Array.isArray(keys) || !keys.length) { VIEWS = DEFAULT_VIEWS.slice(); return; }
+    const hadLoop = keys.indexOf('loop') >= 0;
     const byKey = new Map(DEFAULT_VIEWS.map((v) => [v.key, v]));
     const next = [];
     for (let k of keys) {
@@ -1318,6 +1326,10 @@ function applyStoredTabOrder() {
     }
     for (const v of DEFAULT_VIEWS) {
       if (byKey.has(v.key)) next.push(v);
+    }
+    if (!hadLoop) {
+      const i = next.findIndex((v) => v.key === 'loop');
+      if (i > 0) next.unshift(next.splice(i, 1)[0]);
     }
     VIEWS = next;
   } catch (e) {
@@ -1349,10 +1361,15 @@ function navTabViews() {
   return visibleViews().filter((v) => v.key !== 'settings');
 }
 function fallbackTabKey() {
-  return navTabViews()[0]?.key || 'plan';
+  if (window.__VALINOR_LIVE__) {
+    const c = VIEWS.find((v) => v.key === 'loop');
+    if (c && !hiddenKeys.has('loop')) return 'loop';
+  }
+  return navTabViews()[0]?.key || 'loop';
 }
 applyStoredTabOrder();
 let hiddenKeys = loadHiddenKeys();
+if (window.__VALINOR_LIVE__) hiddenKeys = new Set();
 
 // ---- Electron overlay bridge (no-op in a plain browser tab) ----
 const ipc = (() => { try { return window.require ? window.require('electron').ipcRenderer : null; } catch (e) { return null; } })();
@@ -1436,7 +1453,7 @@ function buildNavDrawerTabs() {
     const b = document.createElement('button');
     b.className = 'tab';
     b.textContent = v.label;
-    b.title = `${v.key} · ${v.src}`;
+    b.title = `${v.key} · ${v.src || 'coming soon'}`;
     b.dataset.key = v.key;
     b.onclick = (e) => {
       e.stopPropagation();
@@ -1802,7 +1819,7 @@ function filterPaletteViews(q) {
   return all.filter((v) =>
     v.label.toLowerCase().includes(s) ||
     v.key.toLowerCase().includes(s) ||
-    v.src.toLowerCase().includes(s));
+    (v.src || '').toLowerCase().includes(s));
 }
 
 function paletteHotkey(idx) {
@@ -1963,7 +1980,7 @@ function rebuildTabDom() {
   barScroll.querySelectorAll('.tab').forEach((t) => t.remove());
   for (const v of navTabViews()) {
     const b = document.createElement('button');
-    b.className = 'tab'; b.textContent = v.label; b.title = `${v.key} · ${v.src}`;
+    b.className = 'tab'; b.textContent = v.label; b.title = `${v.key} · ${v.src || 'coming soon'}`;
     b.dataset.key = v.key;
     b.onclick = (e) => {
       e.stopPropagation();
@@ -2248,6 +2265,37 @@ buildTabOrderUI();
 
 function postMode(f, mode) { try { f.contentWindow.postMessage({ type: 'mode', mode }, location.origin); } catch (e) {} }
 
+// ---- Valinor Live stub tabs (plan/settings render a card, no iframe) ----
+function showStub(v) {
+  for (const [s, fr] of frames) {
+    fr.classList.remove('on');
+    try { fr.contentWindow.postMessage({ type: 'active', on: false }, location.origin); } catch (e) {}
+  }
+  let card = document.getElementById('liveStub');
+  if (!card) {
+    card = document.createElement('div');
+    card.id = 'liveStub';
+    card.tabIndex = -1;
+    host.appendChild(card);
+  }
+  const stub = v.stub || {};
+  card.innerHTML =
+    `<div class="live-stub-card"><div class="live-stub-kicker">${v.label}</div>` +
+    `<h1>${stub.title || v.label}</h1><p>${stub.note || 'Available on the Mac build.'}</p></div>`;
+  card.classList.add('on');
+  for (const b of bar.querySelectorAll('.tab')) b.classList.toggle('on', b.dataset.key === v.key);
+  if (settingsBtn) {
+    settingsBtn.classList.toggle('on', v.key === 'settings');
+    if (v.key === 'settings') settingsBtn.setAttribute('aria-current', 'page');
+    else settingsBtn.removeAttribute('aria-current');
+  }
+  syncDrawerTabStates();
+  updateDrawerBarTabs();
+  document.title = `VALINOR — ${v.label}`;
+  location.hash = v.key;
+  card.focus({ preventScroll: true });
+}
+
 function show(key) {
   if (key === 'system') {
     setSysOverlayOpen(true);
@@ -2257,6 +2305,9 @@ function show(key) {
   if (KEY_ALIASES[key]) key = KEY_ALIASES[key];
   const v = VIEWS.find(x => x.key === key) || VIEWS.find(x => x.key === fallbackTabKey()) || VIEWS[0];
   active = v;
+  const stubCard = document.getElementById('liveStub');
+  if (stubCard) stubCard.classList.remove('on');
+  if (v.stub) return showStub(v);
   if (!frames.has(v.src)) {
     const f = document.createElement('iframe');
     f.src = v.src;
@@ -2761,7 +2812,7 @@ window.hubCursor = HubCursor.init({
   },
 });
 </script>
-<!-- always-there voice ingest bubble (hold ` to talk → refine → plan → ~/Savar/memory/ingest) -->
+<!-- always-there voice ingest bubble (hold ` to talk → refine → plan → INGEST_DIR) -->
 <script src="capture-bubble.js"></script>
 </body>
 </html>

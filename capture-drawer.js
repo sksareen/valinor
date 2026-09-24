@@ -596,7 +596,7 @@
         } else {
           handoff();
           markSent(btn, 'in Plan', it, 'agent');
-          location.href = '/plan.html';
+          location.href = '/loop.html';
         }
       } catch (e) {
         errEl.textContent = String((e && e.message) || e);

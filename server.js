@@ -58,6 +58,25 @@ const tts = require('./tts-server');
 hwSampler.start();
 
 const ROOT = __dirname;
+// .env must load before BIND/PORT/GATE — those consts are captured once.
+function loadEnvFile(filePath) {
+  try {
+    const text = fs.readFileSync(filePath, 'utf8');
+    for (const line of text.split(/\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eq = trimmed.indexOf('=');
+      if (eq < 1) continue;
+      const key = trimmed.slice(0, eq).trim();
+      let val = trimmed.slice(eq + 1).trim();
+      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+        val = val.slice(1, -1);
+      }
+      process.env[key] = val;
+    }
+  } catch { /* no .env is fine */ }
+}
+loadEnvFile(path.join(ROOT, '.env'));
 const LETTERS = path.join(ROOT, 'letters');
 const LETTER_HIST = path.join(LETTERS, '.history');
 const LETTER_HIST_CAP = 50;
@@ -74,8 +93,10 @@ function readLetterHist(file) {
     return Array.isArray(raw) ? raw : [];
   } catch { return []; }
 }
-const PORT = 4777;
+const PORT = Number(process.env.VALINOR_PORT) || 4777;
 const BIND = process.env.VALINOR_BIND || process.env.HUDHUB_BIND || '127.0.0.1';
+// Shared gate secret for the hosted build (Valinor Live). Unset = open (local dev).
+const GATE = process.env.VALINOR_GATE || '';
 const SAURON_BIN = process.env.SAURON_BIN || path.join(os.homedir(), 'go', 'bin', 'sauron');
 
 async function buildServerInfo() {
@@ -94,7 +115,7 @@ async function buildServerInfo() {
       { key: 'Drafts / CRM', value: path.join(ROOT, '{drafts,crm,message-profile}.json'), note: 'Gitignored; messages tab' },
       { key: 'Letters', value: LETTERS, note: 'Markdown letters (gitignored)' },
       { key: 'Plan session', value: getSessionPath(), note: 'live-session.jsonl' },
-      { key: 'Valinor memory', value: valinorMemoryPath(), note: 'valinor.md — VALINOR_MEMORY_PATH or ~/Savar/memory' },
+      { key: 'Valinor memory', value: valinorMemoryPath(), note: 'valinor.md — VALINOR_MEMORY_PATH or VALINOR_MEMORY_PATH' },
       { key: 'Agent usage', value: usage.logPath || path.join(ROOT, 'agent-usage.jsonl'), note: 'OpenRouter call log' },
       { key: 'Loopkeeper', value: path.join(ROOT, 'loopkeeper/*.db'), note: 'LOOPS tab databases' },
       { key: 'Browser prefs', value: 'localStorage', note: 'Hub look, INGRAIN SRS, rehearse scripts' },
@@ -396,7 +417,7 @@ const PROXIED_APPS = [
   {
     name: 'loopkeeper',
     base: process.env.LOOPKEEPER_URL || `http://127.0.0.1:${LOOPKEEPER_PORT}`,
-    paths: ['/loops', '/static/', '/guided-runs/', '/runs', '/events'],
+    paths: ['/loops', '/static/', '/guided-runs/', '/runs', '/events', '/api/mem', '/api/jev', '/api/deck', '/api/connectors'],
     startHint: 'bundled under ./loopkeeper — restart npm run server (or LOOPKEEPER_URL=…)',
     managed: !process.env.LOOPKEEPER_URL,
   },
@@ -418,10 +439,17 @@ function proxyTo(app, req, res) {
     port: base.port || (base.protocol === 'https:' ? 443 : 80),
     path: target.pathname + target.search,
     method: req.method,
-    headers: { ...req.headers, host: base.host },
+    headers: {
+      ...req.headers,
+      host: base.host,
+      'x-forwarded-host': req.headers.host || '',
+      'x-forwarded-proto': req.headers['x-forwarded-proto'] || 'http',
+    },
   }, (pres) => {
     const hdrs = { ...pres.headers };
     delete hdrs['transfer-encoding'];
+    hdrs['access-control-allow-origin'] = '*';
+    hdrs['access-control-allow-headers'] = 'Content-Type, X-Valinor-Key';
     res.writeHead(pres.statusCode || 502, hdrs);
     pres.pipe(res);
   });
@@ -447,7 +475,10 @@ function ensureLoopkeeperVenv() {
     console.log('Loopkeeper: creating venv + installing requirements (one-time)…');
     const venvDir = path.join(LOOPKEEPER_DIR, 'venv');
     // Prefer 3.12 — pinned FastAPI/pydantic wheels fail on newer system Python (e.g. 3.14).
-    const pyCandidates = ['python3.12', 'python3.11', 'python3'];
+    const pyCandidates = [
+      '/usr/bin/python3.12', '/usr/bin/python3.11', '/usr/bin/python3',
+      'python3.12', 'python3.11', 'python3',
+    ];
     const tryNext = (i) => {
       if (i >= pyCandidates.length) {
         reject(new Error('no python3.12/3.11/3 found for Loopkeeper venv'));
@@ -544,26 +575,6 @@ async function startManagedLoopkeeper() {
 process.on('exit', () => { stopLoopkeeper(); tts.stop(); });
 process.on('SIGINT', () => { stopLoopkeeper(); tts.stop(); process.exit(0); });
 process.on('SIGTERM', () => { stopLoopkeeper(); tts.stop(); process.exit(0); });
-
-// ---- zero-dep .env reader (.env wins over inherited shell env) ----
-function loadEnvFile(filePath) {
-  try {
-    const text = fs.readFileSync(filePath, 'utf8');
-    for (const line of text.split(/\n/)) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith('#')) continue;
-      const eq = trimmed.indexOf('=');
-      if (eq < 1) continue;
-      const key = trimmed.slice(0, eq).trim();
-      let val = trimmed.slice(eq + 1).trim();
-      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
-        val = val.slice(1, -1);
-      }
-      // Prefer project .env over a stale exported shell key (common OpenRouter footgun).
-      process.env[key] = val;
-    }
-  } catch { /* no .env is fine */ }
-}
 
 loadEnvFile(path.join(ROOT, '.env'));
 {
@@ -818,9 +829,37 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(204, {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Content-Type, X-Valinor-Key, Authorization, X-Muse-Key',
     });
     res.end();
+    return;
+  }
+
+  // Open liveness probe (infra health checks; carries no data).
+  if (url === '/healthz') {
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.end(JSON.stringify({ ok: true }));
+    return;
+  }
+
+  // ---- Valinor Live gate: everything else needs the shared secret ----
+  // Muse inbound uses its own key so it can POST without the preview password.
+  const museKey = process.env.MUSE_INBOUND_KEY || '';
+  const museAuth = String(req.headers.authorization || '');
+  const museBearer = museAuth.toLowerCase().startsWith('bearer ') ? museAuth.slice(7).trim() : '';
+  const museHeader = String(req.headers['x-muse-key'] || '');
+  const museInbound = Boolean(museKey) && url.startsWith('/api/connectors/muse')
+    && (museBearer === museKey || museHeader === museKey);
+  if (GATE && req.headers['x-valinor-key'] !== GATE && !museInbound) {
+    res.writeHead(401, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.end(JSON.stringify({ ok: false, error: 'missing or wrong X-Valinor-Key' }));
+    return;
+  }
+
+  // Gated self-check — the hosted gate screen verifies passwords against this.
+  if (url === '/api/whoami' && req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.end(JSON.stringify({ ok: true, live: Boolean(GATE) }));
     return;
   }
 
@@ -2376,11 +2415,13 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  // static files (default to the hub)
-  let rel = url === '/' ? '/hub.html' : url;
+  // static files (default to the loop; old hub stays at /hub.html)
+  let rel = url === '/' ? '/loop.html' : url;
   try { rel = decodeURIComponent(rel); } catch { send(res, 400, 'bad path', 'text/plain'); return; }
   const fp = path.normalize(path.join(ROOT, rel));
   if (!fp.startsWith(ROOT + path.sep) && fp !== ROOT) { send(res, 403, 'forbidden', 'text/plain'); return; }
+  // Never serve dotfiles statically (.env holds keys; .git holds history).
+  if (path.basename(fp).startsWith('.')) { send(res, 403, 'forbidden', 'text/plain'); return; }
   fs.readFile(fp, (e, d) => {
     if (e) { send(res, 404, 'not found', 'text/plain'); return; }
     send(res, 200, d, MIME[path.extname(fp)] || 'application/octet-stream');
@@ -2388,7 +2429,9 @@ const server = http.createServer(async (req, res) => {
 });
 
 (async () => {
-  try {
+  if (process.env.VALINOR_SKIP_LOOPKEEPER === '1') {
+    console.log('Loopkeeper: skipped (VALINOR_SKIP_LOOPKEEPER=1)');
+  } else try {
     await startManagedLoopkeeper();
   } catch (e) {
     console.warn('Loopkeeper failed to start:', e && e.message ? e.message : e);
@@ -2402,10 +2445,12 @@ const server = http.createServer(async (req, res) => {
       (process.env.OPENROUTER_API_KEY ? '  (OpenRouter key loaded)' : '  (OPENROUTER_API_KEY missing — agent will error clearly)'),
     );
     // Warm Kitten TTS in the background (first run downloads ~80MB). Live falls back
-    // to browser speechSynthesis until ready.
-    setTimeout(() => {
-      tts.startManaged().catch((e) => console.warn('Kitten TTS:', e && e.message ? e.message : e));
-    }, 500);
+    // to browser speechSynthesis until ready. Skip with VALINOR_SKIP_TTS=1.
+    if (process.env.VALINOR_SKIP_TTS !== '1') {
+      setTimeout(() => {
+        tts.startManaged().catch((e) => console.warn('Kitten TTS:', e && e.message ? e.message : e));
+      }, 500);
+    }
     // Pull Apple Notes (incl. phone notes via iCloud) into the ingest store on boot.
     // Non-blocking; first run may trigger a macOS Automation permission prompt. Disable
     // with INGEST_APPLE_NOTES_SYNC=0. Manual re-sync lives on the INGEST view button.
