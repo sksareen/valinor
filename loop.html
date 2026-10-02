@@ -83,6 +83,19 @@
   .kobadge{font-size:12px; color:var(--ink-faint); font-weight:600; background:var(--surface);
     border:1px solid var(--line); border-radius:99px; padding:5px 11px}
   .kobadge b{color:var(--iris-ink)}
+  .fieldlink{font-size:12px; font-weight:600; color:var(--iris-ink); text-decoration:none; padding:5px 10px;
+    border-radius:999px; background:var(--iris-soft)}
+  .fieldlink:hover{filter:brightness(1.08)}
+  .fieldcard{display:flex; align-items:center; gap:14px; margin-top:18px; padding:14px 16px; border-radius:var(--r-lg);
+    background:var(--surface); box-shadow:inset 0 0 0 1.5px var(--line); color:var(--ink); text-decoration:none;
+    transition:box-shadow .2s var(--ease), transform .2s var(--ease)}
+  .fieldcard:hover{box-shadow:inset 0 0 0 1.5px var(--iris); transform:translateY(-1px)}
+  .fieldcard img{width:44px; height:44px; border-radius:12px; flex:none}
+  .fieldcard .fc-t{flex:1; min-width:0}
+  .fieldcard b{display:block; font-size:15px; color:var(--ink)}
+  .fieldcard span{display:block; font-size:13px; color:var(--ink-soft)}
+  .fieldcard .fc-new{font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--iris-ink);
+    background:var(--iris-soft); padding:3px 8px; border-radius:999px; flex:none}
   .theme{border:none; background:var(--surface); box-shadow:var(--shadow); color:var(--ink-soft);
     width:34px; height:34px; border-radius:10px; cursor:pointer; font-size:15px; display:grid; place-items:center;
     transition:transform .2s var(--spring)}
@@ -577,6 +590,7 @@
   <div class="top">
     <div class="logo" id="logoBtn" title="home"><span class="mark"></span>Valinor <small>loop</small></div>
     <div class="toprt">
+      <a class="fieldlink" href="/field.html" target="_top" title="Roam your tasks as a map">Field</a>
       <span class="kobadge" id="koBadge" title="completed loops"><b id="koCount">0</b> saved</span>
       <button class="theme" id="settingsBtn" aria-label="settings"></button>
       <button class="theme" id="themeBtn" aria-label="toggle theme"></button>
@@ -594,6 +608,11 @@
       <div class="fstage"><span class="fdot" data-ic="check-circle"></span><div class="ft"><b>Nothing evaporates</b></div></div>
     </div>
     <div class="nav pair"><button class="btn iris" data-go="1">Start mission</button><button class="btn ghost" type="button" data-past>Past missions</button></div>
+    <a class="fieldcard" href="/field.html" target="_top">
+      <img src="/icons/field-192.png" alt="">
+      <span class="fc-t"><b>Try Field</b><span>Roam your projects and tasks as a map. Steer into one to act on it.</span></span>
+      <span class="fc-new">New</span>
+    </a>
   </section>
 
   <!-- 1 CAPTURE -->
