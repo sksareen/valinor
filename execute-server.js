@@ -54,6 +54,8 @@ function backfill(t) {
   if (!('prestaged_ref' in t)) t.prestaged_ref = null;
   if (!('scheduled_block' in t)) t.scheduled_block = null;
   if (!('parentTaskId' in t)) t.parentTaskId = null;
+  // Free-text project label — the FIELD view clusters tasks by it.
+  if (!('project' in t)) t.project = null;
   // Time blocks (break / meal / focus) reuse the task row so scheduling,
   // drag-move, and history work uniformly. blockKind rows live ONLY on the
   // calendar — the backlog column filters them out.
@@ -233,7 +235,7 @@ function fillSourceContext({ sourceIngestId, sourceTitle, sourceBody } = {}) {
   return { title, body };
 }
 
-function createTask({ title, outcome, sourceIngestId, comment, kind, why, intent, action_type, duration_bucket, sourceTitle, sourceBody, parentTaskId, blockKind, scheduled_block } = {}) {
+function createTask({ title, outcome, sourceIngestId, comment, kind, why, intent, action_type, duration_bucket, sourceTitle, sourceBody, parentTaskId, blockKind, scheduled_block, project } = {}) {
   const outcomeText = String(outcome || '').trim();
   const titleText = String(title || outcomeText || '').trim();
   if (!titleText && !outcomeText) {
@@ -279,6 +281,7 @@ function createTask({ title, outcome, sourceIngestId, comment, kind, why, intent
     prestaged_ref: null,
     scheduled_block: null,
     parentTaskId: String(parentTaskId || '').trim() || null,
+    project: String(project || '').trim().slice(0, 80) || null,
     blockKind: block,
     state_history: [{ state: 'backlog', at: created }],
     outcome_meta: null,
@@ -336,7 +339,7 @@ function mutate(id, fn) {
 // Generic edit: title/outcome/bucket edits, appending a comment, and (un)scheduling.
 // scheduled_block is either null (clear) or { date:'YYYY-MM-DD', start:'HH:MM', end:'HH:MM' }.
 // Every real field change is appended to edit_history (capped) with before → after.
-function updateTask(id, { title, outcome, comment, scheduled_block, duration_bucket } = {}) {
+function updateTask(id, { title, outcome, comment, scheduled_block, duration_bucket, project } = {}) {
   return mutate(id, (t) => {
     const at = new Date().toISOString();
     const logEdit = (field, before, after) => {
@@ -364,6 +367,11 @@ function updateTask(id, { title, outcome, comment, scheduled_block, duration_buc
       const v = db || null;
       logEdit('duration_bucket', t.duration_bucket, v);
       t.duration_bucket = v;
+    }
+    if (project !== undefined) {
+      const v = String(project || '').trim().slice(0, 80) || null;
+      logEdit('project', t.project, v);
+      t.project = v;
     }
     const c = String(comment || '').trim();
     if (c) t.comments = [...(t.comments || []), { ts: new Date().toISOString(), text: c }];

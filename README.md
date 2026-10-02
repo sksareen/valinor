@@ -60,6 +60,7 @@ proxies its own APIs to the Ashram backend on `:3777`.
 | `hub.html` | Shell — camera/mic + shared tracker; tabs, **⌘P** command palette, nav classic/drawer, clock+geo tip (click to copy), settings / restart |
 | `/loops?embed=1` | **LOOPS** — Loopkeeper (bundled child on `:18003`) |
 | `http://localhost:3000` | **FACTORY** — Ashram Next.js UI; needs backend `:3777` + UI `:3000` |
+| `field.html` | **FIELD** — mobile PWA: tasks as an agar.io-style world (projects = clusters, tasks = pellets); `/field` |
 | `plan.html` | Plan session / dictate surface (tab PLAN) |
 | `activity.html` | Machine + activity feed (hw strip, Sauron-aware) |
 | `board.html` | Spatial notes — infinite canvas; voice → agent |
@@ -124,6 +125,24 @@ Apache License 2.0 — see `LICENSE`.
 ## Updates
 
 Newest first. Add a line here with each meaningful push.
+
+### 2026-10-02
+- **FIELD — tasks as a 2D world, built as a mobile PWA** (`field.html`, also `/field`):
+  you're a cell roaming an agar.io-style field. Projects are clusters (spiral layout,
+  oldest in the middle), EXECUTE tasks are pellets inside them colored by status,
+  and ingest suggestions drift loose between clusters. Drag anywhere for a floating
+  joystick, tap a task to glide to it, pinch to zoom, tap the minimap to travel
+  (WASD/arrows + wheel on desktop). Touching a pellet opens a bottom sheet with that
+  task's next move: keep/let go (suggestion), start, snap a photo proof → review,
+  answer the question → done. Closing tasks grows your cell, and a bigger cell sees
+  further. ＋ drops a new task into the cluster you're in.
+  - **Projects**: tasks gain an optional `project` field (create + PATCH). Without it a
+    task clusters under its root parent task, else "Loose ends".
+  - **PWA**: `field.webmanifest` + `field-sw.js` (network-first, scoped to FIELD's
+    shell and `GET /api/execute` so the last task list shows offline) + home-screen
+    icons in `icons/`. With no server and no cache it falls back to a playable demo field.
+  - Install on a phone needs HTTPS (or localhost): expose with `VALINOR_BIND=0.0.0.0`
+    behind an HTTPS tunnel such as `tailscale serve`.
 
 ### 2026-09-12
 - **EXECUTE — scrubbed the Wave 1 time-boxed flow**: the "I have N minutes" ranked surface,

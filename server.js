@@ -613,6 +613,7 @@ const MIME = {
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
   '.webp': 'image/webp',
+  '.webmanifest': 'application/manifest+json',
 };
 
 const CURSOR_SHOT_NAME = '.tmp-activity-cursor';
@@ -2416,7 +2417,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   // static files (default to the loop; old hub stays at /hub.html)
-  let rel = url === '/' ? '/loop.html' : url;
+  let rel = url === '/' ? '/loop.html' : url === '/field' ? '/field.html' : url;
   try { rel = decodeURIComponent(rel); } catch { send(res, 400, 'bad path', 'text/plain'); return; }
   const fp = path.normalize(path.join(ROOT, rel));
   if (!fp.startsWith(ROOT + path.sep) && fp !== ROOT) { send(res, 403, 'forbidden', 'text/plain'); return; }
